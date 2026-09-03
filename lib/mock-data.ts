@@ -1,5 +1,5 @@
 import { Product } from "./types";
-
+export type { Product } from "./types";
 // Dados de exemplo. Na Fase 2, isso será substituído por consultas
 // reais ao Supabase (tabela `products` + `product_variants`).
 export const PRODUCTS: Product[] = [
