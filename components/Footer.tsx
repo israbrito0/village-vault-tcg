@@ -1,7 +1,10 @@
+import TrustBadges from "./TrustBadges";
+
 export default function Footer() {
   return (
-    <footer className="mt-10 border-t border-card-border px-5 py-8 text-[11px] text-muted">
-      <div className="mx-auto max-w-7xl grid gap-6 sm:grid-cols-3">
+    <footer className="mt-10 text-[11px] text-muted">
+      <TrustBadges />
+      <div className="mx-auto max-w-7xl grid gap-6 px-5 py-8 sm:grid-cols-3">
         <div>
           <p className="font-display mb-2 text-gold">VILLAGE &amp; VAULT</p>
           <p>Cartas e produtos selados de Pokémon, Magic e outros TCGs.</p>
