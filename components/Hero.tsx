@@ -58,7 +58,7 @@ export default function Hero() {
           </defs>
 
           {/* Asas estilizadas */}
-          <g fill="#5C4E1E" opacity="0.55">
+          <g fill="#7A5F26" opacity="0.9" stroke="#C9A227" strokeWidth="1" strokeOpacity="0.5">
             <path d="M200 130 C235 100 270 85 320 78 C305 108 320 122 350 118 C330 142 338 160 362 172 C332 176 322 196 340 214 C308 202 292 214 274 200 C262 218 234 214 214 190 Z" />
             <g transform="translate(400,0) scale(-1,1)">
               <path d="M200 130 C235 100 270 85 320 78 C305 108 320 122 350 118 C330 142 338 160 362 172 C332 176 322 196 340 214 C308 202 292 214 274 200 C262 218 234 214 214 190 Z" />
