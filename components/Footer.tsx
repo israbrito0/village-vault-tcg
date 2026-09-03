@@ -1,9 +1,11 @@
 import TrustBadges from "./TrustBadges";
+import FooterNav from "./FooterNav";
 
 export default function Footer() {
   return (
     <footer className="mt-10 text-[11px] text-muted">
       <TrustBadges />
+      <FooterNav />
       <div className="mx-auto max-w-7xl grid gap-6 px-5 py-8 sm:grid-cols-3">
         <div>
           <p className="font-display mb-2 text-gold">VILLAGE &amp; VAULT</p>
