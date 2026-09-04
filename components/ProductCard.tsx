@@ -15,7 +15,7 @@ export default function ProductCard({ product }: { product: Product }) {
   return (
     <Link
       href={`/produto/${product.slug}`}
-      className="group block w-[150px] shrink-0 rounded-md border border-card-border bg-card p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-dim hover:shadow-[0_0_24px_-6px_rgba(201,162,39,0.35)] sm:w-auto"
+      className="group block w-full rounded-md border border-card-border bg-card p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-gold-dim hover:shadow-[0_0_24px_-6px_rgba(201,162,39,0.35)]"
     >
       <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded border border-card-border bg-ink">
         {discount && (
@@ -28,7 +28,7 @@ export default function ProductCard({ product }: { product: Product }) {
           alt={product.name}
           fill
           className="object-cover transition-transform duration-500 group-hover:scale-105"
-          sizes="150px"
+          sizes="(min-width: 640px) 220px, 150px"
         />
       </div>
       <p className="truncate text-[11px] text-cream">{product.name}</p>
