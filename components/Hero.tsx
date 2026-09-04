@@ -2,23 +2,23 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section
-      className="relative mx-5 my-5 overflow-hidden rounded-lg border border-card-border bg-ink"
-      style={{ aspectRatio: "1600 / 620" }}
-    >
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        poster="/hero-poster.jpg"
-        className="absolute inset-0 h-full w-full object-cover"
-      >
-        <source src="/hero-video.mp4" type="video/mp4" />
-      </video>
-      <div className="absolute inset-0 bg-gradient-to-r from-ink/85 via-ink/25 to-transparent" />
+    <section className="relative mx-5 my-5 overflow-hidden rounded-lg border border-card-border bg-ink sm:aspect-[1600/620]">
+      <div className="relative sm:absolute sm:inset-0">
+        <video
+          autoPlay
+          loop
+          muted
+          playsInline
+          poster="/hero-poster.jpg"
+          className="block h-auto w-full object-cover sm:h-full"
+          style={{ aspectRatio: "1600 / 620" }}
+        >
+          <source src="/hero-video.mp4" type="video/mp4" />
+        </video>
+      </div>
+      <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-ink/85 via-ink/25 to-transparent sm:block" />
 
-      <div className="relative z-10 flex h-full flex-col justify-center px-6 sm:max-w-sm sm:px-8">
+      <div className="relative z-10 px-6 py-6 sm:absolute sm:inset-0 sm:flex sm:h-full sm:max-w-sm sm:flex-col sm:justify-center sm:px-8 sm:py-0">
         <div className="motion-safe:animate-fade-in-up">
           <h1 className="font-display text-xl leading-snug text-cream sm:text-2xl">
             Toda coleção começa
