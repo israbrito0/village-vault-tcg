@@ -4,9 +4,9 @@ import Link from "next/link";
 export default function Header() {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
-      <Link href="/" className="flex items-center gap-2.5 whitespace-nowrap">
-        <Image src="/logo.jpg" alt="Village & Vault TCG" width={64} height={64} className="rounded-full" />
-        <span className="font-display text-base font-semibold tracking-wider text-gold">
+      <Link href="/" className="flex items-center gap-3 whitespace-nowrap">
+        <Image src="/logo.jpg" alt="Village & Vault TCG" width={92} height={92} className="rounded-full" />
+        <span className="font-display text-lg font-semibold tracking-wider text-gold">
           VILLAGE &amp; VAULT
         </span>
       </Link>
