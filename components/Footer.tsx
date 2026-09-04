@@ -1,58 +1,58 @@
-"use client";
+import Image from "next/image";
+import TrustBadges from "./TrustBadges";
 
-import Link from "next/link";
-import { useState } from "react";
-import { GAMES, SUBCATEGORIES } from "@/lib/types";
-
-const SECONDARY_LINKS = [
-  { label: "Acessórios", href: "/catalogo?subcategoria=colecionaveis" },
-  { label: "Torneios", href: "/torneios" },
-  { label: "Dúvidas frequentes", href: "/faq" },
-];
-
-export default function MegaMenu() {
-  const [openGame, setOpenGame] = useState<string | null>(null);
-
+export default function Footer() {
   return (
-    <nav className="relative bg-gold">
-      <div className="mx-auto flex max-w-7xl flex-wrap gap-5 px-5 py-2.5 text-[11px] font-medium tracking-wide text-ink">
-        {GAMES.map((game) => (
-          <div
-            key={game.slug}
-            className="relative"
-            onMouseEnter={() => setOpenGame(game.slug)}
-            onMouseLeave={() => setOpenGame(null)}
-          >
-            <Link
-              href={`/catalogo?jogo=${game.slug}`}
-              className="flex items-center gap-1 uppercase hover:underline"
-            >
-              {game.label}
-              <span className="text-[9px]">▾</span>
-            </Link>
-            {openGame === game.slug && (
-              <div className="absolute left-0 top-full z-20 w-64 border border-card-border bg-card py-2 shadow-lg">
-                {SUBCATEGORIES.map((sub) => (
-                  <Link
-                    key={sub.slug}
-                    href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
-                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-ink hover:text-gold"
-                  >
-                    {sub.label}
-                  </Link>
-                ))}
-              </div>
-            )}
+    <footer className="mt-10 text-[11px] text-muted">
+      <TrustBadges />
+
+      <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:grid-cols-3">
+        <div>
+          <div className="mb-3 flex items-center gap-2">
+            <Image src="/logo.jpg" alt="Village & Vault TCG" width={28} height={28} className="rounded-full" />
+            <p className="font-display text-sm tracking-wide text-gold">VILLAGE &amp; VAULT</p>
           </div>
-        ))}
+          <p className="leading-relaxed">
+            Cartas e produtos selados de Pokémon, Magic e outros TCGs, com condição e
+            estoque verificados.
+          </p>
+        </div>
+
+        <div>
+          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold">
+            Atendimento
+          </p>
+          <p className="leading-relaxed">
+            Segunda a sábado, 09:00 - 20:00
+            <br />
+            contato@villageandvault.com.br
+          </p>
+        </div>
+
+        <div>
+          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold">
+            Institucional
+          </p>
+          <ul className="space-y-1.5">
+            <li>
+              <a href="/faq" className="transition-colors hover:text-gold">
+                Perguntas frequentes
+              </a>
+            </li>
+            <li>
+              <a href="/trocas" className="transition-colors hover:text-gold">
+                Trocas e devoluções
+              </a>
+            </li>
+          </ul>
+        </div>
       </div>
-      <div className="mx-auto flex max-w-7xl flex-wrap gap-4 border-t border-ink/15 px-5 py-2 text-[10px] font-medium text-ink/80">
-        {SECONDARY_LINKS.map((link) => (
-          <Link key={link.label} href={link.href} className="hover:underline">
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
+
+      <p className="mx-auto max-w-7xl border-t border-card-border px-5 py-5 text-[9px] text-muted/70">
+        Pokémon TCG, Magic: The Gathering, Yu-Gi-Oh!, One Piece Card Game e Disney Lorcana
+        são marcas registradas de seus respectivos detentores. Village &amp; Vault não é afiliada
+        a essas empresas.
+      </p>
+    </footer>
   );
 }
