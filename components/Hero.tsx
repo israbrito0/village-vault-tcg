@@ -10,7 +10,7 @@ export default function Hero() {
           muted
           playsInline
           poster="/hero-poster.jpg"
-          className="block aspect-[4/3] w-full object-cover sm:aspect-auto sm:h-full"
+          className="block aspect-[1024/460] w-full object-cover sm:aspect-auto sm:h-full"
         >
           <source src="/hero-video.mp4" type="video/mp4" />
         </video>
