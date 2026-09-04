@@ -35,7 +35,9 @@ export default function ProductCarousel({
         className="no-scrollbar flex gap-3 overflow-x-auto sm:grid sm:grid-cols-4 sm:overflow-visible lg:grid-cols-6"
       >
         {products.map((product) => (
-          <ProductCard key={product.id} product={product} />
+          <div key={product.id} className="w-[150px] shrink-0 sm:w-auto">
+            <ProductCard product={product} />
+          </div>
         ))}
       </div>
     </section>
