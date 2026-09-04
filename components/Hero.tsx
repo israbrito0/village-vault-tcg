@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Hero() {
   return (
-    <section className="relative mx-5 my-5 overflow-hidden rounded-lg border border-card-border bg-ink sm:aspect-[1600/620]">
+    <section className="relative overflow-hidden bg-ink sm:mx-5 sm:my-5 sm:rounded-lg sm:border sm:border-card-border sm:aspect-[1600/620]">
       <div className="relative sm:absolute sm:inset-0">
         <video
           autoPlay
@@ -10,8 +10,7 @@ export default function Hero() {
           muted
           playsInline
           poster="/hero-poster.jpg"
-          className="block h-auto w-full object-cover sm:h-full"
-          style={{ aspectRatio: "1600 / 620" }}
+          className="block aspect-[4/3] w-full object-cover sm:aspect-auto sm:h-full"
         >
           <source src="/hero-video.mp4" type="video/mp4" />
         </video>
