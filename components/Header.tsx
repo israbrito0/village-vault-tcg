@@ -3,38 +3,24 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
-      <Link href="/" className="flex items-center gap-3 whitespace-nowrap">
-        <Image src="/logo.jpg" alt="Village & Vault TCG" width={92} height={92} className="rounded-full" />
-        <span className="font-display text-lg font-semibold tracking-wider text-gold">
+    <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
+      <Link href="/" className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
+        <Image
+          src="/logo.jpg"
+          alt="Village & Vault TCG"
+          width={92}
+          height={92}
+          className="h-11 w-11 rounded-full object-cover sm:h-[92px] sm:w-[92px]"
+        />
+        <span className="font-display text-sm font-semibold tracking-wider text-gold sm:text-lg">
           VILLAGE &amp; VAULT
         </span>
       </Link>
 
-      <form action="/catalogo" className="flex w-full max-w-xs flex-col gap-0.5 sm:max-w-sm">
-        <div className="flex">
-          <input
-            name="busca"
-            placeholder="Faça sua busca"
-            className="w-full rounded-l border border-card-border bg-card px-3 py-1.5 text-xs text-cream placeholder:text-muted focus:outline-none focus:border-gold"
-          />
-          <button
-            type="submit"
-            className="rounded-r bg-gold px-3 text-ink"
-            aria-label="Buscar"
-          >
-            ⌕
-          </button>
-        </div>
-        <Link href="/catalogo" className="text-[10px] text-muted hover:text-gold">
-          busca avançada
-        </Link>
-      </form>
-
-      <div className="flex items-center gap-4 whitespace-nowrap text-[11px] text-cream/80">
-        <Link href="/conta" className="flex items-center gap-2 hover:text-gold">
+      <div className="flex items-center gap-3.5 whitespace-nowrap text-[11px] text-cream/80 sm:gap-4 sm:order-3">
+        <Link href="/conta" className="flex items-center gap-2 hover:text-gold" aria-label="Entrar ou cadastrar">
           <span className="text-lg">◈</span>
-          <span className="leading-tight">
+          <span className="hidden leading-tight sm:inline">
             Faça login
             <br />
             ou cadastre-se
@@ -53,6 +39,25 @@ export default function Header() {
           </span>
         </Link>
       </div>
+
+      <form
+        action="/catalogo"
+        className="order-4 flex w-full flex-col gap-0.5 sm:order-2 sm:w-auto sm:max-w-sm sm:flex-1"
+      >
+        <div className="flex">
+          <input
+            name="busca"
+            placeholder="Faça sua busca"
+            className="w-full rounded-l border border-card-border bg-card px-3 py-1.5 text-xs text-cream placeholder:text-muted focus:outline-none focus:border-gold"
+          />
+          <button type="submit" className="rounded-r bg-gold px-3 text-ink" aria-label="Buscar">
+            ⌕
+          </button>
+        </div>
+        <Link href="/catalogo" className="hidden text-[10px] text-muted hover:text-gold sm:inline">
+          busca avançada
+        </Link>
+      </form>
     </header>
   );
 }
