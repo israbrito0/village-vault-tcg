@@ -14,8 +14,8 @@ export default function MegaMenu() {
   const [openGame, setOpenGame] = useState<string | null>(null);
 
   return (
-    <nav className="relative border-t border-b border-card-border bg-card">
-      <div className="mx-auto flex max-w-7xl flex-wrap gap-5 px-5 py-2.5 text-[11px] font-medium tracking-wide text-gold">
+    <nav className="relative bg-gold">
+      <div className="mx-auto flex max-w-7xl flex-wrap gap-5 px-5 py-3 text-sm font-semibold tracking-wide text-ink">
         {GAMES.map((game) => (
           <div
             key={game.slug}
@@ -25,7 +25,7 @@ export default function MegaMenu() {
           >
             <Link
               href={`/catalogo?jogo=${game.slug}`}
-              className="flex items-center gap-1 uppercase hover:text-cream"
+              className="flex items-center gap-1 uppercase hover:underline"
             >
               {game.label}
               <span className="text-[9px]">▾</span>
@@ -36,23 +36,4 @@ export default function MegaMenu() {
                   <Link
                     key={sub.slug}
                     href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
-                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-ink hover:text-gold"
-                  >
-                    {sub.label}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-      <div className="mx-auto flex max-w-7xl flex-wrap gap-4 px-5 pb-2 text-[10px] text-muted">
-        {SECONDARY_LINKS.map((link) => (
-          <Link key={link.label} href={link.href} className="hover:text-gold">
-            {link.label}
-          </Link>
-        ))}
-      </div>
-    </nav>
-  );
-}
+                    className="block px-4 py-2 text-[11px]
