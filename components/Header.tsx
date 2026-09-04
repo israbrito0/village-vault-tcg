@@ -3,20 +3,20 @@ import Link from "next/link";
 
 export default function Header() {
   return (
-    <header className="flex flex-wrap items-center gap-4 px-5 py-4">
-      <Link href="/" className="flex items-center gap-2 whitespace-nowrap">
-        <Image src="/logo.jpg" alt="Village & Vault TCG" width={36} height={36} className="rounded-full" />
-        <span className="font-display text-sm font-semibold tracking-wider text-gold">
+    <header className="flex flex-wrap items-center justify-between gap-4 px-5 py-3">
+      <Link href="/" className="flex items-center gap-2.5 whitespace-nowrap">
+        <Image src="/logo.jpg" alt="Village & Vault TCG" width={64} height={64} className="rounded-full" />
+        <span className="font-display text-base font-semibold tracking-wider text-gold">
           VILLAGE &amp; VAULT
         </span>
       </Link>
 
-      <form action="/catalogo" className="flex min-w-[180px] flex-1 flex-col gap-0.5">
+      <form action="/catalogo" className="flex w-full max-w-xs flex-col gap-0.5 sm:max-w-sm">
         <div className="flex">
           <input
             name="busca"
             placeholder="Faça sua busca"
-            className="w-full rounded-l border border-card-border bg-card px-3 py-2 text-xs text-cream placeholder:text-muted focus:outline-none focus:border-gold"
+            className="w-full rounded-l border border-card-border bg-card px-3 py-1.5 text-xs text-cream placeholder:text-muted focus:outline-none focus:border-gold"
           />
           <button
             type="submit"
