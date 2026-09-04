@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
-import { GAMES } from "@/lib/types";
+import { useState } from "react";
+import { GAMES, SUBCATEGORIES } from "@/lib/types";
 
 const SECONDARY_LINKS = [
   { label: "Acessórios", href: "/catalogo?subcategoria=colecionaveis" },
@@ -7,31 +10,49 @@ const SECONDARY_LINKS = [
   { label: "Dúvidas frequentes", href: "/faq" },
 ];
 
-export default function FooterNav() {
+export default function MegaMenu() {
+  const [openGame, setOpenGame] = useState<string | null>(null);
+
   return (
-    <div className="bg-gold px-5 py-3">
-      <div className="mx-auto flex max-w-7xl flex-wrap gap-x-5 gap-y-1.5">
+    <nav className="relative bg-gold">
+      <div className="mx-auto flex max-w-7xl flex-wrap gap-5 px-5 py-2.5 text-[11px] font-medium tracking-wide text-ink">
         {GAMES.map((game) => (
-          <Link
+          <div
             key={game.slug}
-            href={`/catalogo?jogo=${game.slug}`}
-            className="text-[11px] font-medium uppercase tracking-wide text-ink hover:underline"
+            className="relative"
+            onMouseEnter={() => setOpenGame(game.slug)}
+            onMouseLeave={() => setOpenGame(null)}
           >
-            {game.label}
-          </Link>
+            <Link
+              href={`/catalogo?jogo=${game.slug}`}
+              className="flex items-center gap-1 uppercase hover:underline"
+            >
+              {game.label}
+              <span className="text-[9px]">▾</span>
+            </Link>
+            {openGame === game.slug && (
+              <div className="absolute left-0 top-full z-20 w-64 border border-card-border bg-card py-2 shadow-lg">
+                {SUBCATEGORIES.map((sub) => (
+                  <Link
+                    key={sub.slug}
+                    href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
+                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-ink hover:text-gold"
+                  >
+                    {sub.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
         ))}
       </div>
-      <div className="mx-auto mt-1.5 flex max-w-7xl flex-wrap gap-x-5 gap-y-1 border-t border-ink/15 pt-1.5">
+      <div className="mx-auto flex max-w-7xl flex-wrap gap-4 border-t border-ink/15 px-5 py-2 text-[10px] font-medium text-ink/80">
         {SECONDARY_LINKS.map((link) => (
-          <Link
-            key={link.label}
-            href={link.href}
-            className="text-[10px] font-medium uppercase tracking-wide text-ink/80 hover:underline"
-          >
+          <Link key={link.label} href={link.href} className="hover:underline">
             {link.label}
           </Link>
         ))}
       </div>
-    </div>
+    </nav>
   );
 }
