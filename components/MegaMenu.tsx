@@ -36,4 +36,23 @@ export default function MegaMenu() {
                   <Link
                     key={sub.slug}
                     href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
-                    className="block px-4 py-2 text-[11px]
+                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-ink hover:text-gold"
+                  >
+                    {sub.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+      <div className="mx-auto flex max-w-7xl flex-wrap gap-4 border-t border-ink/15 px-5 py-2 text-xs font-medium text-ink/80">
+        {SECONDARY_LINKS.map((link) => (
+          <Link key={link.label} href={link.href} className="hover:underline">
+            {link.label}
+          </Link>
+        ))}
+      </div>
+    </nav>
+  );
+}
