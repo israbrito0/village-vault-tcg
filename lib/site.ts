@@ -9,7 +9,7 @@ export const SITE_DESCRIPTION =
 export const SHARE_IMAGE = { url: "/hero-poster.jpg", width: 1024, height: 460, alt: SITE_NAME };
 
 // WhatsApp da loja: código do país + DDD + número, sem espaços.
-export const WHATSAPP_NUMBER = "5547999999999";
+export const WHATSAPP_NUMBER = "5582999677824";
 // Só recebe mensagens depois de contratar um serviço de email para o domínio.
 export const CONTACT_EMAIL = "contato@villagetcg.com.br";
 
