@@ -42,7 +42,7 @@ export default function Wordmark({ large = false, wings = false }: { large?: boo
       <Link href="/" className="inline-flex items-center gap-1.5 sm:gap-3">
         {wings && <Wing gradientId="vv-wing-left" className={wingSize} />}
         <span
-          className={`whitespace-nowrap font-display font-semibold tracking-wide text-ink ${
+          className={`whitespace-nowrap font-display font-extrabold tracking-wide text-ink ${
             large ? "text-2xl sm:text-4xl lg:text-5xl" : "text-xl sm:text-3xl"
           }`}
         >

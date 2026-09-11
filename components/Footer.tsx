@@ -12,7 +12,7 @@ export default function Footer() {
         <div>
           <div className="mb-3 flex items-center gap-2">
             <Image src="/logo.jpg" alt="Village & Vault TCG" width={28} height={28} className="rounded-full" />
-            <p className="font-display text-sm font-semibold tracking-wide text-ink">VILLAGE <span className="text-brand-yellow">&amp;</span> VAULT</p>
+            <p className="font-display text-sm font-extrabold tracking-wide text-ink">VILLAGE <span className="text-brand-yellow">&amp;</span> VAULT</p>
           </div>
           <p className="leading-relaxed">
             Cartas e produtos selados de Pokémon, Magic e outros TCGs, com condição e

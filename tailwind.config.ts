@@ -27,7 +27,7 @@ const config: Config = {
         "brand-yellow-text": "#A87400",
       },
       fontFamily: {
-        display: ["var(--font-cinzel)", "serif"],
+        display: ["var(--font-display)", "sans-serif"],
         sans: ["var(--font-inter)", "sans-serif"],
       },
       keyframes: {

@@ -1,19 +1,21 @@
 import type { Metadata } from "next";
-import { Cinzel, Inter } from "next/font/google";
+import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { SHARE_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
-const cinzel = Cinzel({
+// Nome da loja e títulos.
+const montserrat = Montserrat({
   subsets: ["latin"],
-  weight: ["500", "600"],
-  variable: "--font-cinzel",
+  weight: ["600", "700", "800"],
+  variable: "--font-display",
 });
 
+// Texto e botões; 600 e 700 são os pesos reais dos menus em negrito.
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
 });
 
@@ -38,7 +40,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR" className={`${cinzel.variable} ${inter.variable}`}>
+    <html lang="pt-BR" className={`${montserrat.variable} ${inter.variable}`}>
       <body className="font-sans">
         {children}
         <Footer />

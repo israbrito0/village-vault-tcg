@@ -132,7 +132,7 @@ export default function BannerFan({
               >
                 <div className="relative z-10 flex max-w-[58%] flex-col text-left">
                   <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
-                  <h3 className="mt-1 font-display text-xl leading-tight sm:text-2xl">{banner.title}</h3>
+                  <h3 className="mt-1 font-display text-xl font-extrabold leading-tight sm:text-2xl">{banner.title}</h3>
                   <p className="mt-1 text-xs leading-snug opacity-90">{banner.tagline}</p>
 
                   {banner.coupon ? (

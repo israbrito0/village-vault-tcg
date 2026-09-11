@@ -91,7 +91,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
             {gameLabel} · {subLabel}
           </p>
-          <h1 className="mt-2 font-display text-2xl text-ink sm:text-3xl">{product.name}</h1>
+          <h1 className="mt-2 font-display text-2xl font-bold text-ink sm:text-3xl">{product.name}</h1>
           <p className="mt-1 text-sm text-muted">{product.setName}</p>
 
           <div className="mt-4 flex items-center gap-3">
