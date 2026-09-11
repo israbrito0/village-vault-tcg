@@ -96,6 +96,11 @@ const CARD_SLOTS = [
   "left-[10%] z-10 h-[74%] -rotate-[12deg]",
   "right-[10%] z-10 h-[74%] rotate-[12deg]",
 ];
+// Com só dois slabs, lado a lado para os dois aparecerem inteiros.
+const TWO_SLAB_SLOTS = [
+  "left-[31%] z-20 h-[88%] -translate-x-1/2 -rotate-[5deg]",
+  "left-[71%] z-10 h-[82%] -translate-x-1/2 rotate-[6deg]",
+];
 
 // Brilhos espalhados pelo banner (posição e atraso da piscada).
 const SPARKLES = [
@@ -287,7 +292,10 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
           ) : (
             slide.photos.map((photo, k) =>
               slide.photoKind === "slab" ? (
-                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${CARD_SLOTS[k]}`}>
+                <div
+                  key={photo.src}
+                  className={`absolute top-1/2 -translate-y-1/2 ${(slide.photos.length === 2 ? TWO_SLAB_SLOTS : CARD_SLOTS)[k]}`}
+                >
                   <div className={`h-full ${k === 0 ? "motion-safe:animate-float" : ""}`}>
                     <SlabCase photo={photo} shine={k === 0} />
                   </div>
@@ -338,10 +346,26 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
 // Case de carta graduada desenhado para o banner: acrílico transparente com uma
 // etiqueta própria da loja no topo (nome e nota), sem imitar as empresas de graduação.
 function SlabCase({ photo, shine }: { photo: SealedSlideView["photos"][number]; shine: boolean }) {
+  // Foto própria do slab (coluna "imagem" da planilha, arquivo do site): já mostra
+  // o case e a etiqueta de verdade, então aparece sozinha, sem o case desenhado.
+  if (photo.src.startsWith("/")) {
+    return (
+      <div className="relative aspect-[0.6] h-full">
+        <Image
+          src={photo.src}
+          alt=""
+          fill
+          sizes="240px"
+          className="object-contain drop-shadow-[0_18px_24px_rgba(0,0,0,0.5)]"
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="relative flex aspect-[0.62] h-full flex-col rounded-[6%] border-2 border-white/85 bg-white/25 p-[5%] shadow-[0_18px_30px_-8px_rgba(0,0,0,0.55)] backdrop-blur-sm">
       <div className="rounded-[4px] border border-ink/15 bg-white px-[7%] py-[5%] text-left text-ink shadow-sm">
-        <p className="truncate text-[9px] font-extrabold uppercase leading-tight tracking-wide sm:text-[11px]">
+        <p className="line-clamp-2 text-[9px] font-extrabold uppercase leading-tight tracking-wide sm:text-[10px]">
           {photo.name}
         </p>
         <div className="mt-0.5 flex items-center justify-between gap-1">
