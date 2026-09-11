@@ -15,8 +15,12 @@ export const WHATSAPP_NUMBER = "5582999677824";
 export const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/BdiGqtUYuaJEVulwMb5O5O";
 // Perfil da loja na Jamble, onde acontecem as vendas ao vivo.
 export const LIVE_URL = "https://www.jamble.com/u/israelbrito";
-// Só recebe mensagens depois de contratar um serviço de email para o domínio.
+// Caixa no Mail do iCloud (domínio personalizado do iCloud+).
 export const CONTACT_EMAIL = "contato@villagetcg.com.br";
+
+// Loja física (mesmo endereço da sede, ao lado da Village Fotografia).
+export const STORE_ADDRESS = "Fazenda Santa Tereza, Rodovia AL-316, 2,7 km à direita, Zona Rural, Atalaia - AL, 57690-000";
+export const STORE_HOURS = "Segunda a sábado, das 9h às 20h";
 
 export const PIX_DISCOUNT = 0.05;
 export const MAX_INSTALLMENTS = 12;
