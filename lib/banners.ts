@@ -8,7 +8,8 @@ import type { GameSlug, Origin } from "./types";
 // 1. `images`: fotos próprias em public/banners/ (ex.: "/banners/30-anos-box.png");
 // 2. `productSlugs`: fotos de produtos da planilha;
 // 3. com `game`, as cartas de maior valor desse jogo que estão no catálogo.
-// Com `emblem`, o slide mostra um selo no lugar das fotos (até chegarem as fotos reais).
+// `imageStyle: "scene"`: foto oficial com fundo (ex.: vitrine da Pokémon), mostrada
+// inteira numa moldura. Sem isso, a foto é tratada como recorte com fundo transparente.
 // `background` é uma imagem de fundo opcional; sem ela, vale o degradê do `theme`.
 
 export type SealedTheme = "gold" | "fire" | "night" | "ocean";
@@ -24,7 +25,7 @@ export interface SealedSlide {
   origin?: Origin;
   images?: string[];
   productSlugs?: string[];
-  emblem?: { big: string; small: string };
+  imageStyle?: "cutout" | "scene";
   background?: string;
   theme: SealedTheme;
   cta: string;
@@ -32,18 +33,47 @@ export interface SealedSlide {
   whatsappMessage?: string;
 }
 
+// Fotos dos 30 anos: imagens oficiais da vitrine da The Pokémon Company
+// (pokemon.com/br), usadas como material de divulgação de revendedor.
 export const SEALED_SLIDES: SealedSlide[] = [
   {
-    id: "pokemon-30-anos",
+    id: "30-anos-etb",
     game: "pokemon",
-    eyebrow: "Pré-venda",
-    title: "Celebrações 30 anos",
-    subtitle: "Pokémon TCG · reserve o seu antes do lançamento.",
-    // images: ["/banners/30-anos-box.png", "/banners/30-anos-blister.png"],  ← fotos dos produtos
-    emblem: { big: "30", small: "anos" },
+    eyebrow: "Pré-venda · 16/09",
+    title: "Coleção Treinador Avançado",
+    subtitle: "Celebração de 30 Anos · 9 boosters, carta promocional e acessórios.",
+    origin: "BR",
+    images: ["/banners/30-anos-etb.png"],
+    imageStyle: "scene",
     theme: "gold",
     cta: "Quero reservar",
-    whatsappMessage: "Olá! Quero reservar na pré-venda: Pokémon Celebrações 30 anos.",
+    whatsappMessage: "Olá! Quero reservar na pré-venda: Coleção Treinador Avançado – Celebração de 30 Anos.",
+  },
+  {
+    id: "30-anos-upc",
+    game: "pokemon",
+    eyebrow: "Pré-venda",
+    title: "Coleção Ultra Premium",
+    subtitle: "Celebração de 30 Anos · Dia e Noite · previsão: 4º trimestre de 2026.",
+    origin: "BR",
+    images: ["/banners/30-anos-upc-dia-noite.png"],
+    imageStyle: "scene",
+    theme: "night",
+    cta: "Quero reservar",
+    whatsappMessage: "Olá! Quero reservar na pré-venda: Coleção Ultra Premium Dia e Noite – Celebração de 30 Anos.",
+  },
+  {
+    id: "30-anos-mini-latas",
+    game: "pokemon",
+    eyebrow: "Pré-venda",
+    title: "Mini Latas",
+    subtitle: "Celebração de 30 Anos · previsão: 4º trimestre de 2026.",
+    // A imagem oficial disponível é a da versão americana da lata.
+    images: ["/banners/30-anos-mini-lata.png"],
+    imageStyle: "scene",
+    theme: "ocean",
+    cta: "Quero reservar",
+    whatsappMessage: "Olá! Quero reservar na pré-venda: Mini Latas – Celebração de 30 Anos.",
   },
   {
     id: "pokemon",
@@ -77,8 +107,9 @@ export type SealedSlideView = SealedSlide & {
   href: string;
   external: boolean;
   language?: string;
-  // "product": foto de caixa/lata, mostrada inteira; "card": carta, com moldura.
-  photoKind: "product" | "card";
+  // "product": recorte de caixa/lata; "scene": foto oficial com fundo, numa moldura;
+  // "card": carta do catálogo.
+  photoKind: "product" | "scene" | "card";
   photos: { src: string; direct: boolean }[];
 };
 
@@ -97,7 +128,7 @@ export function getSealedSlides(): SealedSlideView[] {
         .map((slug) => getProductBySlug(slug)?.image)
         .filter((src): src is string => Boolean(src)),
     ];
-    const usesCards = productPhotos.length === 0 && !slide.emblem && Boolean(slide.game);
+    const usesCards = productPhotos.length === 0 && Boolean(slide.game);
     const photos = usesCards ? topCardImages(slide.game!) : productPhotos;
     const href = slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
 
@@ -106,7 +137,7 @@ export function getSealedSlides(): SealedSlideView[] {
       href,
       external: href.startsWith("http"),
       language: slide.origin ? ORIGIN_LABELS[slide.origin] : undefined,
-      photoKind: usesCards ? "card" : "product",
+      photoKind: usesCards ? "card" : slide.imageStyle === "scene" ? "scene" : "product",
       photos: photos.slice(0, 3).map((src) => ({ src, direct: loadImageDirectly(src) })),
     };
   });

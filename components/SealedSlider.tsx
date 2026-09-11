@@ -236,8 +236,21 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
           <div
             className={`absolute left-1/2 top-1/2 h-[75%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${theme.glow}`}
           />
-          {slide.emblem && slide.photos.length === 0 ? (
-            <Emblem big={slide.emblem.big} small={slide.emblem.small} />
+          {slide.photoKind === "scene" && slide.photos[0] ? (
+            // Foto oficial com fundo: inteira, numa moldura levemente inclinada.
+            <div className="absolute left-1/2 top-1/2 w-[96%] -translate-x-1/2 -translate-y-1/2 -rotate-2">
+              <div className="relative aspect-[16/9] overflow-hidden rounded-xl shadow-[0_22px_40px_-12px_rgba(0,0,0,0.55)] ring-4 ring-white/80 motion-safe:animate-float">
+                <Image
+                  src={slide.photos[0].src}
+                  alt=""
+                  fill
+                  sizes="(min-width: 1280px) 620px, (min-width: 640px) 50vw, 90vw"
+                  unoptimized={slide.photos[0].direct}
+                  className="object-cover"
+                />
+                <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/35 to-transparent motion-safe:animate-shimmer" />
+              </div>
+            </div>
           ) : (
             slide.photos.map((photo, k) =>
               slide.photoKind === "card" ? (
@@ -279,27 +292,5 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
         </p>
       )}
     </article>
-  );
-}
-
-// Selo dourado desenhado para a pré-venda, até chegarem as fotos do produto.
-function Emblem({ big, small }: { big: string; small: string }) {
-  return (
-    // O posicionamento fica por fora e a animação por dentro, para uma não anular a outra.
-    <div className="absolute left-1/2 top-1/2 aspect-square w-[78%] max-w-[300px] -translate-x-1/2 -translate-y-1/2">
-      <div className="relative flex h-full w-full items-center justify-center motion-safe:animate-float">
-        <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#FFF3C4,#D99A12,#FFF3C4,#B7791F,#FFF3C4)] p-[5%] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]">
-          <div className="h-full w-full rounded-full bg-[radial-gradient(circle_at_35%_30%,#FFE9A3,#E0A21B_55%,#9C5F0C)] ring-4 ring-white/50" />
-        </div>
-        <div className="relative flex flex-col items-center">
-          <span className="bg-gradient-to-b from-white via-[#FFF3C4] to-[#F2B634] bg-clip-text font-display text-[4.5rem] font-extrabold leading-none text-transparent drop-shadow-[0_4px_0_#7A4A08] sm:text-[5.5rem] lg:text-[7.5rem]">
-            {big}
-          </span>
-          <span className="-mt-1 rounded-md bg-ink px-4 py-1 font-display text-sm font-extrabold uppercase tracking-[0.35em] text-brand-yellow shadow-lg sm:text-base">
-            {small}
-          </span>
-        </div>
-      </div>
-    </div>
   );
 }
