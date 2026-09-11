@@ -4,11 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { Banner, BannerColor } from "@/lib/banners";
-
-export type FanBanner = Banner & {
-  images: { src: string; alt: string; direct: boolean }[];
-};
+import type { BannerColor, FanBanner } from "@/lib/banners";
 
 const THEME: Record<BannerColor, { card: string; coupon: string; cta: string }> = {
   yellow: {
@@ -42,8 +38,17 @@ const AUTOPLAY_MS = 4500;
 
 // Banners empilhados como uma mão de cartas: o da frente fica reto e os
 // vizinhos abrem em leque para os lados, girando em volta da base.
-export default function BannerFan({ banners }: { banners: FanBanner[] }) {
-  const [active, setActive] = useState(0);
+export default function BannerFan({
+  banners,
+  initialIndex = 0,
+  compact = false,
+}: {
+  banners: FanBanner[];
+  initialIndex?: number;
+  // Versão das páginas internas: menos espaço e sem o título "Promoções".
+  compact?: boolean;
+}) {
+  const [active, setActive] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
@@ -79,7 +84,7 @@ export default function BannerFan({ banners }: { banners: FanBanner[] }) {
   return (
     <section
       aria-label="Promoções"
-      className="overflow-x-clip px-5 py-10"
+      className={`overflow-x-clip px-5 ${compact ? "pb-2 pt-6" : "py-10"}`}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onTouchStart={(e) => {
@@ -94,9 +99,11 @@ export default function BannerFan({ banners }: { banners: FanBanner[] }) {
         if (Math.abs(dx) > 40) go(dx < 0 ? 1 : -1);
       }}
     >
-      <h2 className="text-center text-[11px] font-bold uppercase tracking-[0.22em] text-ink">Promoções</h2>
+      {!compact && (
+        <h2 className="mb-6 text-center text-[11px] font-bold uppercase tracking-[0.22em] text-ink">Promoções</h2>
+      )}
 
-      <div className="relative mx-auto mt-6 h-[228px] max-w-5xl sm:h-[268px]">
+      <div className="relative mx-auto h-[228px] max-w-5xl sm:h-[268px]">
         {banners.map((banner, i) => {
           const d = offsetOf(i);
           const distance = Math.abs(d);

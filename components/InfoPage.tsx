@@ -2,6 +2,7 @@ import Link from "next/link";
 import { MessageCircle } from "lucide-react";
 import { whatsappLink } from "@/lib/site";
 import PageTitle from "./PageTitle";
+import Promocoes from "./Promocoes";
 import { ACCENT_BUTTON, BUTTON_BASE } from "./ui";
 
 // Moldura das páginas simples (FAQ, trocas, "em breve"...).
@@ -17,32 +18,35 @@ export default function InfoPage({
   children?: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto max-w-2xl px-5 py-10">
-      <PageTitle title={title} />
-      {intro && <p className="mx-auto mt-5 max-w-xl text-center text-sm leading-relaxed text-ink/80">{intro}</p>}
+    <>
+      <Promocoes />
+      <main className="mx-auto max-w-2xl px-5 pb-10 pt-6">
+        <PageTitle title={title} />
+        {intro && <p className="mx-auto mt-5 max-w-xl text-center text-sm leading-relaxed text-ink/80">{intro}</p>}
 
-      {children && <div className="mt-8 space-y-3 text-sm leading-relaxed text-ink/80">{children}</div>}
+        {children && <div className="mt-8 space-y-3 text-sm leading-relaxed text-ink/80">{children}</div>}
 
-      <div className="mt-10 flex flex-wrap justify-center gap-4">
-        {whatsappMessage && (
-          <a
-            href={whatsappLink(whatsappMessage)}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={`${BUTTON_BASE} ${ACCENT_BUTTON.green} inline-flex w-[200px] items-center justify-center gap-2 px-4 py-3 text-[12px]`}
+        <div className="mt-10 flex flex-wrap justify-center gap-4">
+          {whatsappMessage && (
+            <a
+              href={whatsappLink(whatsappMessage)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`${BUTTON_BASE} ${ACCENT_BUTTON.green} inline-flex w-[200px] items-center justify-center gap-2 px-4 py-3 text-[12px]`}
+            >
+              <MessageCircle size={16} strokeWidth={2.25} />
+              Falar no WhatsApp
+            </a>
+          )}
+          <Link
+            href="/catalogo"
+            className={`${BUTTON_BASE} ${ACCENT_BUTTON.blue} inline-flex w-[200px] items-center justify-center px-4 py-3 text-[12px]`}
           >
-            <MessageCircle size={16} strokeWidth={2.25} />
-            Falar no WhatsApp
-          </a>
-        )}
-        <Link
-          href="/catalogo"
-          className={`${BUTTON_BASE} ${ACCENT_BUTTON.blue} inline-flex w-[200px] items-center justify-center px-4 py-3 text-[12px]`}
-        >
-          Ver catálogo
-        </Link>
-      </div>
-    </main>
+            Ver catálogo
+          </Link>
+        </div>
+      </main>
+    </>
   );
 }
 

@@ -1,3 +1,4 @@
+import { PRODUCTS, loadImageDirectly } from "./products";
 import type { GameSlug } from "./types";
 
 // Banners em leque da página inicial. Edite aqui textos, cupons e links.
@@ -75,3 +76,17 @@ export const BANNERS: Banner[] = [
     color: "ink",
   },
 ];
+
+export type FanBanner = Banner & {
+  images: { src: string; alt: string; direct: boolean }[];
+};
+
+// Cada banner mostra até duas cartas com foto do jogo dele (ou de qualquer jogo).
+export function getFanBanners(): FanBanner[] {
+  return BANNERS.map((banner) => ({
+    ...banner,
+    images: PRODUCTS.filter((p) => p.image && (!banner.game || p.game === banner.game))
+      .slice(0, 2)
+      .map((p) => ({ src: p.image!, alt: p.name, direct: loadImageDirectly(p.image!) })),
+  }));
+}

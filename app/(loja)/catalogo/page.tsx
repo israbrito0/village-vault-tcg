@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import PageTitle from "@/components/PageTitle";
 import ProductCard from "@/components/ProductCard";
+import Promocoes from "@/components/Promocoes";
 import { ACCENT_ACTIVE, ACCENT_BUTTON, BUTTON_BASE, accentAt } from "@/components/ui";
 import { PRODUCTS } from "@/lib/products";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
@@ -46,67 +47,70 @@ export default function CatalogoPage({
   const subLabel = SUBCATEGORIES.find((s) => s.slug === subcategoria)?.label;
 
   return (
-    <main className="mx-auto max-w-7xl px-5 py-8">
-      <PageTitle
-        title={title}
-        subtitle={
-          <>
-            {subLabel ? `${subLabel} · ` : ""}
-            {produtos.length} {produtos.length === 1 ? "produto" : "produtos"}
-            {busca && <> para “{busca}”</>}
-          </>
-        }
-      />
+    <main className="mx-auto max-w-7xl pb-8">
+      <Promocoes game={jogo} />
+      <div className="px-5 pt-6">
+        <PageTitle
+          title={title}
+          subtitle={
+            <>
+              {subLabel ? `${subLabel} · ` : ""}
+              {produtos.length} {produtos.length === 1 ? "produto" : "produtos"}
+              {busca && <> para “{busca}”</>}
+            </>
+          }
+        />
 
-      <div className="mt-7 flex flex-wrap justify-center gap-2.5">
-        <Link
-          href={filterHref({ subcategoria })}
-          className={`${BUTTON_BASE} px-3 py-1.5 text-[11px] ${
-            jogo ? "border-card-border bg-white text-ink hover:border-ink" : "border-ink bg-ink text-white"
-          }`}
-        >
-          Todos
-        </Link>
-        {GAMES.map((g, i) => (
+        <div className="mt-7 flex flex-wrap justify-center gap-2.5">
           <Link
-            key={g.slug}
-            href={filterHref({ jogo: g.slug, subcategoria })}
+            href={filterHref({ subcategoria })}
             className={`${BUTTON_BASE} px-3 py-1.5 text-[11px] ${
-              jogo === g.slug ? ACCENT_ACTIVE[accentAt(i)] : ACCENT_BUTTON[accentAt(i)]
+              jogo ? "border-card-border bg-white text-ink hover:border-ink" : "border-ink bg-ink text-white"
             }`}
           >
-            {g.label}
+            Todos
           </Link>
-        ))}
-      </div>
+          {GAMES.map((g, i) => (
+            <Link
+              key={g.slug}
+              href={filterHref({ jogo: g.slug, subcategoria })}
+              className={`${BUTTON_BASE} px-3 py-1.5 text-[11px] ${
+                jogo === g.slug ? ACCENT_ACTIVE[accentAt(i)] : ACCENT_BUTTON[accentAt(i)]
+              }`}
+            >
+              {g.label}
+            </Link>
+          ))}
+        </div>
 
-      <div className="mt-3 flex flex-wrap justify-center gap-2">
-        {SUBCATEGORIES.map((s) => (
-          <Link
-            key={s.slug}
-            href={filterHref({ jogo, subcategoria: subcategoria === s.slug ? undefined : s.slug })}
-            className={`${CHIP} ${
-              subcategoria === s.slug
-                ? "border-ink bg-ink text-white"
-                : "border-card-border text-muted hover:border-ink hover:text-ink"
-            }`}
-          >
-            {s.label}
-          </Link>
-        ))}
-      </div>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          {SUBCATEGORIES.map((s) => (
+            <Link
+              key={s.slug}
+              href={filterHref({ jogo, subcategoria: subcategoria === s.slug ? undefined : s.slug })}
+              className={`${CHIP} ${
+                subcategoria === s.slug
+                  ? "border-ink bg-ink text-white"
+                  : "border-card-border text-muted hover:border-ink hover:text-ink"
+              }`}
+            >
+              {s.label}
+            </Link>
+          ))}
+        </div>
 
-      <section className="mt-8">
-        {produtos.length === 0 ? (
-          <p className="text-center text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {produtos.map((p) => (
-              <ProductCard key={p.id} product={p} />
-            ))}
-          </div>
-        )}
-      </section>
+        <section className="mt-8">
+          {produtos.length === 0 ? (
+            <p className="text-center text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {produtos.map((p) => (
+                <ProductCard key={p.id} product={p} />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
     </main>
   );
 }
