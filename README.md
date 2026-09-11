@@ -57,11 +57,12 @@ deixe `codigo` vazio e preencha `nome`, `colecao` e, se tiver foto, `imagem`
 
 ## Banners de promoção
 
-Os banners em leque do catálogo e das páginas do menu ficam em `lib/banners.ts`
-(título, texto, cupom, etiqueta como "PRÉ-VENDA" e link). Para um banner com
-foto grande do produto, coloque a foto em `public/banners/` e preencha
-`image: "/banners/nome-da-foto.jpg"`, ou use `productSlug` para puxar a foto e o
-link de um produto da planilha. Use fotos suas ou as imagens oficiais que o
+O banner largo do topo do catálogo e das páginas do menu fica em
+`lib/banners.ts` (`SEALED_SLIDES`): chamada ("Pré-venda", "Produtos
+disponíveis"), título, texto, botão, cor do tema e imagens. As imagens vêm,
+nesta ordem: fotos suas em `public/banners/` (`images`), fotos de produtos da
+planilha (`productSlugs`) ou, se o slide tiver `game`, as cartas de maior valor
+daquele jogo no catálogo. Use fotos suas ou as imagens oficiais que o
 distribuidor fornece para lojistas.
 
 Se alguma linha tiver erro (preço inválido, código não encontrado), ela aparece

@@ -7,51 +7,77 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SealedSlideView, SealedTheme } from "@/lib/banners";
 import { MAX_INSTALLMENTS, PIX_DISCOUNT } from "@/lib/site";
 
-// Degradês de fundo por tema, com o brilho atrás das fotos dos produtos.
-const THEMES: Record<SealedTheme, { bg: string; text: string; eyebrow: string; cta: string; glow: string }> = {
+// Degradê de fundo, cor dos raios de luz e dos botões por tema.
+const THEMES: Record<
+  SealedTheme,
+  { bg: string; text: string; eyebrow: string; cta: string; glow: string; rays: string; perk: string }
+> = {
   gold: {
-    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#FFF6D2_0%,#F7C948_42%,#A8680F_100%)]",
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#FFF8DC_0%,#F7C948_40%,#9C5F0C_100%)]",
     text: "text-ink",
-    eyebrow: "bg-ink text-white",
+    eyebrow: "bg-ink text-brand-yellow",
     cta: "border-ink bg-ink text-white hover:bg-transparent hover:text-ink",
-    glow: "bg-white/70",
+    glow: "bg-white/80",
+    rays: "rgba(255,255,255,0.35)",
+    perk: "bg-white/45",
   },
   fire: {
-    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#FFE08A_0%,#E8731A_40%,#4A1C06_100%)]",
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#FFE7A3_0%,#EE7B1F_38%,#3E1604_100%)]",
     text: "text-white",
-    eyebrow: "bg-black/55 text-white",
+    eyebrow: "bg-black/55 text-[#FFD27A]",
     cta: "border-white bg-white text-[#9A3B0A] hover:bg-transparent hover:text-white",
-    glow: "bg-[#FFD27A]/80",
+    glow: "bg-[#FFD27A]/90",
+    rays: "rgba(255,220,150,0.28)",
+    perk: "bg-black/30",
   },
   night: {
-    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#7A83A3_0%,#333844_55%,#121419_100%)]",
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#8C95B8_0%,#333844_52%,#101217_100%)]",
     text: "text-white",
     eyebrow: "bg-brand-yellow text-ink",
     cta: "border-brand-yellow bg-brand-yellow text-ink hover:bg-transparent hover:text-brand-yellow",
-    glow: "bg-[#AFC2FF]/50",
+    glow: "bg-[#B9C8FF]/60",
+    rays: "rgba(190,205,255,0.2)",
+    perk: "bg-white/10",
   },
   ocean: {
-    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#BDEBFF_0%,#158BCA_48%,#083452_100%)]",
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#D6F3FF_0%,#1E9BDB_45%,#062C47_100%)]",
     text: "text-white",
     eyebrow: "bg-black/40 text-white",
     cta: "border-white bg-white text-brand-blue hover:bg-transparent hover:text-white",
-    glow: "bg-white/60",
+    glow: "bg-white/75",
+    rays: "rgba(255,255,255,0.28)",
+    perk: "bg-black/25",
   },
 };
 
 const PERKS = ["Frete grátis", `Até ${MAX_INSTALLMENTS}x sem juros`, `${Math.round(PIX_DISCOUNT * 100)}% off no Pix`];
 
-// Posição de cada foto no leque de produtos: a do meio na frente, as outras atrás.
-const PHOTO_SLOTS = [
+// Posições das fotos: a do meio na frente e maior, as outras inclinadas atrás.
+const PRODUCT_SLOTS = [
   "left-1/2 z-20 h-[92%] w-[46%] -translate-x-1/2",
-  "left-[4%] z-10 h-[74%] w-[38%] -rotate-[8deg]",
-  "right-[4%] z-10 h-[74%] w-[38%] rotate-[8deg]",
+  "left-[3%] z-10 h-[74%] w-[38%] -rotate-[9deg]",
+  "right-[3%] z-10 h-[74%] w-[38%] rotate-[9deg]",
+];
+const CARD_SLOTS = [
+  "left-1/2 z-20 h-[90%] -translate-x-1/2",
+  "left-[10%] z-10 h-[74%] -rotate-[12deg]",
+  "right-[10%] z-10 h-[74%] rotate-[12deg]",
+];
+
+// Brilhos espalhados pelo banner (posição e atraso da piscada).
+const SPARKLES = [
+  { pos: "left-[52%] top-[14%]", delay: "0s", size: "h-1.5 w-1.5" },
+  { pos: "left-[88%] top-[22%]", delay: "0.7s", size: "h-2 w-2" },
+  { pos: "left-[60%] top-[80%]", delay: "1.3s", size: "h-1 w-1" },
+  { pos: "left-[94%] top-[70%]", delay: "0.4s", size: "h-1.5 w-1.5" },
+  { pos: "left-[45%] top-[60%]", delay: "1.9s", size: "h-1 w-1" },
+  { pos: "left-[76%] top-[8%]", delay: "1.1s", size: "h-1 w-1" },
 ];
 
 const AUTOPLAY_MS = 5500;
 
-export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) {
-  const [active, setActive] = useState(0);
+export default function SealedSlider({ slides, initialIndex = 0 }: { slides: SealedSlideView[]; initialIndex?: number }) {
+  const [active, setActive] = useState(initialIndex);
   const [paused, setPaused] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const count = slides.length;
@@ -67,9 +93,9 @@ export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) 
   if (count === 0) return null;
 
   return (
-    <section aria-label="Produtos lacrados" className="px-3 pt-4 sm:px-5">
+    <section aria-label="Destaques" className="px-3 pt-4 sm:px-5">
       <div
-        className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl shadow-[0_18px_40px_-22px_rgba(51,56,68,0.6)]"
+        className="relative mx-auto max-w-7xl overflow-hidden rounded-2xl shadow-[0_22px_44px_-24px_rgba(51,56,68,0.7)]"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
         onTouchStart={(e) => {
@@ -99,7 +125,7 @@ export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) 
               type="button"
               onClick={() => go(-1)}
               aria-label="Banner anterior"
-              className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white transition-colors hover:bg-black/45 sm:left-4"
+              className="absolute left-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-black/45 sm:left-4"
             >
               <ChevronLeft size={26} />
             </button>
@@ -107,7 +133,7 @@ export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) 
               type="button"
               onClick={() => go(1)}
               aria-label="Próximo banner"
-              className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white transition-colors hover:bg-black/45 sm:right-4"
+              className="absolute right-2 top-1/2 z-30 -translate-y-1/2 rounded-full bg-black/25 p-1.5 text-white backdrop-blur-sm transition-colors hover:bg-black/45 sm:right-4"
             >
               <ChevronRight size={26} />
             </button>
@@ -119,8 +145,8 @@ export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) 
                   onClick={() => setActive(i)}
                   aria-label={`Mostrar banner ${slide.title}`}
                   aria-current={i === active}
-                  className={`h-3 w-3 rounded-full border-2 border-white transition-colors ${
-                    i === active ? "bg-white" : "bg-transparent hover:bg-white/50"
+                  className={`h-3 rounded-full border-2 border-white shadow transition-all ${
+                    i === active ? "w-7 bg-white" : "w-3 bg-transparent hover:bg-white/50"
                   }`}
                 />
               ))}
@@ -134,7 +160,7 @@ export default function SealedSlider({ slides }: { slides: SealedSlideView[] }) 
 
 function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean }) {
   const theme = THEMES[slide.theme];
-  const ctaClass = `mt-5 inline-flex w-fit rounded border-2 px-5 py-2.5 text-[12px] font-bold uppercase tracking-wide transition-colors ${theme.cta}`;
+  const ctaClass = `mt-5 inline-flex w-fit rounded-md border-2 px-6 py-2.5 text-[12px] font-extrabold uppercase tracking-wide shadow-lg transition-colors ${theme.cta}`;
 
   return (
     <article aria-hidden={!isActive} className={`relative w-full shrink-0 overflow-hidden ${theme.bg} ${theme.text}`}>
@@ -145,20 +171,53 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
         </>
       )}
 
+      {/* Raios de luz girando devagar atrás das fotos (o giro fica na camada de
+          dentro para não anular o translate que centraliza). */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute left-[68%] top-1/2 aspect-square w-[150%] -translate-x-1/2 -translate-y-1/2 [mask-image:radial-gradient(circle,black_8%,transparent_58%)] sm:w-[110%]"
+      >
+        <div
+          className="h-full w-full motion-safe:animate-spin-slow"
+          style={{
+            background: `repeating-conic-gradient(from 0deg, ${theme.rays} 0deg 5deg, transparent 5deg 15deg)`,
+          }}
+        />
+      </div>
+      {/* Textura de pontinhos. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 opacity-40 [background-image:radial-gradient(rgba(255,255,255,0.35)_1px,transparent_1.5px)] [background-size:18px_18px]"
+      />
+      {SPARKLES.map((s) => (
+        <span
+          key={s.pos}
+          aria-hidden
+          className={`pointer-events-none absolute rounded-full bg-white shadow-[0_0_10px_3px_rgba(255,255,255,0.8)] motion-safe:animate-pulse-gold ${s.pos} ${s.size}`}
+          style={{ animationDelay: s.delay }}
+        />
+      ))}
+
       {/* Laterais largas o bastante para as setas não ficarem em cima do texto. */}
-      <div className="relative grid min-h-[430px] grid-cols-1 items-center gap-2 px-12 pb-12 pt-8 sm:min-h-[340px] sm:grid-cols-[1fr_1.15fr] sm:px-20 lg:min-h-[400px]">
-        <div className="z-10 flex flex-col items-center text-center sm:items-start sm:text-left">
-          <p className={`rounded-md px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] ${theme.eyebrow}`}>
+      <div className="relative grid min-h-[440px] grid-cols-1 items-center gap-2 px-12 pb-12 pt-8 sm:min-h-[350px] sm:grid-cols-[1fr_1.15fr] sm:px-20 lg:min-h-[410px]">
+        {/* min-w-0: sem isso a palavra mais longa do título empurra as imagens para fora. */}
+        <div className="z-10 flex min-w-0 flex-col items-center text-center sm:items-start sm:text-left">
+          <p className={`rounded-md px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] shadow ${theme.eyebrow}`}>
             {slide.eyebrow}
           </p>
-          <h2 className="mt-3 font-display text-3xl font-extrabold uppercase leading-[0.95] drop-shadow-[0_3px_8px_rgba(0,0,0,0.25)] sm:text-5xl lg:text-6xl">
+          <h2 className="mt-3 font-display text-3xl font-extrabold uppercase leading-[0.95] drop-shadow-[0_3px_10px_rgba(0,0,0,0.3)] sm:text-4xl lg:text-6xl">
             {slide.title}
           </h2>
-          {slide.subtitle && <p className="mt-3 max-w-sm text-sm font-medium opacity-90">{slide.subtitle}</p>}
+          {slide.subtitle && <p className="mt-3 max-w-sm text-sm font-semibold opacity-90">{slide.subtitle}</p>}
 
-          <ul className="mt-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-[12px] font-extrabold uppercase tracking-wide sm:justify-start">
+          <ul className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
             {PERKS.map((perk) => (
-              <li key={perk}>{perk}</li>
+              <li
+                key={perk}
+                className={`rounded px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide backdrop-blur-sm ${theme.perk}`}
+              >
+                {perk}
+              </li>
             ))}
           </ul>
 
@@ -173,12 +232,32 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
           )}
         </div>
 
-        {/* Fotos dos produtos em leque, com um brilho atrás. */}
-        <div aria-hidden className="relative h-[190px] sm:h-full sm:min-h-[260px]">
-          <div className={`absolute left-1/2 top-1/2 h-[70%] w-[70%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${theme.glow}`} />
-          {slide.photos.length > 0
-            ? slide.photos.map((photo, k) => (
-                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${PHOTO_SLOTS[k]}`}>
+        <div aria-hidden className="relative h-[220px] min-w-0 sm:h-full sm:min-h-[280px]">
+          <div
+            className={`absolute left-1/2 top-1/2 h-[75%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${theme.glow}`}
+          />
+          {slide.emblem && slide.photos.length === 0 ? (
+            <Emblem big={slide.emblem.big} small={slide.emblem.small} />
+          ) : (
+            slide.photos.map((photo, k) =>
+              slide.photoKind === "card" ? (
+                // A animação fica numa camada de dentro: no mesmo elemento ela
+                // substituiria o translate que centraliza a carta.
+                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${CARD_SLOTS[k]}`}>
+                  <div
+                    className={`relative aspect-[63/88] h-full overflow-hidden rounded-[4.5%] shadow-[0_18px_30px_-8px_rgba(0,0,0,0.55)] ring-2 ring-white/60 ${
+                      k === 0 ? "motion-safe:animate-float" : ""
+                    }`}
+                  >
+                    <Image src={photo.src} alt="" fill sizes="240px" unoptimized={photo.direct} className="object-cover" />
+                    {k === 0 && (
+                      // Reflexo passando pela carta da frente.
+                      <span className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/45 to-transparent motion-safe:animate-shimmer" />
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${PRODUCT_SLOTS[k]}`}>
                   <Image
                     src={photo.src}
                     alt=""
@@ -188,21 +267,9 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
                     className="object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.45)]"
                   />
                 </div>
-              ))
-            : PHOTO_SLOTS.map((slot, k) => (
-                <div
-                  key={k}
-                  className={`absolute top-1/2 flex -translate-y-1/2 items-center justify-center rounded-xl border-2 border-dashed border-current/40 bg-white/10 text-center text-[10px] font-bold uppercase tracking-wide opacity-70 ${slot}`}
-                >
-                  {k === 0 && (
-                    <>
-                      Foto do
-                      <br />
-                      produto
-                    </>
-                  )}
-                </div>
-              ))}
+              ),
+            )
+          )}
         </div>
       </div>
 
@@ -212,5 +279,27 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
         </p>
       )}
     </article>
+  );
+}
+
+// Selo dourado desenhado para a pré-venda, até chegarem as fotos do produto.
+function Emblem({ big, small }: { big: string; small: string }) {
+  return (
+    // O posicionamento fica por fora e a animação por dentro, para uma não anular a outra.
+    <div className="absolute left-1/2 top-1/2 aspect-square w-[78%] max-w-[300px] -translate-x-1/2 -translate-y-1/2">
+      <div className="relative flex h-full w-full items-center justify-center motion-safe:animate-float">
+        <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#FFF3C4,#D99A12,#FFF3C4,#B7791F,#FFF3C4)] p-[5%] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]">
+          <div className="h-full w-full rounded-full bg-[radial-gradient(circle_at_35%_30%,#FFE9A3,#E0A21B_55%,#9C5F0C)] ring-4 ring-white/50" />
+        </div>
+        <div className="relative flex flex-col items-center">
+          <span className="bg-gradient-to-b from-white via-[#FFF3C4] to-[#F2B634] bg-clip-text font-display text-[4.5rem] font-extrabold leading-none text-transparent drop-shadow-[0_4px_0_#7A4A08] sm:text-[5.5rem] lg:text-[7.5rem]">
+            {big}
+          </span>
+          <span className="-mt-1 rounded-md bg-ink px-4 py-1 font-display text-sm font-extrabold uppercase tracking-[0.35em] text-brand-yellow shadow-lg sm:text-base">
+            {small}
+          </span>
+        </div>
+      </div>
+    </div>
   );
 }
