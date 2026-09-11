@@ -64,6 +64,11 @@ const config: Config = {
           "0%, 100%": { transform: "perspective(1000px) rotateX(10deg) rotateY(-10deg) translateY(0)" },
           "50%": { transform: "perspective(1000px) rotateX(6deg) rotateY(8deg) translateY(-12px)" },
         },
+        // Asa do nome da loja batendo em volta do "ombro" (borda interna).
+        flap: {
+          "0%, 100%": { transform: "rotate(14deg) scaleY(0.88)" },
+          "50%": { transform: "rotate(-16deg) scaleY(1.04)" },
+        },
         shadowPulse: {
           "0%, 100%": { transform: "scaleX(1)", opacity: "0.35" },
           "50%": { transform: "scaleX(0.82)", opacity: "0.2" },
@@ -79,6 +84,7 @@ const config: Config = {
         float: "float 5s ease-in-out infinite",
         "float-tilt": "floatTilt 7s ease-in-out infinite",
         "shadow-pulse": "shadowPulse 7s ease-in-out infinite",
+        flap: "flap 1.8s ease-in-out infinite",
       },
     },
   },
