@@ -9,12 +9,17 @@ conectamos isso ao Supabase (banco de dados real, com seu estoque).
 - Menu com todos os jogos e subcategorias (cartas avulsas, graduadas, selados,
   colecionáveis, antigos e raros, códigos digitais)
 - Catálogo com filtro por jogo, categoria e busca por nome
-- Página de produto individual
-- Botão flutuante do WhatsApp (troque o número em `components/WhatsAppButton.tsx`)
+- Página de produto individual, com botão "Comprar pelo WhatsApp" (a mensagem já
+  vai com o nome, a condição e o preço da carta)
+- Botão flutuante do WhatsApp
+- Páginas de perguntas frequentes, trocas e devoluções e torneios
+
+O número do WhatsApp, o email de contato e o desconto do Pix ficam em
+`lib/site.ts` — troque lá e vale para o site inteiro.
 
 ## O que ainda não faz (vem nas próximas fases)
-- Carrinho e checkout de verdade (o botão "Adicionar ao carrinho" ainda não tem
-  ação — isso é a Fase 2)
+- Carrinho e checkout de verdade (por enquanto a compra é finalizada pelo
+  WhatsApp — isso é a Fase 2)
 - Login de cliente
 - Painel administrativo e controle de estoque real (Fase 3)
 

@@ -1,5 +1,7 @@
 import Image from "next/image";
+import Link from "next/link";
 import TrustBadges from "./TrustBadges";
+import { CONTACT_EMAIL } from "@/lib/site";
 
 export default function Footer() {
   return (
@@ -25,7 +27,9 @@ export default function Footer() {
           <p className="leading-relaxed">
             Segunda a sábado, 09:00 - 20:00
             <br />
-            contato@villageandvault.com.br
+            <a href={`mailto:${CONTACT_EMAIL}`} className="transition-colors hover:text-gold">
+              {CONTACT_EMAIL}
+            </a>
           </p>
         </div>
 
@@ -35,14 +39,14 @@ export default function Footer() {
           </p>
           <ul className="space-y-1.5">
             <li>
-              <a href="/faq" className="transition-colors hover:text-gold">
+              <Link href="/faq" className="transition-colors hover:text-gold">
                 Perguntas frequentes
-              </a>
+              </Link>
             </li>
             <li>
-              <a href="/trocas" className="transition-colors hover:text-gold">
+              <Link href="/trocas" className="transition-colors hover:text-gold">
                 Trocas e devoluções
-              </a>
+              </Link>
             </li>
           </ul>
         </div>

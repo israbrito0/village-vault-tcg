@@ -1,7 +1,15 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import { PRODUCTS } from "@/lib/mock-data";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
+
+export const metadata: Metadata = { title: "Catálogo" };
+
+// "Pokémon" e "pokemon" precisam dar o mesmo resultado.
+function normalize(text: string) {
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+}
 
 export default function CatalogoPage({
   searchParams,
@@ -9,11 +17,15 @@ export default function CatalogoPage({
   searchParams: { jogo?: string; subcategoria?: string; busca?: string };
 }) {
   const { jogo, subcategoria, busca } = searchParams;
+  const termo = busca ? normalize(busca.trim()) : "";
 
   const produtos = PRODUCTS.filter((p) => {
     if (jogo && p.game !== jogo) return false;
     if (subcategoria && p.subcategory !== subcategoria) return false;
-    if (busca && !p.name.toLowerCase().includes(busca.toLowerCase())) return false;
+    if (termo) {
+      const gameLabel = GAMES.find((g) => g.slug === p.game)?.label ?? "";
+      if (!normalize(`${p.name} ${p.setName} ${gameLabel}`).includes(termo)) return false;
+    }
     return true;
   });
 
@@ -55,7 +67,14 @@ export default function CatalogoPage({
       </aside>
 
       <section className="flex-1">
-        <p className="mb-4 text-xs text-muted">{produtos.length} produtos encontrados</p>
+        <p className="mb-4 text-xs text-muted">
+          {produtos.length} produtos encontrados
+          {busca && (
+            <>
+              {" "}para <span className="text-cream">“{busca}”</span>
+            </>
+          )}
+        </p>
         {produtos.length === 0 ? (
           <p className="text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
         ) : (

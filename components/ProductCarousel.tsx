@@ -21,7 +21,8 @@ export default function ProductCarousel({
     <section className="px-5 py-4">
       <div className="mb-2.5 flex items-center justify-between">
         <h2 className="font-display text-xs tracking-wide text-gold">{title}</h2>
-        <div className="flex gap-3 text-muted">
+        {/* No computador os produtos já aparecem em grade, então as setas só servem no celular. */}
+        <div className="flex gap-3 text-muted sm:hidden">
           <button onClick={() => scroll(-1)} aria-label="Anterior" className="hover:text-gold">
             ‹
           </button>

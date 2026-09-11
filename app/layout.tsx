@@ -5,6 +5,7 @@ import Header from "@/components/Header";
 import MegaMenu from "@/components/MegaMenu";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import { SHARE_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 const cinzel = Cinzel({
   subsets: ["latin"],
@@ -19,9 +20,18 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Village & Vault TCG",
-  description:
-    "Cartas e produtos selados de Pokémon, Magic e outros TCGs, com condição e estoque verificados.",
+  metadataBase: new URL(SITE_URL),
+  title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    images: [SHARE_IMAGE],
+  },
+  twitter: { card: "summary_large_image" },
 };
 
 export default function RootLayout({
