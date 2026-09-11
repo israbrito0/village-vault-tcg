@@ -1,6 +1,6 @@
 import { PRODUCTS, getProductBySlug, loadImageDirectly } from "./products";
 import { whatsappLink } from "./site";
-import type { GameSlug } from "./types";
+import type { GameSlug, Origin } from "./types";
 
 // Banners em leque do catálogo e das páginas do menu. Edite aqui textos,
 // cupons, fotos e links.
@@ -34,18 +34,6 @@ export interface Banner {
 }
 
 export const BANNERS: Banner[] = [
-  {
-    id: "pokemon-30-anos",
-    game: "pokemon",
-    badge: "PRÉ-VENDA",
-    title: "Celebrações 30 anos",
-    tagline: "Reserve o seu antes do lançamento.",
-    couponText: "Reserva pelo WhatsApp",
-    cta: "Quero reservar",
-    whatsappMessage: "Olá! Quero reservar na pré-venda: Pokémon Celebrações 30 anos.",
-    // image: "/banners/pokemon-30-anos.jpg",  ← coloque a foto e descomente
-    color: "ink",
-  },
   {
     id: "pokemon",
     game: "pokemon",
@@ -141,6 +129,91 @@ export function getFanBanners(): FanBanner[] {
       external: href.startsWith("http"),
       display: images.length > 0 ? "cards" : "empty",
       images,
+    };
+  });
+}
+
+// ---------- Banners largos de produtos lacrados ----------
+//
+// Ficam no topo do catálogo e das páginas do menu, passando para o lado.
+// Fotos: `productSlugs` (produtos da planilha que têm foto) e/ou `images`
+// (fotos próprias em public/banners/). `background` é uma imagem de fundo
+// opcional; sem ela, o banner usa o degradê do `theme`.
+
+export type SealedTheme = "gold" | "fire" | "night" | "ocean";
+
+export interface SealedSlide {
+  id: string;
+  // Chamada no topo: "Pré-venda", "Produtos disponíveis", "Lançamento"...
+  eyebrow: string;
+  title: string;
+  subtitle?: string;
+  // Idioma do produto, vira a etiqueta "Produto em inglês" etc.
+  origin?: Origin;
+  productSlugs?: string[];
+  images?: string[];
+  background?: string;
+  theme: SealedTheme;
+  cta: string;
+  href?: string;
+  whatsappMessage?: string;
+}
+
+export const SEALED_SLIDES: SealedSlide[] = [
+  {
+    id: "pokemon-30-anos",
+    eyebrow: "Pré-venda",
+    title: "Celebrações 30 anos",
+    subtitle: "Pokémon TCG · reserve o seu antes do lançamento.",
+    // images: ["/banners/30-anos-box.png", "/banners/30-anos-blister.png"],  ← fotos dos produtos
+    theme: "gold",
+    cta: "Quero reservar",
+    whatsappMessage: "Olá! Quero reservar na pré-venda: Pokémon Celebrações 30 anos.",
+  },
+  {
+    id: "selados-pokemon",
+    eyebrow: "Produtos disponíveis",
+    title: "Selados Pokémon",
+    subtitle: "Booster boxes, blisters e latas lacrados.",
+    productSlugs: [
+      "booster-box-scarlet-violet",
+      "case-de-12-blisters-evolucoes-prismaticas",
+      "mini-lata-colecionavel-pikachu",
+    ],
+    theme: "ocean",
+    cta: "Ver selados",
+    href: "/catalogo?jogo=pokemon&subcategoria=produtos-selados",
+  },
+];
+
+const ORIGIN_LABELS: Record<Origin, string> = {
+  BR: "Produto nacional",
+  US: "Produto em inglês",
+  JP: "Produto japonês",
+};
+
+export type SealedSlideView = SealedSlide & {
+  href: string;
+  external: boolean;
+  language?: string;
+  photos: { src: string; direct: boolean }[];
+};
+
+export function getSealedSlides(): SealedSlideView[] {
+  return SEALED_SLIDES.map((slide) => {
+    const productPhotos = (slide.productSlugs ?? [])
+      .map((slug) => getProductBySlug(slug)?.image)
+      .filter((src): src is string => Boolean(src));
+    const href =
+      slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
+    return {
+      ...slide,
+      href,
+      external: href.startsWith("http"),
+      language: slide.origin ? ORIGIN_LABELS[slide.origin] : undefined,
+      photos: [...(slide.images ?? []), ...productPhotos]
+        .slice(0, 3)
+        .map((src) => ({ src, direct: loadImageDirectly(src) })),
     };
   });
 }
