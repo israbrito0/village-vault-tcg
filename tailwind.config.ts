@@ -7,15 +7,24 @@ const config: Config = {
   ],
   theme: {
     extend: {
+      // Tema claro: fundo branco, texto grafite e acentos coloridos.
       colors: {
-        ink: "#0B0B0C",
-        card: "#151412",
-        "card-border": "#3A331F",
-        gold: "#C9A227",
-        "gold-dim": "#5C4E1E",
-        cream: "#EDE7D8",
-        muted: "#726C5E",
-        danger: "#8C2E2E",
+        ink: "#333844", // grafite: texto sobre fundos coloridos e áreas escuras
+        card: "#FFFFFF",
+        "card-border": "#E6E8EC",
+        surface: "#F4F6F8", // cinza bem claro para fundos de destaque
+        gold: "#F4AF14", // amarelo da marca: faixa do menu, botões e bordas
+        "gold-deep": "#9A6700", // amarelo escuro legível para texto no fundo branco
+        "gold-dim": "#F6D27C",
+        cream: "#333844", // texto principal
+        muted: "#6B7280",
+        danger: "#F53A3A",
+        // Botões do menu inicial
+        "brand-green": "#24A24E",
+        "brand-blue": "#158BCA",
+        "brand-red": "#F53A3A",
+        "brand-yellow": "#F4AF14",
+        "brand-yellow-text": "#A87400",
       },
       fontFamily: {
         display: ["var(--font-cinzel)", "serif"],
@@ -46,6 +55,10 @@ const config: Config = {
           "0%, 100%": { transform: "scale(1.06) rotate(0deg)" },
           "50%": { transform: "scale(1.09) rotate(-0.5deg)" },
         },
+        float: {
+          "0%, 100%": { transform: "translateY(0)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "fade-in-up": "fadeInUp 0.9s ease-out both",
@@ -54,6 +67,7 @@ const config: Config = {
         "pulse-gold": "pulseGold 2.2s ease-in-out infinite",
         shimmer: "shimmer 2.8s ease-in-out infinite",
         "hero-sway": "heroSway 8s ease-in-out infinite",
+        float: "float 5s ease-in-out infinite",
       },
     },
   },

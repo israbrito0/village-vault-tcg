@@ -14,13 +14,13 @@ export default function Header() {
           priority
           className="h-11 w-11 rounded-full object-cover sm:h-[92px] sm:w-[92px]"
         />
-        <span className="font-display text-sm font-semibold tracking-wider text-gold sm:text-lg">
+        <span className="font-display text-sm font-semibold tracking-wider text-gold-deep sm:text-lg">
           VILLAGE &amp; VAULT
         </span>
       </Link>
 
       <div className="flex items-center gap-4 whitespace-nowrap text-[11px] text-cream/80 sm:order-3">
-        <Link href="/conta" className="flex items-center gap-2 hover:text-gold" aria-label="Entrar ou cadastrar">
+        <Link href="/conta" className="flex items-center gap-2 hover:text-gold-deep" aria-label="Entrar ou cadastrar">
           <User size={20} strokeWidth={1.5} />
           <span className="hidden leading-tight sm:inline">
             Faça login
@@ -28,10 +28,10 @@ export default function Header() {
             ou cadastre-se
           </span>
         </Link>
-        <Link href="/favoritos" className="hover:text-gold" aria-label="Favoritos">
+        <Link href="/favoritos" className="hover:text-gold-deep" aria-label="Favoritos">
           <Heart size={20} strokeWidth={1.5} />
         </Link>
-        <Link href="/carrinho" className="hover:text-gold" aria-label="Carrinho">
+        <Link href="/carrinho" className="hover:text-gold-deep" aria-label="Carrinho">
           <ShoppingCart size={20} strokeWidth={1.5} />
         </Link>
       </div>
@@ -52,7 +52,7 @@ export default function Header() {
             <Search size={16} strokeWidth={2} />
           </button>
         </div>
-        <Link href="/catalogo" className="hidden text-[10px] text-muted hover:text-gold sm:inline">
+        <Link href="/catalogo" className="hidden text-[10px] text-muted hover:text-gold-deep sm:inline">
           busca avançada
         </Link>
       </form>

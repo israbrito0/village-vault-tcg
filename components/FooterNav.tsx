@@ -36,7 +36,7 @@ export default function MegaMenu() {
                   <Link
                     key={sub.slug}
                     href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
-                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-ink hover:text-gold"
+                    className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-surface hover:text-gold-deep"
                   >
                     {sub.label}
                   </Link>

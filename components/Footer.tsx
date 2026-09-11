@@ -12,7 +12,7 @@ export default function Footer() {
         <div>
           <div className="mb-3 flex items-center gap-2">
             <Image src="/logo.jpg" alt="Village & Vault TCG" width={28} height={28} className="rounded-full" />
-            <p className="font-display text-sm tracking-wide text-gold">VILLAGE &amp; VAULT</p>
+            <p className="font-display text-sm tracking-wide text-gold-deep">VILLAGE &amp; VAULT</p>
           </div>
           <p className="leading-relaxed">
             Cartas e produtos selados de Pokémon, Magic e outros TCGs, com condição e
@@ -21,30 +21,30 @@ export default function Footer() {
         </div>
 
         <div>
-          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold">
+          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold-deep">
             Atendimento
           </p>
           <p className="leading-relaxed">
             Segunda a sábado, 09:00 - 20:00
             <br />
-            <a href={`mailto:${CONTACT_EMAIL}`} className="transition-colors hover:text-gold">
+            <a href={`mailto:${CONTACT_EMAIL}`} className="transition-colors hover:text-gold-deep">
               {CONTACT_EMAIL}
             </a>
           </p>
         </div>
 
         <div>
-          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold">
+          <p className="font-display mb-3 text-[11px] uppercase tracking-wide text-gold-deep">
             Institucional
           </p>
           <ul className="space-y-1.5">
             <li>
-              <Link href="/faq" className="transition-colors hover:text-gold">
+              <Link href="/faq" className="transition-colors hover:text-gold-deep">
                 Perguntas frequentes
               </Link>
             </li>
             <li>
-              <Link href="/trocas" className="transition-colors hover:text-gold">
+              <Link href="/trocas" className="transition-colors hover:text-gold-deep">
                 Trocas e devoluções
               </Link>
             </li>

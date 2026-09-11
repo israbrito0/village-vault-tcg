@@ -22,13 +22,13 @@ export default function ProductCarousel({
   return (
     <section className="px-5 py-4">
       <div className="mb-2.5 flex items-center justify-between">
-        <h2 className="font-display text-xs tracking-wide text-gold">{title}</h2>
+        <h2 className="font-display text-xs tracking-wide text-gold-deep">{title}</h2>
         {/* No computador os produtos já aparecem em grade, então as setas só servem no celular. */}
         <div className="flex gap-3 text-muted sm:hidden">
-          <button onClick={() => scroll(-1)} aria-label="Anterior" className="hover:text-gold">
+          <button onClick={() => scroll(-1)} aria-label="Anterior" className="hover:text-gold-deep">
             ‹
           </button>
-          <button onClick={() => scroll(1)} aria-label="Próximo" className="hover:text-gold">
+          <button onClick={() => scroll(1)} aria-label="Próximo" className="hover:text-gold-deep">
             ›
           </button>
         </div>

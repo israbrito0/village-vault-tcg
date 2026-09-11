@@ -95,7 +95,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
           <p className="mt-1 text-sm text-muted">{product.setName}</p>
 
           <div className="mt-4 flex items-center gap-3">
-            <span className="text-2xl font-medium text-gold">
+            <span className="text-2xl font-medium text-gold-deep">
               {formatPriceBRL(product.priceCents)}
             </span>
             {product.compareAtPriceCents && (
@@ -105,7 +105,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
             )}
           </div>
           <p className="mt-1 text-xs text-cream/80">
-            <span className="text-gold">{formatPriceBRL(pixPriceCents)}</span> no Pix (
+            <span className="text-gold-deep">{formatPriceBRL(pixPriceCents)}</span> no Pix (
             {Math.round(PIX_DISCOUNT * 100)}% off) ou em até {MAX_INSTALLMENTS}x de{" "}
             {formatPriceBRL(installmentCents)} sem juros
           </p>
@@ -118,7 +118,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
               Origem: {product.origin}
             </span>
             {product.stock === 1 ? (
-              <span className="rounded border border-gold-dim px-2 py-1 text-gold">
+              <span className="rounded border border-gold-dim px-2 py-1 text-gold-deep">
                 Última unidade
               </span>
             ) : (

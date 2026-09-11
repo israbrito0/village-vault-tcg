@@ -16,7 +16,7 @@ export default function InfoPage({
 }) {
   return (
     <main className="mx-auto max-w-3xl px-5 py-10">
-      <h1 className="font-display text-xl text-gold">{title}</h1>
+      <h1 className="font-display text-xl text-gold-deep">{title}</h1>
       {intro && <p className="mt-3 text-sm leading-relaxed text-cream/80">{intro}</p>}
 
       {children && <div className="mt-6 space-y-6 text-sm leading-relaxed text-cream/80">{children}</div>}
@@ -35,7 +35,7 @@ export default function InfoPage({
         )}
         <Link
           href="/catalogo"
-          className="inline-flex items-center rounded border border-gold-dim px-5 py-2.5 text-sm text-gold hover:border-gold"
+          className="inline-flex items-center rounded border border-gold-dim px-5 py-2.5 text-sm text-gold-deep hover:border-gold"
         >
           Ver catálogo
         </Link>

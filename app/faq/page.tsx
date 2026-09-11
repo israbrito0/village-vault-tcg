@@ -9,7 +9,7 @@ export default function FaqPage() {
   return (
     <InfoPage title="Perguntas frequentes" whatsappMessage="Olá! Tenho uma dúvida:">
       <Question q="Como faço uma compra?">
-        Escolha o produto no <Link href="/catalogo" className="text-gold hover:underline">catálogo</Link> e
+        Escolha o produto no <Link href="/catalogo" className="text-gold-deep hover:underline">catálogo</Link> e
         toque em “Comprar pelo WhatsApp”. A mensagem já vai com o nome e o preço da carta, e a gente
         finaliza o pedido com você por lá.
       </Question>
@@ -40,7 +40,7 @@ export default function FaqPage() {
 
       <Question q="Posso trocar ou devolver?">
         Pode. Veja como funciona em{" "}
-        <Link href="/trocas" className="text-gold hover:underline">trocas e devoluções</Link>.
+        <Link href="/trocas" className="text-gold-deep hover:underline">trocas e devoluções</Link>.
       </Question>
     </InfoPage>
   );
