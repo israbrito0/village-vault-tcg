@@ -1,27 +1,51 @@
-import { PRODUCTS, loadImageDirectly } from "./products";
+import { PRODUCTS, getProductBySlug, loadImageDirectly } from "./products";
+import { whatsappLink } from "./site";
 import type { GameSlug } from "./types";
 
-// Banners em leque da página inicial. Edite aqui textos, cupons e links.
+// Banners em leque do catálogo e das páginas do menu. Edite aqui textos,
+// cupons, fotos e links.
 //
 // ATENÇÃO: os cupons abaixo são EXEMPLOS. Confirme os códigos e descontos
 // reais antes de publicar; o cliente informa o cupom na conversa do WhatsApp.
+//
+// Foto do produto no banner, de duas formas:
+// - `productSlug`: usa a foto e o link de um produto da planilha;
+// - `image`: foto própria em public/banners/ (ex.: "/banners/30-anos.jpg").
+// Sem foto, o banner mostra cartas do jogo que estão no catálogo.
 
 export type BannerColor = "yellow" | "blue" | "red" | "green" | "ink";
 
 export interface Banner {
   id: string;
-  // Com jogo, o banner mostra cartas desse jogo que estão no catálogo.
   game?: GameSlug;
+  // Etiqueta em destaque no topo, ex.: "PRÉ-VENDA", "LANÇAMENTO".
+  badge?: string;
   title: string;
   tagline: string;
   coupon?: string;
   couponText: string;
   cta: string;
-  href: string;
+  // Link do botão. Sem href, o botão abre o WhatsApp com `whatsappMessage`.
+  href?: string;
+  whatsappMessage?: string;
+  productSlug?: string;
+  image?: string;
   color: BannerColor;
 }
 
 export const BANNERS: Banner[] = [
+  {
+    id: "pokemon-30-anos",
+    game: "pokemon",
+    badge: "PRÉ-VENDA",
+    title: "Celebrações 30 anos",
+    tagline: "Reserve o seu antes do lançamento.",
+    couponText: "Reserva pelo WhatsApp",
+    cta: "Quero reservar",
+    whatsappMessage: "Olá! Quero reservar na pré-venda: Pokémon Celebrações 30 anos.",
+    // image: "/banners/pokemon-30-anos.jpg",  ← coloque a foto e descomente
+    color: "ink",
+  },
   {
     id: "pokemon",
     game: "pokemon",
@@ -78,15 +102,45 @@ export const BANNERS: Banner[] = [
 ];
 
 export type FanBanner = Banner & {
+  href: string;
+  external: boolean;
+  // `photo`: foto grande de um produto; `cards`: cartas do catálogo em leque.
+  display: "photo" | "cards" | "empty";
   images: { src: string; alt: string; direct: boolean }[];
 };
 
-// Cada banner mostra até duas cartas com foto do jogo dele (ou de qualquer jogo).
+function cardImages(banner: Banner) {
+  return PRODUCTS.filter((p) => p.image && (!banner.game || p.game === banner.game))
+    .slice(0, 2)
+    .map((p) => ({ src: p.image!, alt: p.name, direct: loadImageDirectly(p.image!) }));
+}
+
 export function getFanBanners(): FanBanner[] {
-  return BANNERS.map((banner) => ({
-    ...banner,
-    images: PRODUCTS.filter((p) => p.image && (!banner.game || p.game === banner.game))
-      .slice(0, 2)
-      .map((p) => ({ src: p.image!, alt: p.name, direct: loadImageDirectly(p.image!) })),
-  }));
+  return BANNERS.map((banner) => {
+    const product = banner.productSlug ? getProductBySlug(banner.productSlug) : undefined;
+    const photo = banner.image ?? product?.image;
+    const href =
+      banner.href ??
+      (product ? `/produto/${product.slug}` : whatsappLink(banner.whatsappMessage ?? `Olá! Vi o banner ${banner.title}.`));
+
+    if (photo) {
+      return {
+        ...banner,
+        href,
+        external: href.startsWith("http"),
+        display: "photo",
+        images: [{ src: photo, alt: product?.name ?? banner.title, direct: loadImageDirectly(photo) }],
+      };
+    }
+
+    // Banner de pré-venda sem foto ainda: mostra o espaço reservado para a foto.
+    const images = banner.badge ? [] : cardImages(banner);
+    return {
+      ...banner,
+      href,
+      external: href.startsWith("http"),
+      display: images.length > 0 ? "cards" : "empty",
+      images,
+    };
+  });
 }

@@ -131,7 +131,13 @@ export default function BannerFan({
                 }`}
               >
                 <div className="relative z-10 flex max-w-[58%] flex-col text-left">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
+                  {banner.badge ? (
+                    <p className="w-fit rounded-full bg-brand-yellow px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-ink">
+                      {banner.badge}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80">Promoção</p>
+                  )}
                   <h3 className="mt-1 font-display text-xl font-extrabold leading-tight sm:text-2xl">{banner.title}</h3>
                   <p className="mt-1 text-xs leading-snug opacity-90">{banner.tagline}</p>
 
@@ -154,46 +160,82 @@ export default function BannerFan({
                     <p className="mt-3 text-sm font-bold">{banner.couponText}</p>
                   )}
 
-                  <Link
-                    href={banner.href}
-                    tabIndex={isFront ? 0 : -1}
-                    className={`mt-auto w-fit rounded border-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${theme.cta}`}
-                  >
-                    {banner.cta} →
-                  </Link>
+                  {banner.external ? (
+                    <a
+                      href={banner.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      tabIndex={isFront ? 0 : -1}
+                      className={`mt-auto w-fit rounded border-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${theme.cta}`}
+                    >
+                      {banner.cta} →
+                    </a>
+                  ) : (
+                    <Link
+                      href={banner.href}
+                      tabIndex={isFront ? 0 : -1}
+                      className={`mt-auto w-fit rounded border-2 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${theme.cta}`}
+                    >
+                      {banner.cta} →
+                    </Link>
+                  )}
                 </div>
 
-                {/* Cartas do catálogo desse jogo, abertas em leque no canto do banner. */}
-                <div aria-hidden className="absolute bottom-4 right-3 top-4 w-[42%]">
-                  {banner.images.length > 0
-                    ? banner.images.map((img, k) => (
-                        <div
-                          key={img.src}
-                          className="absolute top-1/2 aspect-[63/88] h-[88%] overflow-hidden rounded-lg shadow-lg"
-                          style={{
-                            right: `${k * 22}%`,
-                            transform: `translateY(-50%) rotate(${k === 0 ? 8 : -8}deg)`,
-                            zIndex: 2 - k,
-                          }}
-                        >
-                          <Image
-                            src={img.src}
-                            alt=""
-                            fill
-                            sizes="140px"
-                            unoptimized={img.direct}
-                            className="object-cover"
+                {banner.display === "photo" ? (
+                  // Foto grande do produto (caixa, lata, booster...), inteira e com sombra.
+                  <div aria-hidden className="absolute bottom-3 right-2 top-3 w-[44%]">
+                    <Image
+                      src={banner.images[0].src}
+                      alt=""
+                      fill
+                      sizes="220px"
+                      unoptimized={banner.images[0].direct}
+                      className="object-contain drop-shadow-[0_12px_18px_rgba(0,0,0,0.45)]"
+                    />
+                  </div>
+                ) : banner.display === "empty" && banner.badge ? (
+                  // Pré-venda ainda sem foto: espaço reservado bem visível.
+                  <div
+                    aria-hidden
+                    className="absolute bottom-5 right-4 top-5 flex w-[38%] items-center justify-center rounded-xl border-2 border-dashed border-white/40 text-center text-[10px] font-bold uppercase tracking-wide opacity-80"
+                  >
+                    Foto do
+                    <br />
+                    produto
+                  </div>
+                ) : (
+                  // Cartas do catálogo desse jogo, abertas em leque no canto do banner.
+                  <div aria-hidden className="absolute bottom-4 right-3 top-4 w-[42%]">
+                    {banner.images.length > 0
+                      ? banner.images.map((img, k) => (
+                          <div
+                            key={img.src}
+                            className="absolute top-1/2 aspect-[63/88] h-[88%] overflow-hidden rounded-lg shadow-lg"
+                            style={{
+                              right: `${k * 22}%`,
+                              transform: `translateY(-50%) rotate(${k === 0 ? 8 : -8}deg)`,
+                              zIndex: 2 - k,
+                            }}
+                          >
+                            <Image
+                              src={img.src}
+                              alt=""
+                              fill
+                              sizes="140px"
+                              unoptimized={img.direct}
+                              className="object-cover"
+                            />
+                          </div>
+                        ))
+                      : [0, 1].map((k) => (
+                          <div
+                            key={k}
+                            className="absolute top-1/2 aspect-[63/88] h-[80%] rounded-lg border-2 border-white/40 bg-white/15"
+                            style={{ right: `${k * 22}%`, transform: `translateY(-50%) rotate(${k === 0 ? 8 : -8}deg)` }}
                           />
-                        </div>
-                      ))
-                    : [0, 1].map((k) => (
-                        <div
-                          key={k}
-                          className="absolute top-1/2 aspect-[63/88] h-[80%] rounded-lg border-2 border-white/40 bg-white/15"
-                          style={{ right: `${k * 22}%`, transform: `translateY(-50%) rotate(${k === 0 ? 8 : -8}deg)` }}
-                        />
-                      ))}
-                </div>
+                        ))}
+                  </div>
+                )}
               </div>
             </article>
           );

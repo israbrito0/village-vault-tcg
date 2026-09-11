@@ -63,4 +63,6 @@ export interface Product {
   image?: string;
   // Código da carta na planilha, ex.: "DAA 20".
   code?: string;
+  // Coluna "prevenda" = sim: ainda não lançado, o cliente reserva pelo WhatsApp.
+  preorder?: boolean;
 }

@@ -18,6 +18,11 @@ export default function ProductCard({ product }: { product: Product }) {
       className="group block w-full rounded-lg border border-card-border bg-white p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-brand-blue/40 hover:shadow-[0_14px_28px_-14px_rgba(51,56,68,0.45)]"
     >
       <div className="relative mb-2 aspect-[3/4] overflow-hidden rounded border border-card-border bg-surface">
+        {product.preorder && (
+          <span className="absolute right-1.5 top-1.5 z-10 rounded bg-brand-blue px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+            Pré-venda
+          </span>
+        )}
         {discount && (
           <span className="absolute left-1.5 top-1.5 z-10 rounded bg-danger px-1.5 py-0.5 text-[9px] font-medium text-white">
             -{discount}%

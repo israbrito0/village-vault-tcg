@@ -314,6 +314,7 @@ async function main() {
       origin,
       stock,
       ...(/^(sim|s|x|1|true)$/i.test(row.destaque) ? { featured: true } : {}),
+      ...(/^(sim|s|x|1|true)$/i.test(row.prevenda) ? { preorder: true } : {}),
       description,
       ...(image ? { image } : {}),
       ...(code ? { code } : {}),

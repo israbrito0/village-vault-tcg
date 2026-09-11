@@ -56,7 +56,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
   const pixPriceCents = Math.round(product.priceCents * (1 - PIX_DISCOUNT));
   const installmentCents = Math.round(product.priceCents / MAX_INSTALLMENTS);
   const buyMessage =
-    `Olá! Quero comprar: ${fullName(product)}, ` +
+    `Olá! Quero ${product.preorder ? "reservar na pré-venda" : "comprar"}: ${fullName(product)}, ` +
     `condição ${product.condition}, por ${formatPriceBRL(product.priceCents)}.\n` +
     `${SITE_URL}/produto/${product.slug}`;
 
@@ -117,6 +117,9 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
             <span className="rounded-full bg-surface px-3 py-1 text-ink/80">
               Origem: {product.origin}
             </span>
+            {product.preorder && (
+              <span className="rounded-full bg-brand-blue px-3 py-1 text-white">Pré-venda</span>
+            )}
             {product.stock === 1 ? (
               <span className="rounded-full border border-brand-red/50 px-3 py-1 text-brand-red">
                 Última unidade
@@ -137,7 +140,7 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
             className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded border-2 border-brand-green bg-brand-green py-3 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-colors hover:bg-white hover:text-brand-green sm:w-auto sm:px-10"
           >
             <MessageCircle size={18} strokeWidth={2} />
-            Comprar pelo WhatsApp
+            {product.preorder ? "Reservar pelo WhatsApp" : "Comprar pelo WhatsApp"}
           </a>
         </div>
       </div>
