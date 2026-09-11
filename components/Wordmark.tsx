@@ -32,14 +32,15 @@ function Wing({ gradientId, className }: { gradientId: string; className: string
   );
 }
 
-// Nome da loja centralizado com as asas e o subtítulo, igual em todas as páginas.
-export default function Wordmark({ large = false }: { large?: boolean }) {
+// Nome da loja centralizado com o subtítulo; com `wings`, ganha as asas batendo
+// dos lados (hoje só na página do catálogo).
+export default function Wordmark({ large = false, wings = false }: { large?: boolean; wings?: boolean }) {
   const wingSize = large ? "w-9 sm:w-16 lg:w-24" : "w-8 sm:w-14";
 
   return (
     <div className="text-center">
       <Link href="/" className="inline-flex items-center gap-1.5 sm:gap-3">
-        <Wing gradientId="vv-wing-left" className={wingSize} />
+        {wings && <Wing gradientId="vv-wing-left" className={wingSize} />}
         <span
           className={`whitespace-nowrap font-display font-semibold tracking-wide text-ink ${
             large ? "text-2xl sm:text-4xl lg:text-5xl" : "text-xl sm:text-3xl"
@@ -48,9 +49,11 @@ export default function Wordmark({ large = false }: { large?: boolean }) {
           VILLAGE <span className="text-brand-yellow">&amp;</span> VAULT
         </span>
         {/* Espelhada: a mesma asa, virada para a direita. */}
-        <span className="-scale-x-100">
-          <Wing gradientId="vv-wing-right" className={`block ${wingSize}`} />
-        </span>
+        {wings && (
+          <span className="-scale-x-100">
+            <Wing gradientId="vv-wing-right" className={`block ${wingSize}`} />
+          </span>
+        )}
       </Link>
       <p
         className={`mt-2 font-bold uppercase tracking-[0.22em] text-ink ${

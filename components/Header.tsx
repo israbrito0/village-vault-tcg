@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Heart, Search, ShoppingCart, User } from "lucide-react";
-import Wordmark from "./Wordmark";
+import HeaderWordmark from "./HeaderWordmark";
 
 export default function Header() {
   return (
@@ -17,7 +17,7 @@ export default function Header() {
         </Link>
       </div>
 
-      <Wordmark />
+      <HeaderWordmark />
 
       <form action="/catalogo" className="mx-auto mt-4 flex max-w-md">
         <input
