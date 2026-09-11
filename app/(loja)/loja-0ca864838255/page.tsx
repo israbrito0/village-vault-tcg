@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { Clock, ExternalLink, MapPin, Navigation, Phone, Star } from "lucide-react";
+import { Clock, ExternalLink, MapPin, Navigation, Phone, Star, Trees } from "lucide-react";
 import InfoPage from "@/components/InfoPage";
 import {
   GOOGLE_PROFILE_URL,
@@ -25,6 +25,9 @@ const MAPA = `https://maps.google.com/maps?q=${encodeURIComponent(BUSCA)}&z=14&o
 const TEL = `tel:+55${STORE_PHONE.replace(/\D/g, "")}`;
 const NOTA = GOOGLE_RATING.toFixed(1).replace(".", ",");
 const AVALIACOES = `${GOOGLE_REVIEWS} ${GOOGLE_REVIEWS === 1 ? "avaliação" : "avaliações"}`;
+
+const SANTUARIO_SITE = "https://santuarioecosantatereza.com";
+const SANTUARIO_INSTAGRAM = "https://www.instagram.com/santuarioecosantatereza/";
 
 const BOTAO_GOOGLE =
   "inline-flex items-center gap-1.5 rounded-full border border-[#DADCE0] bg-white px-4 py-2 text-[13px] font-medium text-[#1A73E8] transition-colors hover:bg-[#F1F6FE]";
@@ -60,7 +63,7 @@ export default function LojaPage() {
   return (
     <InfoPage
       title="Nossa loja"
-      intro="Além das vendas pelo site, a Village & Vault TCG tem loja física em Atalaia (AL), ao lado da Village Fotografia. Passe para conhecer os produtos selados e as cartas de perto."
+      intro="Além das vendas pelo site, a Village & Vault TCG tem loja física dentro do Parque Santuário Ecológico Fazenda Santa Tereza, em Atalaia (AL), ao lado da Village Fotografia. Passe para conhecer os produtos selados e as cartas de perto."
       whatsappMessage="Olá! Quero visitar a loja física."
     >
       {/* Cartão no formato do perfil da empresa no Google */}
@@ -184,6 +187,28 @@ export default function LojaPage() {
           </a>
         </div>
       </article>
+
+      <section className="rounded-xl border border-card-border bg-white p-5 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+        <h2 className="flex items-center gap-2 text-[12px] font-bold uppercase tracking-wide text-ink">
+          <Trees size={16} className="text-brand-green" />
+          Dentro do Santuário Ecológico
+        </h2>
+        <p className="mt-2 text-ink/75">
+          A loja fica no Parque Santuário Ecológico Fazenda Santa Tereza, uma reserva particular de Mata
+          Atlântica com mais de 100 hectares, a cerca de 48 km de Maceió. O parque tem piscinas naturais,
+          trilhas e área de lazer para a família: dá para curtir o passeio e passar na loja no mesmo dia.
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <a href={SANTUARIO_SITE} target="_blank" rel="noopener noreferrer" className={BOTAO_GOOGLE}>
+            <ExternalLink size={15} />
+            Site do Santuário
+          </a>
+          <a href={SANTUARIO_INSTAGRAM} target="_blank" rel="noopener noreferrer" className={BOTAO_GOOGLE}>
+            <ExternalLink size={15} />
+            Instagram do Santuário
+          </a>
+        </div>
+      </section>
 
       <iframe
         title={`Mapa da ${SITE_NAME} no Google Maps`}
