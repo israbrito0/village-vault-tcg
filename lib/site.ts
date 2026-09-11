@@ -21,6 +21,12 @@ export const CONTACT_EMAIL = "contato@villagetcg.com.br";
 // Loja física (mesmo endereço da sede, ao lado da Village Fotografia).
 export const STORE_ADDRESS = "Fazenda Santa Tereza, Rodovia AL-316, 2,7 km à direita, Zona Rural, Atalaia - AL, 57690-000";
 export const STORE_HOURS = "Segunda a sábado, das 9h às 20h";
+export const STORE_PHONE = "(49) 99920-3436";
+
+// Perfil da empresa no Google. Nota e total de avaliações são atualizados à mão.
+export const GOOGLE_PROFILE_URL = "https://share.google/qAJACwW1O2Z3Su5rZ";
+export const GOOGLE_RATING: number = 5;
+export const GOOGLE_REVIEWS: number = 3;
 
 export const PIX_DISCOUNT = 0.05;
 export const MAX_INSTALLMENTS = 12;
