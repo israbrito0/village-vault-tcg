@@ -72,8 +72,8 @@ const PERKS = ["Frete grátis", `Até ${MAX_INSTALLMENTS}x sem juros`, `${Math.r
 
 // Produtos em leque: o primeiro no meio, na frente e maior; os outros alternam
 // esquerda/direita, cada passo mais para fora, menor, mais inclinado e mais atrás.
-// As fotos oficiais têm bastante margem transparente: por isso se sobrepõem e a
-// imagem é ampliada (scale) dentro do espaço dela.
+// As fotos oficiais costumam ter margem transparente: por isso se sobrepõem e a
+// imagem é ampliada (imageZoom) dentro do espaço dela.
 function productStyle(index: number, total: number): CSSProperties {
   const width = total > 4 ? 42 : 44;
   const step = Math.ceil(index / 2);
@@ -234,7 +234,7 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
       {/* Laterais largas o bastante para as setas não ficarem em cima do texto. */}
       <div className="relative grid min-h-[440px] grid-cols-1 items-center gap-2 px-12 pb-12 pt-8 sm:min-h-[350px] sm:grid-cols-[1fr_1.15fr] sm:px-20 lg:min-h-[410px]">
         {/* min-w-0: sem isso a palavra mais longa do título empurra as imagens para fora. */}
-        <div className="z-10 flex min-w-0 flex-col items-center text-center sm:items-start sm:text-left">
+        <div className="z-40 flex min-w-0 flex-col items-center text-center sm:items-start sm:text-left">
           <p className={`rounded-md px-3 py-1 text-[11px] font-extrabold uppercase tracking-[0.18em] shadow ${theme.eyebrow}`}>
             {slide.eyebrow}
           </p>
@@ -310,7 +310,8 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
                     fill
                     sizes="(min-width: 640px) 320px, 45vw"
                     unoptimized={photo.direct}
-                    className="scale-[1.45] object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.45)]"
+                    style={{ transform: `scale(${slide.imageZoom ?? 1.45})` }}
+                    className="object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.45)]"
                   />
                 </div>
               ),

@@ -26,6 +26,9 @@ export interface SealedSlide {
   images?: string[];
   productSlugs?: string[];
   imageStyle?: "cutout" | "scene";
+  // Ampliação das fotos recortadas: as oficiais costumam ter margem transparente
+  // grande (padrão 1.45); fotos sem margem usam 1.
+  imageZoom?: number;
   background?: string;
   theme: SealedTheme;
   cta: string;
@@ -34,7 +37,8 @@ export interface SealedSlide {
 }
 
 // Fotos oficiais das fabricantes, usadas como material de divulgação de revendedor:
-// 30 anos (pokemon.com/br), Lorcana (disneylorcana.com) e One Piece (onepiece-cardgame.com).
+// 30 anos (pokemon.com/br), Lorcana (disneylorcana.com), One Piece (onepiece-cardgame.com)
+// e Magic (magic.wizards.com).
 export const SEALED_SLIDES: SealedSlide[] = [
   {
     id: "30-anos",
@@ -96,14 +100,25 @@ export const SEALED_SLIDES: SealedSlide[] = [
     href: "/catalogo?jogo=pokemon",
   },
   {
-    id: "magic",
+    id: "magic-the-hobbit",
     game: "magic",
-    eyebrow: "Produtos disponíveis",
+    eyebrow: "Lançamento",
     title: "Magic: The Gathering",
-    subtitle: "Clássicos, raridades e lançamentos.",
+    subtitle: "The Hobbit · Play Booster, Collector Booster, Bundles e Scene Boxes.",
+    // Fotos oficiais da Wizards (magic.wizards.com), versão em inglês.
+    images: [
+      "/banners/magic-hobbit-play-booster-box.webp",
+      "/banners/magic-hobbit-collector-booster-box.webp",
+      "/banners/magic-hobbit-bundle.webp",
+      "/banners/magic-hobbit-gift-bundle.webp",
+      "/banners/magic-hobbit-scene-box-crack-the-plates.webp",
+      "/banners/magic-hobbit-scene-box-treasures-of-smaug.webp",
+      "/banners/magic-hobbit-prerelease-pack.webp",
+    ],
+    imageZoom: 1,
     theme: "fire",
-    cta: "Ver Magic",
-    href: "/catalogo?jogo=magic",
+    cta: "Consultar pelo WhatsApp",
+    whatsappMessage: "Olá! Quero saber sobre os produtos de Magic: The Hobbit.",
   },
 ];
 
