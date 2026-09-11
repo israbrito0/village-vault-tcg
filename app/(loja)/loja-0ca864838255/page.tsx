@@ -198,6 +198,35 @@ export default function LojaPage() {
           Atlântica com mais de 100 hectares, a cerca de 48 km de Maceió. O parque tem piscinas naturais,
           trilhas e área de lazer para a família: dá para curtir o passeio e passar na loja no mesmo dia.
         </p>
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          <div className="relative col-span-2 aspect-[4/3] overflow-hidden rounded-lg">
+            <Image
+              src="/loja-0ca864838255/santuario-drone.jpg"
+              alt="Vista aérea da piscina natural cercada pela Mata Atlântica no Santuário Ecológico Fazenda Santa Tereza"
+              fill
+              className="object-cover"
+              sizes="(max-width: 672px) 100vw, 632px"
+            />
+          </div>
+          <div className="relative aspect-square overflow-hidden rounded-lg">
+            <Image
+              src="/loja-0ca864838255/santuario-placa.jpg"
+              alt="Placa de madeira da Fazenda Santa Tereza, Santuário Ecológico, diante da piscina natural"
+              fill
+              className="object-cover"
+              sizes="(max-width: 672px) 50vw, 316px"
+            />
+          </div>
+          <div className="relative aspect-square overflow-hidden rounded-lg">
+            <Image
+              src="/loja-0ca864838255/santuario-piscina.jpg"
+              alt="Piscina natural de água azul-turquesa no meio da mata"
+              fill
+              className="object-cover"
+              sizes="(max-width: 672px) 50vw, 316px"
+            />
+          </div>
+        </div>
         <div className="mt-3 flex flex-wrap gap-2">
           <a href={SANTUARIO_SITE} target="_blank" rel="noopener noreferrer" className={BOTAO_GOOGLE}>
             <ExternalLink size={15} />
