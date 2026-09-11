@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import type { SealedSlideView, SealedTheme } from "@/lib/banners";
 import { MAX_INSTALLMENTS, PIX_DISCOUNT } from "@/lib/site";
@@ -48,16 +48,49 @@ const THEMES: Record<
     rays: "rgba(255,255,255,0.28)",
     perk: "bg-black/25",
   },
+  forest: {
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#EAFFC9_0%,#4DAF4F_42%,#0C3514_100%)]",
+    text: "text-white",
+    eyebrow: "bg-black/45 text-[#C8F59A]",
+    cta: "border-white bg-white text-[#1F7A33] hover:bg-transparent hover:text-white",
+    glow: "bg-[#C8F59A]/80",
+    rays: "rgba(220,255,190,0.28)",
+    perk: "bg-black/25",
+  },
+  crimson: {
+    bg: "bg-[radial-gradient(ellipse_at_68%_50%,#FFD9CC_0%,#D7262F_42%,#380408_100%)]",
+    text: "text-white",
+    eyebrow: "bg-black/45 text-white",
+    cta: "border-white bg-white text-[#B3141C] hover:bg-transparent hover:text-white",
+    glow: "bg-[#FFB199]/80",
+    rays: "rgba(255,215,195,0.26)",
+    perk: "bg-black/25",
+  },
 };
 
 const PERKS = ["Frete grátis", `Até ${MAX_INSTALLMENTS}x sem juros`, `${Math.round(PIX_DISCOUNT * 100)}% off no Pix`];
 
-// Posições das fotos: a do meio na frente e maior, as outras inclinadas atrás.
-const PRODUCT_SLOTS = [
-  "left-1/2 z-20 h-[92%] w-[46%] -translate-x-1/2",
-  "left-[3%] z-10 h-[74%] w-[38%] -rotate-[9deg]",
-  "right-[3%] z-10 h-[74%] w-[38%] rotate-[9deg]",
-];
+// Produtos em leque: o primeiro no meio, na frente e maior; os outros alternam
+// esquerda/direita, cada passo mais para fora, menor, mais inclinado e mais atrás.
+// As fotos oficiais têm bastante margem transparente: por isso se sobrepõem e a
+// imagem é ampliada (scale) dentro do espaço dela.
+function productStyle(index: number, total: number): CSSProperties {
+  const width = total > 4 ? 42 : 44;
+  const step = Math.ceil(index / 2);
+  const side = index % 2 === 1 ? -1 : 1;
+  const maxStep = Math.ceil((total - 1) / 2);
+  const spread = maxStep <= 1 ? 27 : 36 / maxStep;
+
+  const left = index === 0 ? 50 : 50 + side * step * spread;
+  const rotate = index === 0 ? 0 : side * step * 7;
+  return {
+    left: `${left}%`,
+    width: `${index === 0 ? width + 8 : width}%`,
+    height: `${index === 0 ? 92 : 80 - step * 7}%`,
+    zIndex: 30 - step,
+    transform: `translate(-50%, -50%) rotate(${rotate}deg)`,
+  };
+}
 const CARD_SLOTS = [
   "left-1/2 z-20 h-[90%] -translate-x-1/2",
   "left-[10%] z-10 h-[74%] -rotate-[12deg]",
@@ -160,7 +193,7 @@ export default function SealedSlider({ slides, initialIndex = 0 }: { slides: Sea
 
 function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean }) {
   const theme = THEMES[slide.theme];
-  const ctaClass = `mt-5 inline-flex w-fit rounded-md border-2 px-6 py-2.5 text-[12px] font-extrabold uppercase tracking-wide shadow-lg transition-colors ${theme.cta}`;
+  const ctaClass = `mt-5 inline-flex w-fit whitespace-nowrap rounded-md border-2 px-6 py-2.5 text-[12px] font-extrabold uppercase tracking-wide shadow-lg transition-colors ${theme.cta}`;
 
   return (
     <article aria-hidden={!isActive} className={`relative w-full shrink-0 overflow-hidden ${theme.bg} ${theme.text}`}>
@@ -270,14 +303,14 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
                   </div>
                 </div>
               ) : (
-                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${PRODUCT_SLOTS[k]}`}>
+                <div key={photo.src} className="absolute top-1/2" style={productStyle(k, slide.photos.length)}>
                   <Image
                     src={photo.src}
                     alt=""
                     fill
                     sizes="(min-width: 640px) 320px, 45vw"
                     unoptimized={photo.direct}
-                    className="object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.45)]"
+                    className="scale-[1.45] object-contain drop-shadow-[0_16px_22px_rgba(0,0,0,0.45)]"
                   />
                 </div>
               ),

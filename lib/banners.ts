@@ -12,7 +12,7 @@ import type { GameSlug, Origin } from "./types";
 // inteira numa moldura. Sem isso, a foto é tratada como recorte com fundo transparente.
 // `background` é uma imagem de fundo opcional; sem ela, vale o degradê do `theme`.
 
-export type SealedTheme = "gold" | "fire" | "night" | "ocean";
+export type SealedTheme = "gold" | "fire" | "night" | "ocean" | "forest" | "crimson";
 
 export interface SealedSlide {
   id: string;
@@ -33,47 +33,57 @@ export interface SealedSlide {
   whatsappMessage?: string;
 }
 
-// Fotos dos 30 anos: imagens oficiais da vitrine da The Pokémon Company
-// (pokemon.com/br), usadas como material de divulgação de revendedor.
+// Fotos oficiais das fabricantes, usadas como material de divulgação de revendedor:
+// 30 anos (pokemon.com/br), Lorcana (disneylorcana.com) e One Piece (onepiece-cardgame.com).
 export const SEALED_SLIDES: SealedSlide[] = [
   {
-    id: "30-anos-etb",
+    id: "30-anos",
     game: "pokemon",
     eyebrow: "Pré-venda · 16/09",
-    title: "Coleção Treinador Avançado",
-    subtitle: "Celebração de 30 Anos · 9 boosters, carta promocional e acessórios.",
+    title: "Celebração de 30 Anos",
+    subtitle: "Pokémon TCG · Coleção Treinador Avançado, Ultra Premium, Mini Latas e muito mais.",
     origin: "BR",
-    images: ["/banners/30-anos-etb.png"],
+    images: ["/banners/30-anos-linha-completa.png"],
     imageStyle: "scene",
     theme: "gold",
     cta: "Quero reservar",
-    whatsappMessage: "Olá! Quero reservar na pré-venda: Coleção Treinador Avançado – Celebração de 30 Anos.",
+    whatsappMessage: "Olá! Quero reservar produtos da pré-venda Celebração de 30 Anos.",
   },
   {
-    id: "30-anos-upc",
-    game: "pokemon",
-    eyebrow: "Pré-venda",
-    title: "Coleção Ultra Premium",
-    subtitle: "Celebração de 30 Anos · Dia e Noite · previsão: 4º trimestre de 2026.",
-    origin: "BR",
-    images: ["/banners/30-anos-upc-dia-noite.png"],
-    imageStyle: "scene",
-    theme: "night",
-    cta: "Quero reservar",
-    whatsappMessage: "Olá! Quero reservar na pré-venda: Coleção Ultra Premium Dia e Noite – Celebração de 30 Anos.",
+    id: "lorcana",
+    game: "lorcana",
+    eyebrow: "Lançamento",
+    title: "Disney Lorcana",
+    subtitle: "Attack of the Vine · Booster Display, Illumineer's Trove, Starter Set e Prerelease Box.",
+    images: [
+      "/banners/lorcana-booster-display.png",
+      "/banners/lorcana-trove.png",
+      "/banners/lorcana-starter-set.png",
+      "/banners/lorcana-prerelease.png",
+    ],
+    theme: "forest",
+    cta: "Consultar pelo WhatsApp",
+    whatsappMessage: "Olá! Quero saber sobre os produtos de Lorcana Attack of the Vine.",
   },
   {
-    id: "30-anos-mini-latas",
-    game: "pokemon",
-    eyebrow: "Pré-venda",
-    title: "Mini Latas",
-    subtitle: "Celebração de 30 Anos · previsão: 4º trimestre de 2026.",
-    // A imagem oficial disponível é a da versão americana da lata.
-    images: ["/banners/30-anos-mini-lata.png"],
-    imageStyle: "scene",
-    theme: "ocean",
-    cta: "Quero reservar",
-    whatsappMessage: "Olá! Quero reservar na pré-venda: Mini Latas – Celebração de 30 Anos.",
+    id: "one-piece",
+    game: "one-piece",
+    eyebrow: "Lançamento",
+    title: "One Piece Card Game",
+    subtitle: "Booster OP-17 e Starter Decks ST-31 a ST-36.",
+    // As fotos oficiais dos starter decks mostram a embalagem japonesa.
+    images: [
+      "/banners/onepiece-op17.webp",
+      "/banners/onepiece-st31.webp",
+      "/banners/onepiece-st32.webp",
+      "/banners/onepiece-st33.webp",
+      "/banners/onepiece-st34.webp",
+      "/banners/onepiece-st35.webp",
+      "/banners/onepiece-st36.webp",
+    ],
+    theme: "crimson",
+    cta: "Consultar pelo WhatsApp",
+    whatsappMessage: "Olá! Quero saber sobre os produtos de One Piece (OP-17 e Starter Decks).",
   },
   {
     id: "pokemon",
@@ -113,6 +123,9 @@ export type SealedSlideView = SealedSlide & {
   photos: { src: string; direct: boolean }[];
 };
 
+// Até 7 produtos num slide (ex.: booster + 6 starter decks); cartas usam as 3 primeiras.
+const MAX_PHOTOS = 7;
+
 // Cartas mais valiosas do jogo que têm imagem no catálogo.
 function topCardImages(game: GameSlug) {
   return PRODUCTS.filter((p) => p.game === game && p.image)
@@ -129,7 +142,7 @@ export function getSealedSlides(): SealedSlideView[] {
         .filter((src): src is string => Boolean(src)),
     ];
     const usesCards = productPhotos.length === 0 && Boolean(slide.game);
-    const photos = usesCards ? topCardImages(slide.game!) : productPhotos;
+    const photos = usesCards ? topCardImages(slide.game!).slice(0, 3) : productPhotos;
     const href = slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
 
     return {
@@ -138,7 +151,7 @@ export function getSealedSlides(): SealedSlideView[] {
       external: href.startsWith("http"),
       language: slide.origin ? ORIGIN_LABELS[slide.origin] : undefined,
       photoKind: usesCards ? "card" : slide.imageStyle === "scene" ? "scene" : "product",
-      photos: photos.slice(0, 3).map((src) => ({ src, direct: loadImageDirectly(src) })),
+      photos: photos.slice(0, MAX_PHOTOS).map((src) => ({ src, direct: loadImageDirectly(src) })),
     };
   });
 }
