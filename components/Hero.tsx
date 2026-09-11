@@ -1,29 +1,13 @@
 import Link from "next/link";
 import { Search, ShoppingCart } from "lucide-react";
+import Wordmark from "./Wordmark";
+import { ACCENT_BUTTON, Accent, BUTTON_BASE } from "./ui";
 
-// Menu inicial: botões de largura igual, contorno claro e texto colorido,
-// que enchem de cor ao passar o mouse.
-const MENU = [
-  {
-    label: "Catálogo",
-    href: "/catalogo",
-    className: "border-brand-green/40 text-brand-green hover:border-brand-green hover:bg-brand-green hover:text-white",
-  },
-  {
-    label: "Cartas avulsas",
-    href: "/catalogo?subcategoria=cartas-avulsas",
-    className: "border-brand-blue/40 text-brand-blue hover:border-brand-blue hover:bg-brand-blue hover:text-white",
-  },
-  {
-    label: "Selados",
-    href: "/catalogo?subcategoria=produtos-selados",
-    className: "border-brand-red/40 text-brand-red hover:border-brand-red hover:bg-brand-red hover:text-white",
-  },
-  {
-    label: "Dúvidas?",
-    href: "/faq",
-    className: "border-brand-yellow/60 text-brand-yellow-text hover:border-brand-yellow hover:bg-brand-yellow hover:text-ink",
-  },
+const MENU: { label: string; href: string; accent: Accent }[] = [
+  { label: "Catálogo", href: "/catalogo", accent: "green" },
+  { label: "Cartas avulsas", href: "/catalogo?subcategoria=cartas-avulsas", accent: "blue" },
+  { label: "Selados", href: "/catalogo?subcategoria=produtos-selados", accent: "red" },
+  { label: "Dúvidas?", href: "/faq", accent: "yellow" },
 ];
 
 export default function Hero() {
@@ -39,14 +23,9 @@ export default function Hero() {
         </Link>
       </div>
 
-      <Link href="/" className="motion-safe:animate-fade-in-up">
-        <h1 className="font-display text-3xl font-semibold tracking-wide text-ink sm:text-5xl">
-          VILLAGE <span className="text-brand-yellow">&amp;</span> VAULT
-        </h1>
-      </Link>
-      <p className="mt-2 text-[11px] font-bold uppercase tracking-[0.22em] text-ink sm:text-xs">
-        Cartas · Selados · Colecionáveis
-      </p>
+      <div className="motion-safe:animate-fade-in-up">
+        <Wordmark large />
+      </div>
 
       <div className="relative mt-12 w-full max-w-xl sm:mt-16">
         <div className="motion-safe:animate-float-tilt">
@@ -74,7 +53,7 @@ export default function Hero() {
           <Link
             key={item.label}
             href={item.href}
-            className={`w-[150px] rounded border-2 bg-white px-3 py-3 text-[13px] font-bold uppercase tracking-wide shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-colors sm:w-[180px] ${item.className}`}
+            className={`${BUTTON_BASE} ${ACCENT_BUTTON[item.accent]} w-[150px] px-3 py-3 text-[13px] sm:w-[180px]`}
           >
             {item.label}
           </Link>

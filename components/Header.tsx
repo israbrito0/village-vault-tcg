@@ -1,60 +1,39 @@
-import Image from "next/image";
 import Link from "next/link";
 import { Heart, Search, ShoppingCart, User } from "lucide-react";
+import Wordmark from "./Wordmark";
 
 export default function Header() {
   return (
-    <header className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 sm:gap-4 sm:px-5 sm:py-3">
-      <Link href="/" className="flex items-center gap-2 whitespace-nowrap sm:gap-3">
-        <Image
-          src="/logo.jpg"
-          alt="Village & Vault TCG"
-          width={92}
-          height={92}
-          priority
-          className="h-11 w-11 rounded-full object-cover sm:h-[92px] sm:w-[92px]"
-        />
-        <span className="font-display text-sm font-semibold tracking-wider text-gold-deep sm:text-lg">
-          VILLAGE &amp; VAULT
-        </span>
-      </Link>
-
-      <div className="flex items-center gap-4 whitespace-nowrap text-[11px] text-cream/80 sm:order-3">
-        <Link href="/conta" className="flex items-center gap-2 hover:text-gold-deep" aria-label="Entrar ou cadastrar">
-          <User size={20} strokeWidth={1.5} />
-          <span className="hidden leading-tight sm:inline">
-            Faça login
-            <br />
-            ou cadastre-se
-          </span>
+    <header className="relative px-4 pb-4 pt-12 sm:pt-6">
+      <div className="absolute right-4 top-4 flex items-center gap-4 text-ink/70">
+        <Link href="/conta" className="hover:text-ink" aria-label="Entrar ou cadastrar">
+          <User size={20} strokeWidth={1.75} />
         </Link>
-        <Link href="/favoritos" className="hover:text-gold-deep" aria-label="Favoritos">
-          <Heart size={20} strokeWidth={1.5} />
+        <Link href="/favoritos" className="hover:text-ink" aria-label="Favoritos">
+          <Heart size={20} strokeWidth={1.75} />
         </Link>
-        <Link href="/carrinho" className="hover:text-gold-deep" aria-label="Carrinho">
-          <ShoppingCart size={20} strokeWidth={1.5} />
+        <Link href="/carrinho" className="hover:text-ink" aria-label="Carrinho">
+          <ShoppingCart size={20} strokeWidth={1.75} />
         </Link>
       </div>
 
-      <form
-        action="/catalogo"
-        className="order-4 flex w-full flex-col gap-0.5 sm:order-2 sm:w-auto sm:max-w-sm sm:flex-1"
-      >
-        <div className="flex">
-          <input
-            name="busca"
-            type="search"
-            placeholder="Faça sua busca"
-            aria-label="Buscar produtos"
-            className="w-full rounded-l border border-card-border bg-card px-3 py-1.5 text-xs text-cream placeholder:text-muted focus:outline-none focus:border-gold"
-          />
-          <button type="submit" className="rounded-r bg-gold px-3 text-ink" aria-label="Buscar">
-            <Search size={16} strokeWidth={2} />
-          </button>
-        </div>
-        <Link href="/catalogo" className="hidden text-[10px] text-muted hover:text-gold-deep sm:inline">
-          busca avançada
-        </Link>
+      <Wordmark />
+
+      <form action="/catalogo" className="mx-auto mt-4 flex max-w-md">
+        <input
+          name="busca"
+          type="search"
+          placeholder="Busque por carta, coleção ou jogo"
+          aria-label="Buscar produtos"
+          className="w-full rounded-l border-2 border-r-0 border-card-border bg-white px-3 py-2 text-sm text-ink placeholder:text-muted focus:border-brand-blue focus:outline-none"
+        />
+        <button
+          type="submit"
+          className="rounded-r border-2 border-brand-blue bg-brand-blue px-4 text-white transition-colors hover:bg-white hover:text-brand-blue"
+          aria-label="Buscar"
+        >
+          <Search size={16} strokeWidth={2.25} />
+        </button>
       </form>
     </header>
   );

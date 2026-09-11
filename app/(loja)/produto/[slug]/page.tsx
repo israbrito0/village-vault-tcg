@@ -61,9 +61,9 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
     `${SITE_URL}/produto/${product.slug}`;
 
   return (
-    <main className="mx-auto max-w-5xl px-5 py-8">
-      <div className="grid gap-8 sm:grid-cols-2">
-        <div className="relative aspect-[3/4] overflow-hidden rounded-lg border border-card-border bg-card">
+    <main className="mx-auto max-w-5xl px-5 py-10">
+      <div className="grid gap-10 sm:grid-cols-2">
+        <div className="relative aspect-[3/4] overflow-hidden rounded-xl border border-card-border bg-surface shadow-[0_22px_40px_-20px_rgba(51,56,68,0.45)]">
           {product.image ? (
             // object-contain: a carta aparece inteira, sem cortar o rodapé com
             // o nome do artista e o copyright.
@@ -88,14 +88,14 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
         </div>
 
         <div>
-          <p className="text-[11px] uppercase tracking-wide text-muted">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted">
             {gameLabel} · {subLabel}
           </p>
-          <h1 className="mt-1 font-display text-xl text-cream">{product.name}</h1>
+          <h1 className="mt-2 font-display text-2xl text-ink sm:text-3xl">{product.name}</h1>
           <p className="mt-1 text-sm text-muted">{product.setName}</p>
 
           <div className="mt-4 flex items-center gap-3">
-            <span className="text-2xl font-medium text-gold-deep">
+            <span className="text-3xl font-bold text-ink">
               {formatPriceBRL(product.priceCents)}
             </span>
             {product.compareAtPriceCents && (
@@ -104,37 +104,37 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
               </span>
             )}
           </div>
-          <p className="mt-1 text-xs text-cream/80">
-            <span className="text-gold-deep">{formatPriceBRL(pixPriceCents)}</span> no Pix (
+          <p className="mt-1 text-xs text-ink/80">
+            <span className="font-bold text-brand-green">{formatPriceBRL(pixPriceCents)}</span> no Pix (
             {Math.round(PIX_DISCOUNT * 100)}% off) ou em até {MAX_INSTALLMENTS}x de{" "}
             {formatPriceBRL(installmentCents)} sem juros
           </p>
 
-          <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
-            <span className="rounded border border-card-border px-2 py-1 text-cream/80">
+          <div className="mt-4 flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
+            <span className="rounded-full bg-surface px-3 py-1 text-ink/80">
               Condição: {product.condition}
             </span>
-            <span className="rounded border border-card-border px-2 py-1 text-cream/80">
+            <span className="rounded-full bg-surface px-3 py-1 text-ink/80">
               Origem: {product.origin}
             </span>
             {product.stock === 1 ? (
-              <span className="rounded border border-gold-dim px-2 py-1 text-gold-deep">
+              <span className="rounded-full border border-brand-red/50 px-3 py-1 text-brand-red">
                 Última unidade
               </span>
             ) : (
-              <span className="rounded border border-card-border px-2 py-1 text-cream/80">
+              <span className="rounded-full bg-surface px-3 py-1 text-ink/80">
                 {product.stock} em estoque
               </span>
             )}
           </div>
 
-          <p className="mt-5 text-sm leading-relaxed text-cream/80">{product.description}</p>
+          <p className="mt-5 text-sm leading-relaxed text-ink/80">{product.description}</p>
 
           <a
             href={whatsappLink(buyMessage)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded bg-gold py-3 text-sm font-medium text-ink sm:w-auto sm:px-8"
+            className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded border-2 border-brand-green bg-brand-green py-3 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-colors hover:bg-white hover:text-brand-green sm:w-auto sm:px-10"
           >
             <MessageCircle size={18} strokeWidth={2} />
             Comprar pelo WhatsApp

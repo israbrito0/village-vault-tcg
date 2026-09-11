@@ -9,7 +9,7 @@ export default function FaqPage() {
   return (
     <InfoPage title="Perguntas frequentes" whatsappMessage="Olá! Tenho uma dúvida:">
       <Question q="Como faço uma compra?">
-        Escolha o produto no <Link href="/catalogo" className="text-gold-deep hover:underline">catálogo</Link> e
+        Escolha o produto no <Link href="/catalogo" className="font-medium text-brand-blue hover:underline">catálogo</Link> e
         toque em “Comprar pelo WhatsApp”. A mensagem já vai com o nome e o preço da carta, e a gente
         finaliza o pedido com você por lá.
       </Question>
@@ -25,11 +25,11 @@ export default function FaqPage() {
 
       <Question q="O que significam as siglas de condição?">
         <ul className="mt-1 space-y-1">
-          <li><strong className="text-cream">NM</strong> (Near Mint): praticamente perfeita, sem marcas visíveis.</li>
-          <li><strong className="text-cream">SP</strong> (Slightly Played): pequenos sinais de uso, como leves marcas nas bordas.</li>
-          <li><strong className="text-cream">MP</strong> (Moderately Played): desgaste visível, mas sem danos estruturais.</li>
-          <li><strong className="text-cream">HP</strong> (Heavily Played): bastante desgaste, vincos ou marcas fortes.</li>
-          <li><strong className="text-cream">Graduada</strong>: avaliada e lacrada por uma empresa de graduação.</li>
+          <li><strong className="text-ink">NM</strong> (Near Mint): praticamente perfeita, sem marcas visíveis.</li>
+          <li><strong className="text-ink">SP</strong> (Slightly Played): pequenos sinais de uso, como leves marcas nas bordas.</li>
+          <li><strong className="text-ink">MP</strong> (Moderately Played): desgaste visível, mas sem danos estruturais.</li>
+          <li><strong className="text-ink">HP</strong> (Heavily Played): bastante desgaste, vincos ou marcas fortes.</li>
+          <li><strong className="text-ink">Graduada</strong>: avaliada e lacrada por uma empresa de graduação.</li>
         </ul>
       </Question>
 
@@ -40,7 +40,7 @@ export default function FaqPage() {
 
       <Question q="Posso trocar ou devolver?">
         Pode. Veja como funciona em{" "}
-        <Link href="/trocas" className="text-gold-deep hover:underline">trocas e devoluções</Link>.
+        <Link href="/trocas" className="font-medium text-brand-blue hover:underline">trocas e devoluções</Link>.
       </Question>
     </InfoPage>
   );

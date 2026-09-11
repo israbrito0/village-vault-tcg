@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import PageTitle from "@/components/PageTitle";
 import ProductCard from "@/components/ProductCard";
+import { ACCENT_ACTIVE, ACCENT_BUTTON, BUTTON_BASE, accentAt } from "@/components/ui";
 import { PRODUCTS } from "@/lib/products";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
 
@@ -8,8 +10,19 @@ export const metadata: Metadata = { title: "Catálogo" };
 
 // "Pokémon" e "pokemon" precisam dar o mesmo resultado.
 function normalize(text: string) {
-  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 }
+
+// Monta o link de um filtro mantendo o outro filtro que já estava escolhido.
+function filterHref(filters: { jogo?: string; subcategoria?: string }) {
+  const params = new URLSearchParams();
+  if (filters.jogo) params.set("jogo", filters.jogo);
+  if (filters.subcategoria) params.set("subcategoria", filters.subcategoria);
+  const query = params.toString();
+  return query ? `/catalogo?${query}` : "/catalogo";
+}
+
+const CHIP = "rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors";
 
 export default function CatalogoPage({
   searchParams,
@@ -29,56 +42,65 @@ export default function CatalogoPage({
     return true;
   });
 
+  const title = GAMES.find((g) => g.slug === jogo)?.label ?? "Catálogo";
+  const subLabel = SUBCATEGORIES.find((s) => s.slug === subcategoria)?.label;
+
   return (
-    <main className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-6 sm:flex-row">
-      <aside className="w-full shrink-0 sm:w-52">
-        <p className="mb-2 font-display text-xs tracking-wide text-gold-deep">Jogo</p>
-        <ul className="mb-5 space-y-1 text-xs text-cream/80">
-          <li>
-            <Link href="/catalogo" className={!jogo ? "text-gold-deep" : "hover:text-gold-deep"}>
-              Todos
-            </Link>
-          </li>
-          {GAMES.map((g) => (
-            <li key={g.slug}>
-              <Link
-                href={`/catalogo?jogo=${g.slug}`}
-                className={jogo === g.slug ? "text-gold-deep" : "hover:text-gold-deep"}
-              >
-                {g.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
+    <main className="mx-auto max-w-7xl px-5 py-8">
+      <PageTitle
+        title={title}
+        subtitle={
+          <>
+            {subLabel ? `${subLabel} · ` : ""}
+            {produtos.length} {produtos.length === 1 ? "produto" : "produtos"}
+            {busca && <> para “{busca}”</>}
+          </>
+        }
+      />
 
-        <p className="mb-2 font-display text-xs tracking-wide text-gold-deep">Categoria</p>
-        <ul className="space-y-1 text-xs text-cream/80">
-          {SUBCATEGORIES.map((s) => (
-            <li key={s.slug}>
-              <Link
-                href={`/catalogo?${jogo ? `jogo=${jogo}&` : ""}subcategoria=${s.slug}`}
-                className={subcategoria === s.slug ? "text-gold-deep" : "hover:text-gold-deep"}
-              >
-                {s.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </aside>
+      <div className="mt-7 flex flex-wrap justify-center gap-2.5">
+        <Link
+          href={filterHref({ subcategoria })}
+          className={`${BUTTON_BASE} px-3 py-1.5 text-[11px] ${
+            jogo ? "border-card-border bg-white text-ink hover:border-ink" : "border-ink bg-ink text-white"
+          }`}
+        >
+          Todos
+        </Link>
+        {GAMES.map((g, i) => (
+          <Link
+            key={g.slug}
+            href={filterHref({ jogo: g.slug, subcategoria })}
+            className={`${BUTTON_BASE} px-3 py-1.5 text-[11px] ${
+              jogo === g.slug ? ACCENT_ACTIVE[accentAt(i)] : ACCENT_BUTTON[accentAt(i)]
+            }`}
+          >
+            {g.label}
+          </Link>
+        ))}
+      </div>
 
-      <section className="flex-1">
-        <p className="mb-4 text-xs text-muted">
-          {produtos.length} produtos encontrados
-          {busca && (
-            <>
-              {" "}para <span className="text-cream">“{busca}”</span>
-            </>
-          )}
-        </p>
+      <div className="mt-3 flex flex-wrap justify-center gap-2">
+        {SUBCATEGORIES.map((s) => (
+          <Link
+            key={s.slug}
+            href={filterHref({ jogo, subcategoria: subcategoria === s.slug ? undefined : s.slug })}
+            className={`${CHIP} ${
+              subcategoria === s.slug
+                ? "border-ink bg-ink text-white"
+                : "border-card-border text-muted hover:border-ink hover:text-ink"
+            }`}
+          >
+            {s.label}
+          </Link>
+        ))}
+      </div>
+
+      <section className="mt-8">
         {produtos.length === 0 ? (
-          <p className="text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
+          <p className="text-center text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
         ) : (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {produtos.map((p) => (
               <ProductCard key={p.id} product={p} />
             ))}

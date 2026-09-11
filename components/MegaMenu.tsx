@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
+import { ACCENT_BUTTON, BUTTON_BASE, accentAt } from "./ui";
 
 const SECONDARY_LINKS = [
   { label: "Acessórios", href: "/catalogo?subcategoria=colecionaveis" },
@@ -9,35 +10,37 @@ const SECONDARY_LINKS = [
 
 export default function MegaMenu() {
   return (
-    <nav className="relative border-y border-card-border bg-white">
-      <div className="no-scrollbar mx-auto flex max-w-7xl gap-5 overflow-x-auto whitespace-nowrap px-5 py-3 text-sm font-bold tracking-wide text-ink sm:flex-wrap sm:overflow-visible">
-        {GAMES.map((game) => (
+    <nav className="border-y border-card-border bg-white">
+      <div className="no-scrollbar mx-auto flex max-w-7xl gap-2.5 overflow-x-auto whitespace-nowrap px-5 py-3 sm:flex-wrap sm:justify-center sm:overflow-visible">
+        {GAMES.map((game, i) => (
           <div key={game.slug} className="group relative shrink-0">
             <Link
               href={`/catalogo?jogo=${game.slug}`}
-              className="flex items-center gap-1 uppercase transition-colors hover:text-brand-blue"
+              className={`${BUTTON_BASE} ${ACCENT_BUTTON[accentAt(i)]} inline-flex items-center gap-1 px-3 py-1.5 text-[11px]`}
             >
               {game.label}
               <span className="hidden text-[9px] sm:inline">▾</span>
             </Link>
-            {/* Abre com o mouse ou com Tab no teclado. */}
-            <div className="absolute left-0 top-full z-20 hidden w-64 border border-card-border bg-card py-2 shadow-lg sm:group-focus-within:block sm:group-hover:block">
-              {SUBCATEGORIES.map((sub) => (
-                <Link
-                  key={sub.slug}
-                  href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
-                  className="block px-4 py-2 text-[11px] text-cream/80 hover:bg-surface hover:text-gold-deep"
-                >
-                  {sub.label}
-                </Link>
-              ))}
+            {/* Abre com o mouse ou com Tab no teclado; o pt-1 evita que o menu feche no vão. */}
+            <div className="absolute left-0 top-full z-20 hidden pt-1 sm:group-focus-within:block sm:group-hover:block">
+              <div className="w-60 rounded border border-card-border bg-white py-2 text-left shadow-lg">
+                {SUBCATEGORIES.map((sub) => (
+                  <Link
+                    key={sub.slug}
+                    href={`/catalogo?jogo=${game.slug}&subcategoria=${sub.slug}`}
+                    className="block px-4 py-2 text-xs text-ink/80 hover:bg-surface hover:text-brand-blue"
+                  >
+                    {sub.label}
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
         ))}
       </div>
-      <div className="no-scrollbar mx-auto flex max-w-7xl gap-4 overflow-x-auto whitespace-nowrap border-t border-card-border px-5 py-2 text-xs font-medium text-muted sm:flex-wrap sm:overflow-visible">
+      <div className="no-scrollbar mx-auto flex max-w-7xl gap-5 overflow-x-auto whitespace-nowrap border-t border-card-border px-5 py-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted sm:justify-center sm:overflow-visible">
         {SECONDARY_LINKS.map((link) => (
-          <Link key={link.label} href={link.href} className="shrink-0 transition-colors hover:text-brand-green">
+          <Link key={link.label} href={link.href} className="shrink-0 transition-colors hover:text-ink">
             {link.label}
           </Link>
         ))}
