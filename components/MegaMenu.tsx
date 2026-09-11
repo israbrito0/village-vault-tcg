@@ -9,13 +9,13 @@ const SECONDARY_LINKS = [
 
 export default function MegaMenu() {
   return (
-    <nav className="relative bg-gold">
-      <div className="no-scrollbar mx-auto flex max-w-7xl gap-5 overflow-x-auto whitespace-nowrap px-5 py-3 text-sm font-semibold tracking-wide text-ink sm:flex-wrap sm:overflow-visible">
+    <nav className="relative border-y border-card-border bg-white">
+      <div className="no-scrollbar mx-auto flex max-w-7xl gap-5 overflow-x-auto whitespace-nowrap px-5 py-3 text-sm font-bold tracking-wide text-ink sm:flex-wrap sm:overflow-visible">
         {GAMES.map((game) => (
           <div key={game.slug} className="group relative shrink-0">
             <Link
               href={`/catalogo?jogo=${game.slug}`}
-              className="flex items-center gap-1 uppercase hover:underline"
+              className="flex items-center gap-1 uppercase transition-colors hover:text-brand-blue"
             >
               {game.label}
               <span className="hidden text-[9px] sm:inline">▾</span>
@@ -35,9 +35,9 @@ export default function MegaMenu() {
           </div>
         ))}
       </div>
-      <div className="no-scrollbar mx-auto flex max-w-7xl gap-4 overflow-x-auto whitespace-nowrap border-t border-ink/15 px-5 py-2 text-xs font-medium text-ink/80 sm:flex-wrap sm:overflow-visible">
+      <div className="no-scrollbar mx-auto flex max-w-7xl gap-4 overflow-x-auto whitespace-nowrap border-t border-card-border px-5 py-2 text-xs font-medium text-muted sm:flex-wrap sm:overflow-visible">
         {SECONDARY_LINKS.map((link) => (
-          <Link key={link.label} href={link.href} className="shrink-0 hover:underline">
+          <Link key={link.label} href={link.href} className="shrink-0 transition-colors hover:text-brand-green">
             {link.label}
           </Link>
         ))}

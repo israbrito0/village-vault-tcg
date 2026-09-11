@@ -59,6 +59,15 @@ const config: Config = {
           "0%, 100%": { transform: "translateY(0)" },
           "50%": { transform: "translateY(-8px)" },
         },
+        // Vídeo da home "flutuando" inclinado em 3D, com a sombra acompanhando.
+        floatTilt: {
+          "0%, 100%": { transform: "perspective(1000px) rotateX(10deg) rotateY(-10deg) translateY(0)" },
+          "50%": { transform: "perspective(1000px) rotateX(6deg) rotateY(8deg) translateY(-12px)" },
+        },
+        shadowPulse: {
+          "0%, 100%": { transform: "scaleX(1)", opacity: "0.35" },
+          "50%": { transform: "scaleX(0.82)", opacity: "0.2" },
+        },
       },
       animation: {
         "fade-in-up": "fadeInUp 0.9s ease-out both",
@@ -68,6 +77,8 @@ const config: Config = {
         shimmer: "shimmer 2.8s ease-in-out infinite",
         "hero-sway": "heroSway 8s ease-in-out infinite",
         float: "float 5s ease-in-out infinite",
+        "float-tilt": "floatTilt 7s ease-in-out infinite",
+        "shadow-pulse": "shadowPulse 7s ease-in-out infinite",
       },
     },
   },
