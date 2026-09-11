@@ -286,7 +286,13 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
             </div>
           ) : (
             slide.photos.map((photo, k) =>
-              slide.photoKind === "card" ? (
+              slide.photoKind === "slab" ? (
+                <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${CARD_SLOTS[k]}`}>
+                  <div className={`h-full ${k === 0 ? "motion-safe:animate-float" : ""}`}>
+                    <SlabCase photo={photo} shine={k === 0} />
+                  </div>
+                </div>
+              ) : slide.photoKind === "card" ? (
                 // A animação fica numa camada de dentro: no mesmo elemento ela
                 // substituiria o translate que centraliza a carta.
                 <div key={photo.src} className={`absolute top-1/2 -translate-y-1/2 ${CARD_SLOTS[k]}`}>
@@ -326,5 +332,34 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
         </p>
       )}
     </article>
+  );
+}
+
+// Case de carta graduada desenhado para o banner: acrílico transparente com uma
+// etiqueta própria da loja no topo (nome e nota), sem imitar as empresas de graduação.
+function SlabCase({ photo, shine }: { photo: SealedSlideView["photos"][number]; shine: boolean }) {
+  return (
+    <div className="relative flex aspect-[0.62] h-full flex-col rounded-[6%] border-2 border-white/85 bg-white/25 p-[5%] shadow-[0_18px_30px_-8px_rgba(0,0,0,0.55)] backdrop-blur-sm">
+      <div className="rounded-[4px] border border-ink/15 bg-white px-[7%] py-[5%] text-left text-ink shadow-sm">
+        <p className="truncate text-[9px] font-extrabold uppercase leading-tight tracking-wide sm:text-[11px]">
+          {photo.name}
+        </p>
+        <div className="mt-0.5 flex items-center justify-between gap-1">
+          <span className="text-[7px] font-bold uppercase tracking-[0.14em] text-muted sm:text-[8px]">Carta graduada</span>
+          {photo.grade && (
+            <span className="whitespace-nowrap text-[10px] font-extrabold text-brand-blue sm:text-xs">{photo.grade}</span>
+          )}
+        </div>
+      </div>
+      <div className="relative mt-[6%] flex-1 overflow-hidden rounded-[4%] ring-1 ring-black/10">
+        <Image src={photo.src} alt="" fill sizes="220px" unoptimized={photo.direct} className="object-contain" />
+      </div>
+      {shine && (
+        // Reflexo passando pelo acrílico do slab da frente.
+        <span className="pointer-events-none absolute inset-0 overflow-hidden rounded-[6%]">
+          <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/45 to-transparent motion-safe:animate-shimmer" />
+        </span>
+      )}
+    </div>
   );
 }

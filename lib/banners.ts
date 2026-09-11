@@ -29,6 +29,9 @@ export interface SealedSlide {
   // Ampliação das fotos recortadas: as oficiais costumam ter margem transparente
   // grande (padrão 1.45); fotos sem margem usam 1.
   imageZoom?: number;
+  // Slabs: mostra as cartas graduadas da planilha dentro de um case desenhado,
+  // com etiqueta (nome e nota). Com `game`, prefere as graduadas desse jogo.
+  slabs?: boolean;
   background?: string;
   theme: SealedTheme;
   cta: string;
@@ -90,14 +93,15 @@ export const SEALED_SLIDES: SealedSlide[] = [
     whatsappMessage: "Olá! Quero saber sobre os produtos de One Piece (OP-17 e Starter Decks).",
   },
   {
-    id: "pokemon",
+    id: "slabs",
     game: "pokemon",
-    eyebrow: "Produtos disponíveis",
-    title: "Pokémon TCG",
-    subtitle: "Cartas avulsas, boosters e selados.",
+    slabs: true,
+    eyebrow: "Slabs",
+    title: "Cartas graduadas",
+    subtitle: "Cartas avaliadas e protegidas em case lacrado.",
     theme: "ocean",
-    cta: "Ver Pokémon",
-    href: "/catalogo?jogo=pokemon",
+    cta: "Ver graduadas",
+    href: "/catalogo?subcategoria=cartas-graduadas",
   },
   {
     id: "magic-the-hobbit",
@@ -133,9 +137,9 @@ export type SealedSlideView = SealedSlide & {
   external: boolean;
   language?: string;
   // "product": recorte de caixa/lata; "scene": foto oficial com fundo, numa moldura;
-  // "card": carta do catálogo.
-  photoKind: "product" | "scene" | "card";
-  photos: { src: string; direct: boolean }[];
+  // "card": carta do catálogo; "slab": carta graduada dentro do case desenhado.
+  photoKind: "product" | "scene" | "card" | "slab";
+  photos: { src: string; direct: boolean; name?: string; grade?: string }[];
 };
 
 // Até 7 produtos num slide (ex.: booster + 6 starter decks); cartas usam as 3 primeiras.
@@ -148,8 +152,23 @@ function topCardImages(game: GameSlug) {
     .map((p) => p.image!);
 }
 
+// Cartas graduadas com imagem, as do jogo do slide primeiro (se houver) e as mais caras antes.
+function slabPhotos(game?: GameSlug) {
+  const graded = PRODUCTS.filter((p) => p.subcategory === "cartas-graduadas" && p.image);
+  const sameGame = graded.filter((p) => p.game === game);
+  return (sameGame.length > 0 ? sameGame : graded)
+    .sort((a, b) => b.priceCents - a.priceCents)
+    .slice(0, 3)
+    .map((p) => ({ src: p.image!, direct: loadImageDirectly(p.image!), name: p.name, grade: p.grade }));
+}
+
 export function getSealedSlides(): SealedSlideView[] {
   return SEALED_SLIDES.map((slide) => {
+    if (slide.slabs) {
+      const href = slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
+      return { ...slide, href, external: href.startsWith("http"), photoKind: "slab", photos: slabPhotos(slide.game) };
+    }
+
     const productPhotos = [
       ...(slide.images ?? []),
       ...(slide.productSlugs ?? [])

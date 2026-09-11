@@ -117,6 +117,9 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
             <span className="rounded-full bg-surface px-3 py-1 text-ink/80">
               Origem: {product.origin}
             </span>
+            {product.grade && (
+              <span className="rounded-full bg-ink px-3 py-1 text-white">Graduação: {product.grade}</span>
+            )}
             {product.preorder && (
               <span className="rounded-full bg-brand-blue px-3 py-1 text-white">Pré-venda</span>
             )}

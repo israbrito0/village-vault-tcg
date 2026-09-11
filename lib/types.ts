@@ -65,4 +65,6 @@ export interface Product {
   code?: string;
   // Coluna "prevenda" = sim: ainda não lançado, o cliente reserva pelo WhatsApp.
   preorder?: boolean;
+  // Coluna "graduacao" das cartas graduadas (slabs), ex.: "PSA 10", "CGC 9.5".
+  grade?: string;
 }
