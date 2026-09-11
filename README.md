@@ -87,9 +87,11 @@ como `aviso` no log do build da Vercel e o resto do site publica normalmente.
 4. Clique em **Deploy** e aguarde cerca de 1 minuto.
 5. Pronto — você vai receber um link tipo `village-vault-tcg.vercel.app` já no ar.
 
-### Passo 3 — (quando quiser) conectar seu domínio próprio
-No painel do projeto na Vercel, vá em **Settings → Domains** e siga as
-instruções para apontar o domínio que você comprar (ex: villageandvault.com.br).
+### Passo 3 — domínio próprio
+O site responde em **www.villagetcg.com.br** (quem digita sem `www` é
+redirecionado). O domínio foi registrado no Registro.br e usa os servidores DNS
+da Vercel (`ns1.vercel-dns.com` e `ns2.vercel-dns.com`); a configuração fica em
+**Settings → Domains** no projeto da Vercel.
 
 ---
 
