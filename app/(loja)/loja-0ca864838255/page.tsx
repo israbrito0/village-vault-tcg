@@ -4,9 +4,11 @@ import { Clock, MapPin } from "lucide-react";
 import InfoPage from "@/components/InfoPage";
 import { STORE_ADDRESS, STORE_HOURS } from "@/lib/site";
 
+// Página escondida: fora do menu e do sitemap, sem indexação. Só abre quem tem o link.
 export const metadata: Metadata = {
   title: "Nossa loja",
   description: "Loja física da Village & Vault TCG em Atalaia (AL), ao lado da Village Fotografia.",
+  robots: { index: false, follow: false },
 };
 
 const MAPA = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(STORE_ADDRESS)}`;
@@ -20,7 +22,7 @@ export default function LojaPage() {
     >
       <figure className="overflow-hidden rounded-lg border border-card-border bg-white">
         <Image
-          src="/loja/fachada-village-tcg.jpg"
+          src="/loja-0ca864838255/fachada-village-tcg.jpg"
           alt="Fachada da Village TCG, ao lado da Village Fotografia, com mesas e guarda-sóis na frente"
           width={1086}
           height={1448}
@@ -32,7 +34,7 @@ export default function LojaPage() {
 
       <div className="grid grid-cols-2 gap-3">
         <Image
-          src="/loja/entrada-loja.jpg"
+          src="/loja-0ca864838255/entrada-loja.jpg"
           alt="Entrada da loja com portas de vidro e o balcão ao fundo"
           width={1200}
           height={2132}
@@ -40,7 +42,7 @@ export default function LojaPage() {
           sizes="(max-width: 672px) 50vw, 336px"
         />
         <Image
-          src="/loja/balcao-tcg.jpg"
+          src="/loja-0ca864838255/balcao-tcg.jpg"
           alt="Balcão da loja com caixas de produtos Pokémon TCG"
           width={1200}
           height={2608}
@@ -50,8 +52,8 @@ export default function LojaPage() {
       </div>
 
       <video
-        src="/loja/tour-loja.mp4"
-        poster="/loja/tour-loja-capa.jpg"
+        src="/loja-0ca864838255/tour-loja.mp4"
+        poster="/loja-0ca864838255/tour-loja-capa.jpg"
         controls
         muted
         playsInline

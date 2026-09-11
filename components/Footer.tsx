@@ -39,11 +39,6 @@ export default function Footer() {
           </p>
           <ul className="space-y-1.5">
             <li>
-              <Link href="/loja" className="transition-colors hover:text-brand-blue">
-                Nossa loja
-              </Link>
-            </li>
-            <li>
               <Link href="/faq" className="transition-colors hover:text-brand-blue">
                 Perguntas frequentes
               </Link>
