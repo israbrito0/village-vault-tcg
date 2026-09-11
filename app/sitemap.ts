@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { PRODUCTS } from "@/lib/mock-data";
+import { PRODUCTS } from "@/lib/products";
 import { SITE_URL } from "@/lib/site";
 
 export default function sitemap(): MetadataRoute.Sitemap {

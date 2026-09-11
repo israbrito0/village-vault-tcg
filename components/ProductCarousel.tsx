@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { Product } from "@/lib/mock-data";
+import { Product } from "@/lib/products";
 import ProductCard from "./ProductCard";
 
 export default function ProductCarousel({
@@ -16,6 +16,8 @@ export default function ProductCarousel({
   function scroll(direction: 1 | -1) {
     scrollRef.current?.scrollBy({ left: direction * 320, behavior: "smooth" });
   }
+
+  if (products.length === 0) return null;
 
   return (
     <section className="px-5 py-4">

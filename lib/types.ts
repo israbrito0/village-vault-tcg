@@ -59,4 +59,8 @@ export interface Product {
   stock: number;
   featured?: boolean;
   description: string;
+  // Foto do produto: vem da base de cartas ou da coluna "imagem" da planilha.
+  image?: string;
+  // Código da carta na planilha, ex.: "DAA 20".
+  code?: string;
 }

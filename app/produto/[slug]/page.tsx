@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
-import { PRODUCTS, getProductBySlug, formatPriceBRL } from "@/lib/mock-data";
+import { PRODUCTS, getProductBySlug, formatPriceBRL, loadImageDirectly } from "@/lib/products";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
 import {
   MAX_INSTALLMENTS,
@@ -13,15 +13,21 @@ import {
   whatsappLink,
 } from "@/lib/site";
 
+export const dynamicParams = false;
+
 export function generateStaticParams() {
   return PRODUCTS.map((p) => ({ slug: p.slug }));
+}
+
+function fullName(product: { name: string; setName: string }) {
+  return product.setName ? `${product.name} (${product.setName})` : product.name;
 }
 
 export function generateMetadata({ params }: { params: { slug: string } }): Metadata {
   const product = getProductBySlug(params.slug);
   if (!product) return {};
 
-  const title = `${product.name} (${product.setName})`;
+  const title = fullName(product);
   return {
     title,
     description: product.description,
@@ -34,7 +40,7 @@ export function generateMetadata({ params }: { params: { slug: string } }): Meta
       title,
       description: product.description,
       url: `/produto/${product.slug}`,
-      images: [SHARE_IMAGE],
+      images: [product.image ? { url: product.image, alt: product.name } : SHARE_IMAGE],
     },
   };
 }
@@ -50,21 +56,35 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
   const pixPriceCents = Math.round(product.priceCents * (1 - PIX_DISCOUNT));
   const installmentCents = Math.round(product.priceCents / MAX_INSTALLMENTS);
   const buyMessage =
-    `Olá! Quero comprar: ${product.name} (${product.setName}), ` +
+    `Olá! Quero comprar: ${fullName(product)}, ` +
     `condição ${product.condition}, por ${formatPriceBRL(product.priceCents)}.\n` +
     `${SITE_URL}/produto/${product.slug}`;
 
   return (
     <main className="mx-auto max-w-5xl px-5 py-8">
       <div className="grid gap-8 sm:grid-cols-2">
-        <div className="aspect-[3/4] overflow-hidden rounded-lg border border-card-border bg-card">
-          <Image
-            src="/placeholder-card.svg"
-            alt={product.name}
-            width={500}
-            height={667}
-            className="h-full w-full object-cover"
-          />
+        <div className="relative aspect-[3/4] overflow-hidden rounded-lg border border-card-border bg-card">
+          {product.image ? (
+            // object-contain: a carta aparece inteira, sem cortar o rodapé com
+            // o nome do artista e o copyright.
+            <Image
+              src={product.image}
+              alt={product.name}
+              fill
+              priority
+              unoptimized={loadImageDirectly(product.image)}
+              sizes="(min-width: 640px) 480px, 100vw"
+              className="object-contain p-4"
+            />
+          ) : (
+            <Image
+              src="/placeholder-card.svg"
+              alt={product.name}
+              width={500}
+              height={667}
+              className="h-full w-full object-cover"
+            />
+          )}
         </div>
 
         <div>

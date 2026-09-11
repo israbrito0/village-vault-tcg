@@ -3,8 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "catalogo": "node scripts/gerar-catalogo.mjs",
+    "dev": "node scripts/gerar-catalogo.mjs && next dev",
+    "build": "node scripts/gerar-catalogo.mjs && next build",
     "start": "next start",
     "lint": "next lint"
   },

@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { Product, formatPriceBRL } from "@/lib/mock-data";
+import { Product, formatPriceBRL, loadImageDirectly } from "@/lib/products";
 
 export default function ProductCard({ product }: { product: Product }) {
   const discount =
@@ -24,10 +24,11 @@ export default function ProductCard({ product }: { product: Product }) {
           </span>
         )}
         <Image
-          src="/placeholder-card.svg"
+          src={product.image ?? "/placeholder-card.svg"}
           alt={product.name}
           fill
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          unoptimized={!!product.image && loadImageDirectly(product.image)}
+          className={`${product.image ? "object-contain p-1.5" : "object-cover"} transition-transform duration-500 group-hover:scale-105`}
           sizes="(min-width: 640px) 220px, 150px"
         />
       </div>

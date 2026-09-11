@@ -17,6 +17,46 @@ conectamos isso ao Supabase (banco de dados real, com seu estoque).
 O número do WhatsApp, o email de contato e o desconto do Pix ficam em
 `lib/site.ts` — troque lá e vale para o site inteiro.
 
+## Como cadastrar produtos
+
+Todos os produtos ficam na planilha `data/estoque.csv`. Cada linha é um produto.
+Depois de salvar no GitHub, o site se atualiza sozinho em cerca de 1 minuto.
+
+**Cartas de Pokémon e Magic:** preencha só o `codigo` (sigla da coleção +
+número da carta, como vem impresso nela), além de preço, condição e estoque.
+Nome, coleção e imagem aparecem sozinhos.
+
+| jogo    | codigo    | exemplo de carta                    |
+|---------|-----------|-------------------------------------|
+| pokemon | `DAA 20`  | Charizard VMAX, Darkness Ablaze     |
+| pokemon | `MEW 151` | Mew ex, coleção 151                 |
+| magic   | `LEA 232` | Black Lotus, Alpha                  |
+| magic   | `DOM 1`   | Karn, Dominaria                     |
+
+Com `origem` = `BR`, o site usa o nome e a imagem da carta em português quando
+a base tiver.
+
+**Outros produtos** (selados, colecionáveis, Yu-Gi-Oh!, One Piece, Lorcana):
+deixe `codigo` vazio e preencha `nome`, `colecao` e, se tiver foto, `imagem`
+(coloque a foto em `public/produtos/` e escreva `/produtos/nome-da-foto.jpg`).
+
+| coluna         | o que colocar                                                    |
+|----------------|------------------------------------------------------------------|
+| `jogo`         | pokemon, magic, yugioh, one-piece, lorcana ou outros             |
+| `categoria`    | cartas-avulsas, cartas-graduadas, produtos-selados, colecionaveis, produtos-antigos-raros ou codigos-digitais (vazio = carta avulsa) |
+| `condicao`     | NM, SP, MP, HP, Graduada ou Novo                                 |
+| `origem`       | BR, US ou JP                                                     |
+| `preco`        | `350,00` (o `preco_antigo`, se tiver, aparece riscado)           |
+| `estoque`      | quantidade; `0` esconde o produto do site                        |
+| `destaque`     | `sim` para aparecer em "Mais vendidos"                           |
+| `nome`, `colecao`, `imagem`, `descricao` | opcionais para cartas; preenchidos, substituem o que vem da base |
+
+**Editando no Excel:** abra o arquivo, edite e salve como
+**"CSV UTF-8 (delimitado por vírgulas)"** para os acentos não quebrarem.
+
+Se alguma linha tiver erro (preço inválido, código não encontrado), ela aparece
+como `aviso` no log do build da Vercel e o resto do site publica normalmente.
+
 ## O que ainda não faz (vem nas próximas fases)
 - Carrinho e checkout de verdade (por enquanto a compra é finalizada pelo
   WhatsApp — isso é a Fase 2)

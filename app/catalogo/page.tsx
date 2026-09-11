@@ -1,14 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
-import { PRODUCTS } from "@/lib/mock-data";
+import { PRODUCTS } from "@/lib/products";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Catálogo" };
 
 // "Pokémon" e "pokemon" precisam dar o mesmo resultado.
 function normalize(text: string) {
-  return text.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  return text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
 export default function CatalogoPage({

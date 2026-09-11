@@ -4,3 +4,6 @@ out
 .env
 .env.local
 .DS_Store
+
+# Gerado a partir de data/estoque.csv por scripts/gerar-catalogo.mjs
+lib/generated
