@@ -19,6 +19,10 @@ const inter = Inter({
   variable: "--font-inter",
 });
 
+// Refaz as páginas no máximo a cada hora: assim banners com data (ex.: live)
+// saem do ar sozinhos, sem precisar publicar de novo.
+export const revalidate = 3600;
+
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: { default: SITE_NAME, template: `%s | ${SITE_NAME}` },

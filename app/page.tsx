@@ -1,5 +1,6 @@
 import Hero from "@/components/Hero";
 import ProductCarousel from "@/components/ProductCarousel";
+import Promocoes from "@/components/Promocoes";
 import { PRODUCTS, getFeaturedProducts } from "@/lib/products";
 
 export default function HomePage() {
@@ -11,6 +12,7 @@ export default function HomePage() {
   return (
     <main>
       <Hero />
+      <Promocoes />
       <ProductCarousel title="Mais vendidos" products={featured} />
       <ProductCarousel title="Cartas avulsas" products={avulsas} />
       <ProductCarousel title="Produtos selados" products={selados} />
