@@ -10,6 +10,9 @@ export const SHARE_IMAGE = { url: "/hero-poster.jpg", width: 1024, height: 460, 
 
 // WhatsApp da loja: código do país + DDD + número, sem espaços.
 export const WHATSAPP_NUMBER = "5582999677824";
+// Convite do grupo de leilões no WhatsApp (ex.: "https://chat.whatsapp.com/..."). Vazio, o
+// botão do banner abre uma conversa com a loja pedindo para entrar no grupo.
+export const WHATSAPP_GROUP_URL = "https://chat.whatsapp.com/BdiGqtUYuaJEVulwMb5O5O";
 // Perfil da loja na Jamble, onde acontecem as vendas ao vivo.
 export const LIVE_URL = "https://www.jamble.com/u/israelbrito";
 // Só recebe mensagens depois de contratar um serviço de email para o domínio.

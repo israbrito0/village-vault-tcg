@@ -1,5 +1,5 @@
 import { PRODUCTS, getProductBySlug, loadImageDirectly } from "./products";
-import { whatsappLink } from "./site";
+import { LIVE_URL, WHATSAPP_GROUP_URL, whatsappLink } from "./site";
 import type { GameSlug, Origin } from "./types";
 
 // Banners largos do topo do catálogo e das páginas do menu.
@@ -32,6 +32,12 @@ export interface SealedSlide {
   // Slabs: mostra as cartas graduadas da planilha dentro de um case desenhado,
   // com etiqueta (nome e nota). Com `game`, prefere as graduadas desse jogo.
   slabs?: boolean;
+  // Arte desenhada no lugar das fotos (ex.: "leilao": martelo de leilão).
+  art?: "leilao";
+  // Esconde a linha "Frete grátis · 12x · Pix" (não faz sentido em live e leilão).
+  hidePerks?: boolean;
+  // Último dia em que o slide aparece (AAAA-MM-DD), para eventos com data.
+  until?: string;
   background?: string;
   theme: SealedTheme;
   cta: string;
@@ -43,6 +49,32 @@ export interface SealedSlide {
 // 30 anos (pokemon.com/br), Lorcana (disneylorcana.com), One Piece (onepiece-cardgame.com)
 // e Magic (magic.wizards.com).
 export const SEALED_SLIDES: SealedSlide[] = [
+  {
+    id: "live-poster-collection",
+    game: "pokemon",
+    eyebrow: "Ao vivo na Jamble · 15/09",
+    title: "Live dos Poster Collection",
+    subtitle: "Coleções Premium com Pôster de Mega Gardevoir ex e Mega Lucario ex, ao vivo na nossa live.",
+    images: ["/produtos/ascended-heroes-poster-gardevoir-caixa.png", "/produtos/ascended-heroes-poster-lucario-caixa.png"],
+    imageZoom: 1,
+    hidePerks: true,
+    until: "2026-09-15",
+    theme: "night",
+    cta: "Assistir na Jamble",
+    href: LIVE_URL,
+  },
+  {
+    id: "leiloes-domingo",
+    eyebrow: "Leilões todo domingo",
+    title: "Grupo de leilões no WhatsApp",
+    subtitle: "Entre no nosso grupo e dê seus lances em cartas e selados todos os domingos.",
+    art: "leilao",
+    hidePerks: true,
+    theme: "forest",
+    cta: "Entrar no grupo",
+    href: WHATSAPP_GROUP_URL || undefined,
+    whatsappMessage: "Olá! Quero entrar no grupo de leilões de domingo.",
+  },
   {
     id: "30-anos",
     game: "pokemon",
@@ -137,8 +169,9 @@ export type SealedSlideView = SealedSlide & {
   external: boolean;
   language?: string;
   // "product": recorte de caixa/lata; "scene": foto oficial com fundo, numa moldura;
-  // "card": carta do catálogo; "slab": carta graduada dentro do case desenhado.
-  photoKind: "product" | "scene" | "card" | "slab";
+  // "card": carta do catálogo; "slab": carta graduada dentro do case desenhado;
+  // "art": arte desenhada (ex.: leilão).
+  photoKind: "product" | "scene" | "card" | "slab" | "art";
   photos: { src: string; direct: boolean; name?: string; grade?: string }[];
 };
 
@@ -162,8 +195,18 @@ function slabPhotos(game?: GameSlug) {
     .map((p) => ({ src: p.image!, direct: loadImageDirectly(p.image!), name: p.name, grade: p.grade }));
 }
 
+// Data de hoje no horário de Brasília (AAAA-MM-DD), para esconder eventos que já passaram.
+function todayInBrazil() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+}
+
 export function getSealedSlides(): SealedSlideView[] {
-  return SEALED_SLIDES.map((slide) => {
+  const today = todayInBrazil();
+  return SEALED_SLIDES.filter((slide) => !slide.until || slide.until >= today).map((slide) => {
+    if (slide.art) {
+      const href = slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
+      return { ...slide, href, external: href.startsWith("http"), photoKind: "art", photos: [] };
+    }
     if (slide.slabs) {
       const href = slide.href ?? whatsappLink(slide.whatsappMessage ?? `Olá! Vi o banner ${slide.title}.`);
       return { ...slide, href, external: href.startsWith("http"), photoKind: "slab", photos: slabPhotos(slide.game) };

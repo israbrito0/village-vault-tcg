@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { type CSSProperties, useCallback, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Gavel, MessageCircle } from "lucide-react";
 import type { SealedSlideView, SealedTheme } from "@/lib/banners";
 import { MAX_INSTALLMENTS, PIX_DISCOUNT } from "@/lib/site";
 
@@ -248,16 +248,18 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
           </h2>
           {slide.subtitle && <p className="mt-3 max-w-sm text-sm font-semibold opacity-90">{slide.subtitle}</p>}
 
-          <ul className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
-            {PERKS.map((perk) => (
-              <li
-                key={perk}
-                className={`rounded px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide backdrop-blur-sm ${theme.perk}`}
-              >
-                {perk}
-              </li>
-            ))}
-          </ul>
+          {!slide.hidePerks && (
+            <ul className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+              {PERKS.map((perk) => (
+                <li
+                  key={perk}
+                  className={`rounded px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide backdrop-blur-sm ${theme.perk}`}
+                >
+                  {perk}
+                </li>
+              ))}
+            </ul>
+          )}
 
           {slide.external ? (
             <a href={slide.href} target="_blank" rel="noopener noreferrer" tabIndex={isActive ? 0 : -1} className={ctaClass}>
@@ -274,7 +276,9 @@ function Slide({ slide, isActive }: { slide: SealedSlideView; isActive: boolean 
           <div
             className={`absolute left-1/2 top-1/2 h-[75%] w-[75%] -translate-x-1/2 -translate-y-1/2 rounded-full blur-3xl ${theme.glow}`}
           />
-          {slide.photoKind === "scene" && slide.photos[0] ? (
+          {slide.photoKind === "art" ? (
+            <AuctionArt />
+          ) : slide.photoKind === "scene" && slide.photos[0] ? (
             // Foto oficial com fundo: inteira, numa moldura levemente inclinada.
             <div className="absolute left-1/2 top-1/2 w-[96%] -translate-x-1/2 -translate-y-1/2 -rotate-2">
               <div className="relative aspect-[16/9] overflow-hidden rounded-xl shadow-[0_22px_40px_-12px_rgba(0,0,0,0.55)] ring-4 ring-white/80 motion-safe:animate-float">
@@ -384,6 +388,27 @@ function SlabCase({ photo, shine }: { photo: SealedSlideView["photos"][number]; 
           <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/45 to-transparent motion-safe:animate-shimmer" />
         </span>
       )}
+    </div>
+  );
+}
+
+// Arte do banner de leilões: martelo num medalhão com o selo "Todo domingo" e o
+// balão do WhatsApp. O posicionamento fica por fora e a animação por dentro.
+function AuctionArt() {
+  return (
+    <div className="absolute left-1/2 top-1/2 aspect-square w-[72%] max-w-[280px] -translate-x-1/2 -translate-y-1/2">
+      <div className="relative flex h-full w-full items-center justify-center motion-safe:animate-float">
+        <div className="absolute inset-0 rounded-full bg-[conic-gradient(from_0deg,#EAFFC9,#2E9E4F,#EAFFC9,#1B6B34,#EAFFC9)] p-[5%] shadow-[0_20px_40px_-12px_rgba(0,0,0,0.5)]">
+          <div className="h-full w-full rounded-full bg-[radial-gradient(circle_at_35%_30%,#5FD37F,#24A24E_55%,#0F4A22)] ring-4 ring-white/50" />
+        </div>
+        <Gavel className="relative h-[46%] w-[46%] -rotate-12 text-white drop-shadow-[0_6px_0_rgba(0,0,0,0.25)]" strokeWidth={1.75} />
+        <span className="absolute -bottom-1 rounded-md bg-ink px-4 py-1 font-display text-xs font-extrabold uppercase tracking-[0.25em] text-[#C8F59A] shadow-lg sm:text-sm">
+          Todo domingo
+        </span>
+        <span className="absolute -right-1 top-[8%] flex h-[26%] w-[26%] items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg ring-4 ring-white/70">
+          <MessageCircle className="h-1/2 w-1/2" strokeWidth={2.25} />
+        </span>
+      </div>
     </div>
   );
 }
