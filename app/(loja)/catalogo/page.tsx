@@ -99,17 +99,34 @@ export default function CatalogoPage({
           ))}
         </div>
 
-        <section className="mt-8">
-          {produtos.length === 0 ? (
-            <p className="text-center text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
-          ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-              {produtos.map((p) => (
-                <ProductCard key={p.id} product={p} />
-              ))}
-            </div>
-          )}
-        </section>
+        {produtos.length === 0 ? (
+          <p className="mt-8 text-center text-sm text-muted">Nenhum produto encontrado com esse filtro.</p>
+        ) : (
+          // Com uma categoria escolhida, uma grade só; sem categoria, um grupo por categoria.
+          SUBCATEGORIES.filter((s) => !subcategoria || s.slug === subcategoria)
+            .map((s) => ({ ...s, items: produtos.filter((p) => p.subcategory === s.slug) }))
+            .filter((group) => group.items.length > 0)
+            .map((group) => (
+              <section key={group.slug} className="mt-10">
+                {!subcategoria && (
+                  <div className="mb-4 flex items-baseline justify-between border-b border-card-border pb-2">
+                    <h2 className="font-display text-lg font-bold text-ink sm:text-xl">{group.label}</h2>
+                    <Link
+                      href={filterHref({ jogo, subcategoria: group.slug })}
+                      className="text-[11px] font-bold uppercase tracking-wide text-muted hover:text-ink"
+                    >
+                      {group.items.length} {group.items.length === 1 ? "produto" : "produtos"} →
+                    </Link>
+                  </div>
+                )}
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+                  {group.items.map((p) => (
+                    <ProductCard key={p.id} product={p} />
+                  ))}
+                </div>
+              </section>
+            ))
+        )}
       </div>
     </main>
   );
