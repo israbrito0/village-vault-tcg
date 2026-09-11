@@ -1,5 +1,7 @@
 import Link from "next/link";
+import { LIVE_URL } from "@/lib/site";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
+import LiveLink from "./LiveLink";
 import { ACCENT_BUTTON, BUTTON_BASE, accentAt } from "./ui";
 
 const SECONDARY_LINKS = [
@@ -44,6 +46,7 @@ export default function MegaMenu() {
             {link.label}
           </Link>
         ))}
+        <LiveLink href={LIVE_URL} />
       </div>
     </nav>
   );

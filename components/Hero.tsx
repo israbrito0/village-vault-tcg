@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Search, ShoppingCart } from "lucide-react";
+import { LIVE_URL } from "@/lib/site";
+import LiveLink from "./LiveLink";
 import Wordmark from "./Wordmark";
 import { ACCENT_BUTTON, Accent, BUTTON_BASE } from "./ui";
 
@@ -61,6 +63,7 @@ export default function Hero() {
       </nav>
 
       <p className="mt-8 text-xs text-muted">Frete grátis · 12x sem juros · 5% off no Pix</p>
+      <LiveLink href={LIVE_URL} className="mt-4 text-xs" />
     </section>
   );
 }
