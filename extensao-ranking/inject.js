@@ -76,12 +76,15 @@
   }
 
   // Percorre o JSON inteiro procurando objetos que tenham comprador e valor.
-  function varrer(valor, caminho, saida, candidatos, modo, profundidade = 0) {
+  // "dica" diz que algum objeto acima já se apresentou como venda (por exemplo
+  // { type: "order.created", payload: {...} }), e vale para os filhos.
+  function varrer(valor, caminho, saida, candidatos, modo, profundidade = 0, dica = false) {
     if (!valor || typeof valor !== "object" || profundidade > 8) return;
     if (Array.isArray(valor)) {
-      valor.forEach((v, i) => varrer(v, `${caminho}[${i}]`, saida, candidatos, modo, profundidade + 1));
+      valor.forEach((v, i) => varrer(v, `${caminho}[${i}]`, saida, candidatos, modo, profundidade + 1, dica));
       return;
     }
+    const ehVenda = dica || pareceVenda(valor, caminho);
     const usuario = acharUsuario(valor);
     const dinheiro = acharValor(valor, modo);
     if (usuario && dinheiro && dinheiro.centavos > 0) {
@@ -92,13 +95,13 @@
         ts: Date.now(),
         _de: dinheiro.de,
         _caminho: caminho,
-        _confiavel: pareceVenda(valor, caminho),
+        _confiavel: ehVenda,
       };
       if (registro._confiavel) saida.push(registro);
       else candidatos.push({ ...registro, _amostra: JSON.stringify(valor).slice(0, 600) });
     }
     for (const [k, v] of Object.entries(valor)) {
-      varrer(v, `${caminho}.${k}`, saida, candidatos, modo, profundidade + 1);
+      varrer(v, `${caminho}.${k}`, saida, candidatos, modo, profundidade + 1, ehVenda);
     }
   }
 
