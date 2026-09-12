@@ -1,4 +1,4 @@
-import { diaDe, type Estado } from "./ranking";
+import { diaDe, topDe, type Comprador, type Estado } from "./ranking";
 
 // Números da aba privada de métricas, todos calculados a partir do mesmo
 // estado que alimenta o ranking (ou seja, das vendas das lives na Jamble).
@@ -41,6 +41,8 @@ export type Metricas = {
     desde: number;
   };
   dias: { dia: string; centavos: number; pedidos: number }[];
+  topLive: Comprador[];
+  topGeral: Comprador[];
 };
 
 function partesDaData(ts: number) {
@@ -141,5 +143,7 @@ export function calcularMetricas(estado: Estado, agora = Date.now()): Metricas {
       desde: estado.acumulado.desde,
     },
     dias: ultimosDias,
+    topLive: topDe(estado.live.compradores, 10),
+    topGeral: topDe(estado.acumulado.compradores, 10),
   };
 }

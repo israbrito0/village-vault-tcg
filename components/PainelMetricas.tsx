@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Activity, CalendarDays, Lock, LogOut, Receipt, TrendingUp } from "lucide-react";
+import { Activity, CalendarDays, Lock, LogOut, Receipt, TrendingUp, Trophy } from "lucide-react";
 import type { Metricas } from "@/lib/metricas";
+import type { Comprador } from "@/lib/ranking";
 
 const CHAVE_LOCAL = "vv-metricas-chave";
 const INTERVALO = 10000;
@@ -77,6 +78,59 @@ function Barras({ dados, rotulo }: { dados: { chave: string; valor: number }[]; 
         <span>{dados[0]?.chave}</span>
         <span>{dados[dados.length - 1]?.chave}</span>
       </div>
+    </section>
+  );
+}
+
+function TopCompradores({ live, geral }: { live: Comprador[]; geral: Comprador[] }) {
+  const [aba, setAba] = useState<"live" | "geral">("live");
+  const lista = aba === "live" ? live : geral;
+  return (
+    <section className="rounded-xl border border-card-border bg-white p-4 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center justify-between gap-3">
+        <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
+          <Trophy size={14} />
+          Top compradores
+        </p>
+        <div className="inline-flex rounded-full border border-card-border p-0.5">
+          {(["live", "geral"] as const).map((chave) => (
+            <button
+              key={chave}
+              type="button"
+              onClick={() => setAba(chave)}
+              className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide transition-colors ${
+                aba === chave ? "bg-brand-yellow text-ink" : "text-muted hover:text-ink"
+              }`}
+            >
+              {chave === "live" ? "Live" : "Geral"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {lista.length === 0 ? (
+        <p className="mt-3 text-[12px] text-muted">Ninguém comprou ainda.</p>
+      ) : (
+        <ol className="mt-3 space-y-1.5">
+          {lista.map((c, i) => (
+            <li key={c.handle} className="flex items-center gap-2 text-[12px]">
+              <span
+                className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
+                  i < 3 ? "bg-brand-yellow text-ink" : "bg-surface text-muted"
+                }`}
+              >
+                {i + 1}
+              </span>
+              <span className="min-w-0 flex-1 truncate font-medium text-ink">@{c.handle}</span>
+              <span className="shrink-0 text-muted">
+                {c.pedidos}x · {reais(Math.round(c.centavos / c.pedidos))}
+              </span>
+              <span className="w-24 shrink-0 text-right font-bold text-ink">{reais(c.centavos)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+      <p className="mt-2 text-[10px] text-muted">Pedidos e ticket médio de cada um, e o total gasto.</p>
     </section>
   );
 }
@@ -196,6 +250,8 @@ export default function PainelMetricas() {
           valor: m.centavos,
         }))}
       />
+
+      <TopCompradores live={dados.topLive} geral={dados.topGeral} />
 
       <Cartao
         titulo={`Mês ${mes.rotulo}`}
