@@ -1,0 +1,50 @@
+RANKING DA LIVE - EXTENSÃO DO CHROME
+====================================
+
+O que ela faz
+-------------
+Enquanto a live da Jamble estiver aberta numa aba do Chrome, a extensão lê as
+vendas que aparecem na página e manda para villagetcg.com.br/ranking, que
+mostra o top de compradores por valor gasto (na live e no acumulado).
+
+Como instalar (uma vez só)
+--------------------------
+1. Abra o Chrome em: chrome://extensions
+2. Ligue o "Modo do desenvolvedor" (canto superior direito).
+3. Clique em "Carregar sem compactação".
+4. Escolha esta pasta: extensao-ranking
+5. Fixe a extensão na barra (ícone de quebra-cabeça > alfinete).
+
+Como configurar (uma vez só)
+----------------------------
+1. Clique no ícone da extensão.
+2. Em "Senha de envio (token)", cole o token que está no arquivo
+   ranking-token.txt (fica na pasta village-vault-tcg, fora do site).
+3. Deixe "Endereço do site" como está:
+   https://www.villagetcg.com.br/api/ranking/eventos
+4. Marque "Capturar vendas" e clique em Salvar.
+
+No dia da live
+--------------
+1. Abra a live na Jamble numa aba do Chrome e deixe essa aba aberta.
+   (Se a aba ficar em segundo plano tudo bem, mas não feche.)
+2. Clique no ícone da extensão para conferir o painel: ele mostra a live
+   detectada, quantas vendas estão na fila e o top 5 que o site já recebeu.
+3. Antes de começar, se quiser, clique em "Zerar a live" para começar do zero.
+
+Se alguma venda não for capturada
+---------------------------------
+- Use "Somar compra na mão": escreva o @ da pessoa e o valor.
+- Clique em "Baixar depuração" e me mande o arquivo: ele traz exemplos dos
+  dados que a Jamble enviou e que a extensão ficou em dúvida se eram vendas.
+  Com isso eu acerto a leitura para as próximas lives.
+
+Se os valores saírem errados (10x maiores ou menores)
+-----------------------------------------------------
+No campo "Valores da Jamble", troque de "Automático" para "Vêm em centavos"
+ou "Vêm em reais", salve e teste de novo. O ranking pode ser zerado depois.
+
+Privacidade
+-----------
+A extensão só roda em páginas do jamble.com e só envia: @ do comprador,
+valor e identificador do pedido. Nada de endereço, telefone ou pagamento.

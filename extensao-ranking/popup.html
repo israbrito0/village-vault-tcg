@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Ranking da Live</title>
+    <style>
+      :root { color-scheme: light; }
+      body { width: 330px; margin: 0; padding: 14px; font: 13px/1.45 system-ui, sans-serif; color: #333844; background: #fff; }
+      h1 { margin: 0 0 2px; font-size: 15px; }
+      p.sub { margin: 0 0 12px; color: #6b7280; font-size: 11px; }
+      label { display: block; margin-top: 10px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #6b7280; }
+      input, select { width: 100%; box-sizing: border-box; margin-top: 3px; padding: 7px 8px; border: 1px solid #e6e8ec; border-radius: 7px; font: inherit; }
+      .linha { display: flex; gap: 6px; }
+      button { margin-top: 10px; padding: 8px 10px; border: 1px solid #e6e8ec; border-radius: 999px; background: #f4f6f8; font: inherit; font-weight: 600; cursor: pointer; }
+      button.principal { background: #f4af14; border-color: #f4af14; }
+      button:hover { filter: brightness(.97); }
+      .painel { margin-top: 12px; padding: 10px; border: 1px solid #e6e8ec; border-radius: 10px; background: #f9fafb; font-size: 12px; }
+      .painel b { font-size: 13px; }
+      .erro { color: #b42318; }
+      .ok { color: #15803d; }
+      hr { margin: 14px 0 0; border: 0; border-top: 1px solid #e6e8ec; }
+    </style>
+  </head>
+  <body>
+    <h1>Ranking da Live</h1>
+    <p class="sub">Lê as vendas na Jamble e manda para villagetcg.com.br</p>
+
+    <div class="painel" id="painel">carregando…</div>
+
+    <label>Endereço do site<input id="endpoint" type="text" spellcheck="false" /></label>
+    <label>Senha de envio (token)<input id="token" type="text" spellcheck="false" /></label>
+    <label>Valores da Jamble
+      <select id="modo">
+        <option value="auto">Automático</option>
+        <option value="centavos">Vêm em centavos</option>
+        <option value="reais">Vêm em reais</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="ativo" style="width:auto" /> Capturar vendas</label>
+    <button id="salvar" class="principal">Salvar</button>
+
+    <hr />
+    <label>Somar compra na mão</label>
+    <div class="linha">
+      <input id="mHandle" type="text" placeholder="@usuario" />
+      <input id="mValor" type="text" placeholder="R$ 250,00" />
+    </div>
+    <button id="somar">Somar compra</button>
+
+    <hr />
+    <button id="enviar">Enviar agora</button>
+    <button id="depurar">Baixar depuração</button>
+    <button id="zerarLive">Zerar a live</button>
+    <script src="popup.js"></script>
+  </body>
+</html>

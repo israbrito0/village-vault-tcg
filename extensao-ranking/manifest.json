@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Village & Vault - Ranking da Live",
+  "version": "1.0.0",
+  "description": "Lê as vendas da live na Jamble e atualiza o ranking de compradores no site.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "https://*.jamble.com/*",
+    "https://www.villagetcg.com.br/*",
+    "http://localhost:3100/*"
+  ],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://*.jamble.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["inject.js"], "matches": ["https://*.jamble.com/*"] }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Ranking da Live" }
+}
