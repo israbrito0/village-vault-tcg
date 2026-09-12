@@ -102,10 +102,18 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       return;
     }
     if (msg?.tipo === "ligado") {
+      // Avisa as abas da Jamble como interpretar os valores (centavos ou reais).
       const cfg = await config();
-      chrome.tabs.query({ url: "https://*.jamble.com/*" }, (abas) => {
-        for (const aba of abas) chrome.tabs.sendMessage(aba.id, { tipo: "modo", dados: cfg.modoValor }).catch?.(() => {});
-      });
+      try {
+        const abas = await chrome.tabs.query({ url: "https://*.jamble.com/*" });
+        for (const aba of abas) {
+          try {
+            await chrome.tabs.sendMessage(aba.id, { tipo: "modo", dados: cfg.modoValor });
+          } catch {
+            // Aba ainda sem o content script: ela pega o modo ao recarregar.
+          }
+        }
+      } catch {}
       responder({ ok: true });
       return;
     }

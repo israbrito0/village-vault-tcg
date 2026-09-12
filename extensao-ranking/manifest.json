@@ -3,7 +3,7 @@
   "name": "Village & Vault - Ranking da Live",
   "version": "1.0.0",
   "description": "Lê as vendas da live na Jamble e atualiza o ranking de compradores no site.",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "tabs"],
   "host_permissions": [
     "https://*.jamble.com/*",
     "https://www.villagetcg.com.br/*",
