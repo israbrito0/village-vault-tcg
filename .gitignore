@@ -10,3 +10,6 @@ lib/generated
 
 .vercel
 .env*
+
+# Token da extensao: fica so neste computador
+extensao-ranking/config-local.js

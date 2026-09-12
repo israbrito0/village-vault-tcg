@@ -46,6 +46,8 @@ export type Estado = {
   };
   // Faturamento por dia, no fuso de São Paulo: { "2026-09-16": { centavos, pedidos } }.
   dias: Record<string, { centavos: number; pedidos: number }>;
+  // Último "estou aqui" mandado pela extensão, para saber se ela está ligada.
+  ping?: { em: number; origem?: string };
   vistos: string[];
 };
 
@@ -90,6 +92,7 @@ function completar(estado: Estado): Estado {
     live: { ...live, compradores: live.compradores ?? [], minutos: live.minutos ?? {} },
     acumulado: { ...acumulado, compradores: acumulado.compradores ?? [] },
     dias: estado.dias ?? {},
+    ping: estado.ping,
     vistos: estado.vistos ?? [],
   };
 }

@@ -15,14 +15,22 @@ Como instalar (uma vez só)
 4. Escolha esta pasta: extensao-ranking
 5. Fixe a extensão na barra (ícone de quebra-cabeça > alfinete).
 
-Como configurar (uma vez só)
-----------------------------
+Como configurar
+---------------
+Neste computador o token já vem preenchido pelo arquivo config-local.js, que
+fica dentro desta pasta e NÃO vai para o GitHub. Não precisa digitar nada.
+
+Em outro computador (ou se o arquivo sumir):
 1. Clique no ícone da extensão.
 2. Em "Senha de envio (token)", cole o token que está no arquivo
    ranking-token.txt (fica na pasta village-vault-tcg, fora do site).
 3. Deixe "Endereço do site" como está:
    https://www.villagetcg.com.br/api/ranking/eventos
 4. Marque "Capturar vendas" e clique em Salvar.
+
+Para saber se está ligada: a página de métricas mostra, no rodapé,
+"Extensão deu sinal há X". A extensão avisa sozinha ao ser instalada, ao
+abrir o navegador e de tempos em tempos.
 
 No dia da live
 --------------

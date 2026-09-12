@@ -43,6 +43,7 @@ export type Metricas = {
   dias: { dia: string; centavos: number; pedidos: number }[];
   topLive: Comprador[];
   topGeral: Comprador[];
+  extensao: { ultimoSinal: number | null; origem: string | null };
 };
 
 function partesDaData(ts: number) {
@@ -145,5 +146,9 @@ export function calcularMetricas(estado: Estado, agora = Date.now()): Metricas {
     dias: ultimosDias,
     topLive: topDe(estado.live.compradores, 10),
     topGeral: topDe(estado.acumulado.compradores, 10),
+    extensao: {
+      ultimoSinal: estado.ping?.em ?? null,
+      origem: estado.ping?.origem ?? null,
+    },
   };
 }

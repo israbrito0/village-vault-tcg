@@ -1,5 +1,15 @@
 // Junta as vendas capturadas e envia de tempos em tempos para o site.
 
+// config-local.js fica só neste computador (não vai para o GitHub) e traz o
+// token já preenchido, para não precisar digitar nada na primeira vez.
+let TOKEN_LOCAL = "";
+try {
+  importScripts("config-local.js");
+  TOKEN_LOCAL = self.VV_TOKEN ?? "";
+} catch {
+  // Sem o arquivo: o token é o que estiver salvo pela janelinha da extensão.
+}
+
 const PADRAO = {
   endpoint: "https://www.villagetcg.com.br/api/ranking/eventos",
   token: "",
@@ -16,7 +26,29 @@ async function ler(chaves) {
 
 async function config() {
   const { config } = await ler("config");
-  return { ...PADRAO, ...(config ?? {}) };
+  const junto = { ...PADRAO, ...(config ?? {}) };
+  if (!junto.token) junto.token = TOKEN_LOCAL;
+  return junto;
+}
+
+// Avisa o site que a extensão está viva. Não mexe em nenhum número: serve só
+// para o painel de métricas mostrar "extensão deu sinal há X".
+async function darSinal(origem) {
+  const cfg = await config();
+  if (!cfg.token) return;
+  const { stats } = await estado();
+  if (stats.ultimoSinal && Date.now() - stats.ultimoSinal < 10 * 60 * 1000) return;
+  try {
+    const r = await fetch(cfg.endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${cfg.token}` },
+      body: JSON.stringify({ acao: "ping", origem }),
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    await chrome.storage.local.set({ stats: { ...stats, ultimoSinal: Date.now(), ultimoErro: "" } });
+  } catch (e) {
+    await chrome.storage.local.set({ stats: { ...stats, ultimoErro: String(e.message || e) } });
+  }
 }
 
 async function estado() {
@@ -128,6 +160,9 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     }
     if (msg?.tipo === "config") {
       await chrome.storage.local.set({ config: { ...(await config()), ...msg.dados } });
+      const { stats } = await estado();
+      await chrome.storage.local.set({ stats: { ...stats, ultimoSinal: 0 } });
+      await darSinal("configurada");
       responder({ ok: true });
       return;
     }
@@ -173,5 +208,11 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
 // Rede de segurança: mesmo que a página fique quieta, tenta esvaziar a fila.
 chrome.alarms.create("enviar", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener((a) => {
-  if (a.name === "enviar") enviar();
+  if (a.name === "enviar") {
+    enviar();
+    darSinal("rotina");
+  }
 });
+
+chrome.runtime.onInstalled.addListener(() => darSinal("instalada"));
+chrome.runtime.onStartup.addListener(() => darSinal("navegador aberto"));

@@ -27,11 +27,20 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "token inválido" }, { status: 401, headers: CORS });
   }
 
-  let corpo: { liveId?: string; titulo?: string; eventos?: Evento[]; acao?: string };
+  let corpo: { liveId?: string; titulo?: string; eventos?: Evento[]; acao?: string; origem?: string };
   try {
     corpo = await req.json();
   } catch {
     return NextResponse.json({ erro: "json inválido" }, { status: 400, headers: CORS });
+  }
+
+  // "Estou aqui" da extensão: serve para conferir que ela está ligada e com o
+  // token certo, sem mexer em nenhum número.
+  if (corpo.acao === "ping") {
+    const estado = await lerEstado();
+    estado.ping = { em: Date.now(), origem: corpo.origem };
+    await salvarEstado(estado);
+    return NextResponse.json({ ok: true, ping: estado.ping }, { headers: CORS });
   }
 
   // Botões de manutenção da extensão.

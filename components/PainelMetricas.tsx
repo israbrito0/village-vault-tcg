@@ -14,6 +14,14 @@ function reais(centavos: number, curto = false) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+function desde(quando: number) {
+  const seg = Math.max(0, Math.round((Date.now() - quando) / 1000));
+  if (seg < 60) return `há ${seg}s`;
+  if (seg < 3600) return `há ${Math.round(seg / 60)} min`;
+  if (seg < 86400) return `há ${Math.round(seg / 3600)}h`;
+  return `há ${Math.round(seg / 86400)} dias`;
+}
+
 function dataCurta(dia: string) {
   const [, mes, d] = dia.split("-");
   return `${d}/${mes}`;
@@ -292,7 +300,9 @@ export default function PainelMetricas() {
       <p className="flex items-center justify-between gap-3 text-[11px] text-muted">
         <span className="flex items-center gap-1.5">
           <Receipt size={12} />
-          Só as vendas capturadas nas lives da Jamble.
+          {dados.extensao.ultimoSinal
+            ? `Extensão deu sinal ${desde(dados.extensao.ultimoSinal)}.`
+            : "Extensão ainda não deu sinal."}
         </span>
         <button
           type="button"
