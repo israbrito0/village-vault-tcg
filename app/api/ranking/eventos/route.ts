@@ -53,6 +53,9 @@ export async function POST(req: Request) {
       inicio: Date.now(),
       atualizado: Date.now(),
       compradores: [],
+      centavos: 0,
+      pedidos: 0,
+      minutos: {},
     };
   }
   const { novos, repetidos } = aplicarEventos(estado, corpo.liveId ?? estado.live.id, corpo.titulo, eventos);

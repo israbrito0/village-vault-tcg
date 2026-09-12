@@ -1,11 +1,14 @@
 import { get, put } from "@vercel/blob";
 
-// Ranking de compradores das lives. O estado inteiro mora num único arquivo no
-// Vercel Blob (store "ranking-live"): é pequeno e só a extensão escreve nele.
+// Ranking de compradores e histórico de faturamento das lives. O estado inteiro
+// mora num único arquivo no Vercel Blob (store "ranking-live"): é pequeno e só
+// a extensão escreve nele.
 const CAMINHO = "ranking/estado.json";
 
 // Quantos ids de pedido guardamos para não contar a mesma compra duas vezes.
 const LIMITE_VISTOS = 8000;
+// Minutos de faturamento guardados da live atual (para o gráfico ao vivo).
+const LIMITE_MINUTOS = 720;
 
 export type Comprador = {
   handle: string;
@@ -24,17 +27,70 @@ export type Evento = {
 };
 
 export type Estado = {
-  live: { id: string; titulo?: string; inicio: number; atualizado: number; compradores: Comprador[] };
-  acumulado: { desde: number; atualizado: number; compradores: Comprador[] };
+  live: {
+    id: string;
+    titulo?: string;
+    inicio: number;
+    atualizado: number;
+    compradores: Comprador[];
+    centavos: number;
+    pedidos: number;
+    minutos: Record<string, number>;
+  };
+  acumulado: {
+    desde: number;
+    atualizado: number;
+    compradores: Comprador[];
+    centavos: number;
+    pedidos: number;
+  };
+  // Faturamento por dia, no fuso de São Paulo: { "2026-09-16": { centavos, pedidos } }.
+  dias: Record<string, { centavos: number; pedidos: number }>;
   vistos: string[];
 };
+
+const FUSO = "America/Sao_Paulo";
+
+export function diaDe(ts: number) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: FUSO,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(ts));
+}
+
+function minutoDe(ts: number) {
+  return String(Math.floor(ts / 60000));
+}
 
 export function estadoVazio(): Estado {
   const agora = Date.now();
   return {
-    live: { id: "", inicio: agora, atualizado: agora, compradores: [] },
-    acumulado: { desde: agora, atualizado: agora, compradores: [] },
+    live: { id: "", inicio: agora, atualizado: agora, compradores: [], centavos: 0, pedidos: 0, minutos: {} },
+    acumulado: { desde: agora, atualizado: agora, compradores: [], centavos: 0, pedidos: 0 },
+    dias: {},
     vistos: [],
+  };
+}
+
+// Estados gravados antes das métricas não têm todos os campos; completa o que
+// dá a partir dos compradores, para nada quebrar depois de uma atualização.
+function completar(estado: Estado): Estado {
+  const base = estadoVazio();
+  const live = { ...base.live, ...(estado.live ?? {}) };
+  const acumulado = { ...base.acumulado, ...(estado.acumulado ?? {}) };
+  const soma = (lista: Comprador[]) => ({
+    centavos: lista.reduce((t, c) => t + c.centavos, 0),
+    pedidos: lista.reduce((t, c) => t + c.pedidos, 0),
+  });
+  if (!live.centavos) Object.assign(live, soma(live.compradores ?? []));
+  if (!acumulado.centavos) Object.assign(acumulado, soma(acumulado.compradores ?? []));
+  return {
+    live: { ...live, compradores: live.compradores ?? [], minutos: live.minutos ?? {} },
+    acumulado: { ...acumulado, compradores: acumulado.compradores ?? [] },
+    dias: estado.dias ?? {},
+    vistos: estado.vistos ?? [],
   };
 }
 
@@ -45,8 +101,7 @@ export async function lerEstado(): Promise<Estado> {
     if (!r || r.statusCode !== 200 || !r.stream) return estadoVazio();
     const estado = JSON.parse(await new Response(r.stream).text()) as Estado;
     if (!estado?.live || !estado?.acumulado) return estadoVazio();
-    estado.vistos = estado.vistos ?? [];
-    return estado;
+    return completar(estado);
   } catch {
     // Arquivo ainda não existe (antes da primeira live) ou veio corrompido.
     return estadoVazio();
@@ -87,7 +142,16 @@ export function aplicarEventos(
 ) {
   const agora = Date.now();
   if (liveId && estado.live.id !== liveId) {
-    estado.live = { id: liveId, titulo, inicio: agora, atualizado: agora, compradores: [] };
+    estado.live = {
+      id: liveId,
+      titulo,
+      inicio: agora,
+      atualizado: agora,
+      compradores: [],
+      centavos: 0,
+      pedidos: 0,
+      minutos: {},
+    };
   }
   if (titulo && !estado.live.titulo) estado.live.titulo = titulo;
 
@@ -105,15 +169,33 @@ export function aplicarEventos(
       continue;
     }
     vistos.add(id);
-    const limpo: Evento = { id, handle, nome: ev.nome, centavos, ts: ev.ts };
+    const quando = ev.ts ?? agora;
+    const limpo: Evento = { id, handle, nome: ev.nome, centavos, ts: quando };
+
     somar(estado.live.compradores, limpo);
     somar(estado.acumulado.compradores, limpo);
+    estado.live.centavos += centavos;
+    estado.live.pedidos += 1;
+    estado.acumulado.centavos += centavos;
+    estado.acumulado.pedidos += 1;
+
+    const dia = diaDe(quando);
+    const atualDia = estado.dias[dia] ?? { centavos: 0, pedidos: 0 };
+    estado.dias[dia] = { centavos: atualDia.centavos + centavos, pedidos: atualDia.pedidos + 1 };
+
+    const minuto = minutoDe(quando);
+    estado.live.minutos[minuto] = (estado.live.minutos[minuto] ?? 0) + centavos;
+
     novos += 1;
   }
 
   estado.live.atualizado = agora;
   estado.acumulado.atualizado = agora;
   estado.vistos = [...vistos].slice(-LIMITE_VISTOS);
+
+  const minutos = Object.entries(estado.live.minutos).sort((a, b) => Number(a[0]) - Number(b[0]));
+  estado.live.minutos = Object.fromEntries(minutos.slice(-LIMITE_MINUTOS));
+
   return { novos, repetidos };
 }
 
