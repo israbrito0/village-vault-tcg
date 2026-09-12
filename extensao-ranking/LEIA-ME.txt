@@ -44,6 +44,14 @@ Se os valores saírem errados (10x maiores ou menores)
 No campo "Valores da Jamble", troque de "Automático" para "Vêm em centavos"
 ou "Vêm em reais", salve e teste de novo. O ranking pode ser zerado depois.
 
+Onde ver os números
+-------------------
+- Ranking público: https://www.villagetcg.com.br/ranking
+- Métricas privadas: https://www.villagetcg.com.br/metricas
+  (faturamento ao vivo, ticket médio, projeção do mês e total acumulado)
+  A chave está em metricas-chave.txt, na pasta village-vault-tcg. Você cola
+  uma vez no navegador e ele lembra.
+
 Privacidade
 -----------
 A extensão só roda em páginas do jamble.com e só envia: @ do comprador,
