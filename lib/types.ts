@@ -67,4 +67,7 @@ export interface Product {
   preorder?: boolean;
   // Coluna "graduacao" das cartas graduadas (slabs), ex.: "PSA 10", "CGC 9.5".
   grade?: string;
+  // Colunas peso_g, largura_cm, altura_cm e comprimento_cm: o pacote pronto
+  // para envio. Sem elas, o frete usa a embalagem padrão da categoria.
+  shipping?: { weightGrams: number; widthCm: number; heightCm: number; lengthCm: number };
 }

@@ -45,7 +45,9 @@ type RespostaServico = {
 
 // Para o carrinho: vários produtos, cada um com a sua embalagem. O Melhor
 // Envio monta a caixa e cota o conjunto.
-export type ItemFrete = { pacote: TipoPacote; quantidade: number; valorCentavos: number };
+// `medidas`, quando o produto tem as dele, vale mais que a embalagem padrão.
+export type Medidas = { width: number; height: number; length: number; weight: number };
+export type ItemFrete = { pacote: TipoPacote; medidas?: Medidas; quantidade: number; valorCentavos: number };
 
 export async function cotarFrete({
   cepDestino,
@@ -68,7 +70,7 @@ export async function cotarFrete({
   const conteudo = itens?.length
     ? {
         products: itens.map((item, i) => {
-          const m = PACOTES[item.pacote] ?? PACOTES.carta;
+          const m = item.medidas ?? PACOTES[item.pacote] ?? PACOTES.carta;
           return {
             id: String(i + 1),
             width: m.width,

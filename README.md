@@ -50,6 +50,7 @@ deixe `codigo` vazio e preencha `nome`, `colecao` e, se tiver foto, `imagem`
 | `estoque`      | quantidade; `0` esconde o produto do site                        |
 | `destaque`     | `sim` para aparecer em "Mais vendidos"                           |
 | `prevenda`     | `sim` para produto ainda não lançado: ganha a etiqueta "PRÉ-VENDA" e o botão vira "Reservar pelo WhatsApp" |
+| `peso_g`, `largura_cm`, `altura_cm`, `comprimento_cm` | peso em gramas e medidas em cm **já embalado** (caixa, plástico bolha e durex), usados no frete. Preencha os quatro juntos; vazio = embalagem padrão da categoria |
 | `nome`, `colecao`, `imagem`, `descricao` | opcionais para cartas; preenchidos, substituem o que vem da base |
 
 **Editando no Excel:** abra o arquivo, edite e salve como

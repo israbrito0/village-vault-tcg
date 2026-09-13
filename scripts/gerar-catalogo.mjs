@@ -295,6 +295,18 @@ async function main() {
     for (let n = 2; slugs.has(slug); n++) slug = `${slug.replace(/-\d+$/, "")}-${n}`;
     slugs.add(slug);
 
+    // Peso e medidas já embalado (caixa, plástico bolha e durex), para o frete.
+    const medidas = [row.pesog, row.larguracm, row.alturacm, row.comprimentocm];
+    let shipping;
+    if (medidas.every((m) => m)) {
+      const [weightGrams, widthCm, heightCm, lengthCm] = medidas.map((m) => Number(m.replace(",", ".")));
+      if ([weightGrams, widthCm, heightCm, lengthCm].every((m) => Number.isFinite(m) && m > 0)) {
+        shipping = { weightGrams, widthCm, heightCm, lengthCm };
+      } else aviso(`${where}: peso ou medidas inválidos, usando a embalagem padrão da categoria`);
+    } else if (medidas.some((m) => m)) {
+      aviso(`${where}: preencha peso_g, largura_cm, altura_cm e comprimento_cm juntos; usando a embalagem padrão da categoria`);
+    }
+
     const description =
       row.descricao ||
       (code
@@ -319,6 +331,7 @@ async function main() {
       description,
       ...(image ? { image } : {}),
       ...(code ? { code } : {}),
+      ...(shipping ? { shipping } : {}),
     });
   }
 

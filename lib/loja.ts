@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { PRODUCTS } from "./products";
 import type { Product } from "./types";
-import { cotarFrete, temMelhorEnvio, type ItemFrete, type TipoPacote } from "./frete";
+import { cotarFrete, temMelhorEnvio, type ItemFrete, type Medidas, type TipoPacote } from "./frete";
 import { criarLinkPagamento, temInfinitePay } from "./infinitepay";
 import { SITE_URL } from "./site";
 
@@ -23,6 +23,13 @@ export function pacoteDe(produto: Product): TipoPacote | null {
   if (produto.subcategory === "cartas-graduadas") return "slab";
   if (produto.subcategory === "cartas-avulsas") return "carta";
   return "selado";
+}
+
+// Peso e medidas do próprio produto (planilha), no formato do Melhor Envio.
+export function medidasDe(produto: Product): Medidas | undefined {
+  const s = produto.shipping;
+  if (!s) return undefined;
+  return { width: s.widthCm, height: s.heightCm, length: s.lengthCm, weight: s.weightGrams / 1000 };
 }
 
 export function conferirCarrinho(itens: ItemCarrinho[]) {
@@ -50,9 +57,11 @@ export function conferirCarrinho(itens: ItemCarrinho[]) {
   }
 
   const subtotal = linhas.reduce((t, l) => t + l.produto.priceCents * l.quantidade, 0);
-  const itensFrete: ItemFrete[] = linhas
-    .map((l) => ({ pacote: pacoteDe(l.produto), quantidade: l.quantidade, valorCentavos: l.produto.priceCents }))
-    .filter((i): i is ItemFrete => i.pacote !== null);
+  const itensFrete: ItemFrete[] = linhas.flatMap((l) => {
+    const pacote = pacoteDe(l.produto);
+    if (!pacote) return [];
+    return [{ pacote, medidas: medidasDe(l.produto), quantidade: l.quantidade, valorCentavos: l.produto.priceCents }];
+  });
 
   return { linhas, problemas, subtotal, itensFrete, precisaEnvio: itensFrete.length > 0 };
 }
