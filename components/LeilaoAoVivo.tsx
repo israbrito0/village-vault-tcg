@@ -222,11 +222,17 @@ export default function LeilaoAoVivo() {
           <h2 className="mt-1 font-display text-xl font-extrabold text-ink">{loteAtual?.titulo ?? dados.leilao.titulo}</h2>
           {loteAtual?.descricao && <p className="mt-1 text-[13px] text-ink/75">{loteAtual.descricao}</p>}
 
+          {loteAtual?.precoRefCentavos ? (
+            <p className="mt-1 text-[12px] text-muted">
+              Valor de mercado: <strong className="text-ink">{reais(loteAtual.precoRefCentavos)}</strong>
+              <span className="text-[10px]"> · referência, não é o preço da loja</span>
+            </p>
+          ) : null}
+
           <div className="mt-3 flex items-end justify-between gap-3">
             <div>
               <p className="text-[11px] uppercase tracking-wide text-muted">{maior ? "Lance atual" : "Lance inicial"}</p>
               <p className="font-display text-3xl font-extrabold text-ink">{reais(maior ? maior.centavos : loteAtual?.lanceInicialCentavos ?? 0)}</p>
-              <p className="text-[12px] text-muted">{maior ? `com ${maior.nome}` : "ninguém deu lance ainda"}</p>
             </div>
             {restante !== null && (
               <div className={`text-right ${restante <= 15000 && aberto ? "text-brand-red" : "text-ink"}`}>
@@ -240,6 +246,25 @@ export default function LeilaoAoVivo() {
               </div>
             )}
           </div>
+
+          {/* Quem está ganhando, em destaque: é o que prende a atenção. */}
+          <p
+            className={`mt-3 rounded-lg px-3 py-2 text-center text-[14px] font-bold ${
+              euGanhando ? "bg-brand-green/10 text-brand-green" : "bg-surface text-ink"
+            }`}
+          >
+            {maior ? (
+              euGanhando ? (
+                "Você está ganhando este lote"
+              ) : (
+                <>
+                  <span className="text-brand-yellow-text">{maior.nome}</span> está ganhando
+                </>
+              )
+            ) : (
+              "Ninguém deu lance ainda"
+            )}
+          </p>
 
           {/* ---------------------------------------------------- dar lance */}
           {!participante ? (

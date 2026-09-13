@@ -31,6 +31,8 @@ function paraLote(linha: Record<string, unknown>): Lote {
     vencedorId: (linha.vencedor_id as string) ?? undefined,
     vencedorNome: (linha.vencedor_nome as string) ?? undefined,
     vencedorCentavos: (linha.vencedor_centavos as number) ?? undefined,
+    cartaId: (linha.carta_id as string) ?? undefined,
+    precoRefCentavos: (linha.preco_ref_centavos as number) ?? undefined,
   };
 }
 
@@ -225,7 +227,16 @@ export async function criarLeilao(titulo: string, descricao?: string) {
 
 export async function criarLote(
   leilaoId: string,
-  lote: { ordem: number; titulo: string; descricao?: string; imagem?: string; lanceInicialCentavos: number; incrementoCentavos: number },
+  lote: {
+    ordem: number;
+    titulo: string;
+    descricao?: string;
+    imagem?: string;
+    lanceInicialCentavos: number;
+    incrementoCentavos: number;
+    cartaId?: string;
+    precoRefCentavos?: number;
+  },
 ) {
   const db = cliente();
   const { error } = await db.from("lotes").insert({
@@ -236,8 +247,57 @@ export async function criarLote(
     imagem: lote.imagem,
     lance_inicial_centavos: lote.lanceInicialCentavos,
     incremento_centavos: lote.incrementoCentavos,
+    carta_id: lote.cartaId,
+    preco_ref_centavos: lote.precoRefCentavos,
   });
   if (error) throw error;
+}
+
+// Base própria de cartas: guarda o que já foi consultado e o preço que ele
+// mesmo definiu, que vale mais que o preço internacional convertido.
+export async function salvarCarta(carta: {
+  id: string;
+  nome: string;
+  colecao?: string;
+  colecaoId?: string;
+  numero?: string;
+  totalOficial?: number;
+  raridade?: string;
+  imagem?: string;
+  precoRefCentavos?: number;
+  fonte?: string;
+}) {
+  const db = cliente();
+  const { error } = await db.from("cartas").upsert(
+    {
+      id: carta.id,
+      nome: carta.nome,
+      colecao: carta.colecao,
+      colecao_id: carta.colecaoId,
+      numero: carta.numero,
+      total_oficial: carta.totalOficial,
+      raridade: carta.raridade,
+      imagem: carta.imagem,
+      preco_ref_centavos: carta.precoRefCentavos,
+      fonte: carta.fonte,
+      atualizado_em: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+  if (error) throw error;
+}
+
+export async function definirPrecoManual(cartaId: string, centavos: number | null) {
+  const db = cliente();
+  const { error } = await db.from("cartas").update({ preco_manual_centavos: centavos }).eq("id", cartaId);
+  if (error) throw error;
+}
+
+export async function lerCartas(ids: string[]) {
+  if (!ids.length) return [];
+  const db = cliente();
+  const { data } = await db.from("cartas").select("*").in("id", ids);
+  return data ?? [];
 }
 
 // Caixa de cada pessoa no leilão, para virar cobrança no fim.

@@ -17,6 +17,10 @@ export type Lote = {
   vencedorId?: string;
   vencedorNome?: string;
   vencedorCentavos?: number;
+  // De qual carta o lote veio e quanto ela vale de referência, para a tela
+  // mostrar "valor de mercado" sem consultar nada na hora.
+  cartaId?: string;
+  precoRefCentavos?: number;
 };
 
 export type Lance = {

@@ -6,6 +6,7 @@ import {
   cancelarLance,
   criarLeilao,
   criarLote,
+  definirPrecoManual,
   fecharLote,
   lerLeilaoAtual,
   ocultarMensagem,
@@ -49,6 +50,41 @@ export async function POST(req: Request) {
         }
         return NextResponse.json({ ok: true, leilaoId: id, lotes: lotes.length });
       }
+
+      case "adicionar-lote": {
+        // Acrescenta um lote ao leilão que está no ar (cria um se não houver).
+        let leilaoId = corpo.leilaoId as string | undefined;
+        let proxima = 1;
+        const estado = await lerLeilaoAtual();
+        if (!leilaoId) {
+          if (estado.leilao) {
+            leilaoId = estado.leilao.id;
+            proxima = estado.lotes.length + 1;
+          } else {
+            leilaoId = await criarLeilao(String(corpo.tituloLeilao ?? "Leilão Village & Vault"));
+          }
+        } else {
+          proxima = estado.lotes.length + 1;
+        }
+        await criarLote(leilaoId, {
+          ordem: Number(corpo.ordem) || proxima,
+          titulo: String(corpo.titulo ?? "Lote"),
+          descricao: corpo.descricao,
+          imagem: corpo.imagem,
+          lanceInicialCentavos: Math.round(Number(corpo.lanceInicialCentavos)),
+          incrementoCentavos: Math.round(Number(corpo.incrementoCentavos)),
+          cartaId: corpo.cartaId,
+          precoRefCentavos: corpo.precoRefCentavos ? Math.round(Number(corpo.precoRefCentavos)) : undefined,
+        });
+        return NextResponse.json({ ok: true, leilaoId });
+      }
+
+      case "preco-manual":
+        await definirPrecoManual(
+          String(corpo.cartaId),
+          corpo.centavos === null ? null : Math.round(Number(corpo.centavos)),
+        );
+        return NextResponse.json({ ok: true });
 
       case "abrir-lote":
         await abrirLote(String(corpo.loteId), Number(corpo.duracaoMs) || DURACAO_PADRAO_MS);
