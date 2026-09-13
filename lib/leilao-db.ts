@@ -52,6 +52,24 @@ export type EstadoLeilao = {
   mensagens: { id: string; nome: string; texto: string; em: number }[];
 };
 
+// Fecha, apurando o vencedor, todo lote cujo relógio já acabou. Roda a cada
+// leitura: assim o lote não fica "aberto" no banco depois do tempo, mesmo que
+// ninguém aperte nada no painel.
+async function fecharVencidos(lotes: { id: string; estado: string; fecha_em: string | null }[]) {
+  const agora = Date.now();
+  const vencidos = lotes.filter(
+    (l) => l.estado === "aberto" && l.fecha_em && new Date(l.fecha_em).getTime() <= agora,
+  );
+  for (const lote of vencidos) {
+    try {
+      await fecharLote(lote.id);
+    } catch {
+      // Se falhar, a próxima leitura tenta de novo.
+    }
+  }
+  return vencidos.length > 0;
+}
+
 export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
   const db = cliente();
   const { data: leiloes } = await db
@@ -64,7 +82,7 @@ export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
   const leilao = leiloes?.[0] ?? null;
   if (!leilao) return { leilao: null, lotes: [], lances: [], mensagens: [] };
 
-  const [{ data: lotes }, { data: mensagens }] = await Promise.all([
+  let [{ data: lotes }, { data: mensagens }] = await Promise.all([
     db.from("lotes").select("*").eq("leilao_id", leilao.id).order("ordem"),
     db
       .from("mensagens")
@@ -74,6 +92,12 @@ export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
       .order("em", { ascending: false })
       .limit(60),
   ]);
+
+  // Se algum lote passou da hora, fecha e lê de novo para devolver o vencedor.
+  if (await fecharVencidos((lotes ?? []) as { id: string; estado: string; fecha_em: string | null }[])) {
+    const { data: atualizados } = await db.from("lotes").select("*").eq("leilao_id", leilao.id).order("ordem");
+    lotes = atualizados;
+  }
 
   const ids = (lotes ?? []).map((l) => l.id);
   let lances: Record<string, unknown>[] = [];
