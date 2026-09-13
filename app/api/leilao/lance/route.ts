@@ -12,6 +12,7 @@ const RECADOS: Record<string, string> = {
   "ja-esta-ganhando": "Você já está ganhando esse lote.",
   "valor-baixo": "O lance ficou abaixo do mínimo.",
   "valor-alto-demais": "Esse valor é alto demais de uma vez. Confira antes.",
+  "confirmar-valor-alto": "Esse lance é bem acima do mínimo. Confirme que é isso mesmo.",
 };
 
 export async function POST(req: Request) {
@@ -19,11 +20,12 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "O leilão ainda está em demonstração." }, { status: 503 });
   }
 
-  const { loteId, participanteId, nome, centavos } = (await req.json().catch(() => ({}))) as {
+  const { loteId, participanteId, nome, centavos, confirmado } = (await req.json().catch(() => ({}))) as {
     loteId?: string;
     participanteId?: string;
     nome?: string;
     centavos?: number;
+    confirmado?: boolean;
   };
 
   if (!loteId || !participanteId || !nome || !Number.isFinite(centavos)) {
@@ -31,7 +33,7 @@ export async function POST(req: Request) {
   }
 
   try {
-    const r = await darLance(loteId, participanteId, nome, Math.round(centavos as number));
+    const r = await darLance(loteId, participanteId, nome, Math.round(centavos as number), Boolean(confirmado));
     if (!r.ok) {
       return NextResponse.json(
         { erro: RECADOS[r.erro ?? ""] ?? "Lance recusado.", motivo: r.erro, minimo: r.minimo },

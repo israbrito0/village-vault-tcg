@@ -131,13 +131,20 @@ export async function entrar(nome: string, whatsapp: string) {
   return data as { id: string; nome: string; bloqueado: boolean };
 }
 
-export async function darLance(loteId: string, participanteId: string, nome: string, centavos: number) {
+export async function darLance(
+  loteId: string,
+  participanteId: string,
+  nome: string,
+  centavos: number,
+  confirmado = false,
+) {
   const db = cliente();
   const { data, error } = await db.rpc("dar_lance", {
     p_lote: loteId,
     p_participante: participanteId,
     p_nome: nome,
     p_centavos: centavos,
+    p_confirmado: confirmado,
   });
   if (error) throw error;
   return data as { ok: boolean; erro?: string; minimo?: number; fecha_em?: string; proximo_minimo?: number };

@@ -139,7 +139,7 @@ export default function LeilaoAoVivo() {
     }
   }
 
-  async function darLance(centavos: number) {
+  async function darLance(centavos: number, confirmado = false) {
     if (!loteAtual || !participante) return;
     setErro("");
     setAviso("");
@@ -148,11 +148,28 @@ export default function LeilaoAoVivo() {
       const r = await fetch("/api/leilao/lance", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ loteId: loteAtual.id, participanteId: participante.id, nome: participante.nome, centavos }),
+        body: JSON.stringify({
+          loteId: loteAtual.id,
+          participanteId: participante.id,
+          nome: participante.nome,
+          centavos,
+          confirmado,
+        }),
       });
       const resposta = await r.json();
-      if (!r.ok) setErro(resposta.erro ?? "Lance recusado.");
-      else {
+      if (!r.ok) {
+        // Salto grande: em vez de recusar, pergunta e manda de novo.
+        if (resposta.motivo === "confirmar-valor-alto") {
+          setErro("");
+          if (window.confirm(`Confirmar lance de ${reais(centavos)}? É bem acima do mínimo de ${reais(minimo)}.`)) {
+            setEnviando(false);
+            return darLance(centavos, true);
+          }
+          setErro("Lance cancelado por você.");
+        } else {
+          setErro(resposta.erro ?? "Lance recusado.");
+        }
+      } else {
         setAviso("Lance registrado!");
         setValorLivre("");
       }

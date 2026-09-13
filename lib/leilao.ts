@@ -52,7 +52,7 @@ export type ErroLance =
   | "lote-fechado"
   | "participante-bloqueado"
   | "valor-baixo"
-  | "valor-alto-demais"
+  | "confirmar-valor-alto"
   | "ja-esta-ganhando"
   | "sem-nome";
 
@@ -77,12 +77,16 @@ export function validarLance({
   participante,
   centavos,
   agora,
+  confirmado = false,
 }: {
   lote: Lote;
   maior: Lance | null;
   participante: Participante;
   centavos: number;
   agora: number;
+  // Salto muito acima do mínimo só passa confirmado: protege do dedo gordo
+  // sem impedir quem quer arrematar de uma vez.
+  confirmado?: boolean;
 }): { ok: true; minimo: number } | { ok: false; erro: ErroLance; minimo: number } {
   const minimo = proximoMinimo(lote, maior);
   const falha = (erro: ErroLance) => ({ ok: false as const, erro, minimo });
@@ -93,7 +97,7 @@ export function validarLance({
   if (lote.fechaEm !== undefined && agora >= lote.fechaEm) return falha("lote-fechado");
   if (maior && maior.participanteId === participante.id) return falha("ja-esta-ganhando");
   if (!Number.isFinite(centavos) || centavos < minimo) return falha("valor-baixo");
-  if (centavos > minimo + lote.incrementoCentavos * MAX_SALTOS) return falha("valor-alto-demais");
+  if (!confirmado && centavos > minimo + lote.incrementoCentavos * MAX_SALTOS) return falha("confirmar-valor-alto");
 
   return { ok: true, minimo };
 }

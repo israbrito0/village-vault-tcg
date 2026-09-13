@@ -62,7 +62,17 @@ const banido = validarLance({ lote: aberto, maior: lance1, participante: { ...jo
 conferir("bloqueado não dá lance", !banido.ok && banido.erro === "participante-bloqueado");
 
 const dedoGordo = validarLance({ lote: aberto, maior: lance1, participante: joao, centavos: 9_000_000, agora: AGORA + 2000 });
-conferir("valor absurdo é recusado", !dedoGordo.ok && dedoGordo.erro === "valor-alto-demais");
+conferir("valor muito alto pede confirmação", !dedoGordo.ok && dedoGordo.erro === "confirmar-valor-alto");
+
+const confirmado = validarLance({
+  lote: aberto,
+  maior: lance1,
+  participante: joao,
+  centavos: 9_000_000,
+  agora: AGORA + 2000,
+  confirmado: true,
+});
+conferir("valor muito alto passa quando confirmado", confirmado.ok);
 
 const bom = validarLance({ lote: aberto, maior: lance1, participante: joao, centavos: 11000, agora: AGORA + 2000 });
 conferir("lance no mínimo exato é aceito", bom.ok);
