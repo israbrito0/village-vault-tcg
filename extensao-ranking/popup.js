@@ -19,6 +19,14 @@ function valorEmCentavos(txt) {
   return Number.isFinite(n) && n > 0 ? Math.round(n * 100) : null;
 }
 
+function versaoExtensao() {
+  try {
+    return chrome.runtime.getManifest().version;
+  } catch {
+    return "?";
+  }
+}
+
 async function pintar() {
   const e = await pedir({ tipo: "estado" });
   $("endpoint").value = e.config.endpoint;
@@ -35,6 +43,7 @@ async function pintar() {
     <div>última venda: ${quando(e.stats.ultimaVenda)} · último envio: ${quando(e.stats.ultimoEnvio)}</div>
     ${e.stats.ultimoErro ? `<div class="erro">erro: ${e.stats.ultimoErro}</div>` : '<div class="ok">sem erros</div>'}
     ${topo.length ? `<div style="margin-top:6px">${topo.map((c, i) => `${i + 1}. @${c.handle} — ${reais(c.centavos)}`).join("<br>")}</div>` : ""}
+    <div style="margin-top:4px;color:#9ca3af">versão ${versaoExtensao()} · ler preço: ${chrome.scripting?.executeScript ? "direto" : "pela página"}</div>
     ${e.candidatos.length ? `<div style="margin-top:6px;color:#6b7280">${e.candidatos.length} payloads em dúvida (use "Baixar depuração")</div>` : ""}
   `;
 }
