@@ -351,6 +351,59 @@ export async function lerCartas(ids: string[]) {
   return data ?? [];
 }
 
+// ------------------------------------------------------------- cobranças
+
+export async function criarCobranca(
+  leilaoId: string,
+  participanteId: string,
+  centavos: number,
+  provedor = "infinitepay",
+) {
+  const db = cliente();
+  const { data, error } = await db
+    .from("cobrancas")
+    .upsert(
+      { leilao_id: leilaoId, participante_id: participanteId, centavos, provedor, estado: "aberta" },
+      { onConflict: "leilao_id,participante_id" },
+    )
+    .select("id")
+    .single();
+  if (error) throw error;
+  return data.id as string;
+}
+
+export async function guardarLinkCobranca(cobrancaId: string, link: string) {
+  const db = cliente();
+  const { error } = await db.from("cobrancas").update({ link }).eq("id", cobrancaId);
+  if (error) throw error;
+}
+
+export async function marcarCobrancaPaga(cobrancaId: string) {
+  const db = cliente();
+  const { data, error } = await db
+    .from("cobrancas")
+    .update({ estado: "paga", paga_em: new Date().toISOString() })
+    .eq("id", cobrancaId)
+    .select("id");
+  if (error) throw error;
+  return (data ?? []).length > 0;
+}
+
+// Guarda o aviso cru da operadora, para conferência quando algo não bater.
+export async function registrarAvisoPagamento(nsu: string, pago: boolean, corpo: unknown) {
+  const db = cliente();
+  await db.from("avisos_pagamento").insert({ nsu, pago, corpo });
+}
+
+export async function lerCobrancas(leilaoId: string) {
+  const db = cliente();
+  const { data } = await db
+    .from("cobrancas")
+    .select("id, participante_id, centavos, estado, link, paga_em")
+    .eq("leilao_id", leilaoId);
+  return data ?? [];
+}
+
 // Caixa de cada pessoa no leilão, para virar cobrança no fim.
 export async function caixasDoLeilao(leilaoId: string) {
   const db = cliente();
