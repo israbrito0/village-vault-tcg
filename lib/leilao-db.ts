@@ -1,5 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Lance, Lote } from "./leilao";
+import { criarLinkPagamento, temInfinitePay } from "./infinitepay";
+import { SITE_URL } from "./site";
 
 // Acesso ao banco do leilão pelo servidor, com a chave service_role: é aqui que
 // se escreve. O navegador nunca usa esta chave — ele só lê pelo Realtime.
@@ -51,8 +53,127 @@ export type EstadoLeilao = {
   leilao: { id: string; titulo: string; descricao: string | null; estado: string } | null;
   lotes: Lote[];
   lances: Lance[];
-  mensagens: { id: string; nome: string; texto: string; em: number }[];
+  mensagens: { id: string; nome: string; texto: string; em: number; tipo: string }[];
+  // Situação do pagamento de cada lote arrematado (sem link nem dado pessoal).
+  pagamentos: { loteId: string; estado: string; pagarAte: number | null }[];
 };
+
+const reaisTexto = (centavos: number) =>
+  (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+// Recado do próprio leilão no chat: aguardando pagamento, pagou, não pagou.
+async function mensagemSistema(leilaoId: string, texto: string) {
+  const db = cliente();
+  await db.from("mensagens").insert({ leilao_id: leilaoId, nome: "Leilão", texto, tipo: "sistema" });
+}
+
+// Lote arrematado vira cobrança na hora, com prazo, e o chat avisa a sala.
+async function abrirCobrancaDoLote(loteId: string) {
+  const db = cliente();
+  const { data: lote } = await db
+    .from("lotes")
+    .select("id, leilao_id, titulo, vencedor_id, vencedor_nome, vencedor_centavos")
+    .eq("id", loteId)
+    .single();
+  if (!lote?.vencedor_id || !lote.vencedor_centavos) return;
+
+  const { data: jaExiste } = await db.from("cobrancas").select("id").eq("lote_id", loteId).maybeSingle();
+  if (jaExiste) return;
+
+  const { data: leilao } = await db.from("leiloes").select("prazo_pagamento_min").eq("id", lote.leilao_id).single();
+  const minutos = Number(leilao?.prazo_pagamento_min ?? 5);
+  const pagarAte = new Date(Date.now() + minutos * 60000);
+
+  const { data: cobranca, error } = await db
+    .from("cobrancas")
+    .insert({
+      leilao_id: lote.leilao_id,
+      participante_id: lote.vencedor_id,
+      lote_id: lote.id,
+      centavos: lote.vencedor_centavos,
+      estado: "aberta",
+      provedor: "infinitepay",
+      pagar_ate: pagarAte.toISOString(),
+    })
+    .select("id")
+    .single();
+  // Outra leitura já criou a cobrança deste lote: não duplica o aviso.
+  if (error || !cobranca) return;
+
+  if (temInfinitePay()) {
+    try {
+      const link = await criarLinkPagamento({
+        nsu: cobranca.id,
+        itens: [{ nome: String(lote.titulo), centavos: lote.vencedor_centavos }],
+        redirecionar: `${SITE_URL}/leiloes`,
+        webhook: `${SITE_URL}/api/pagamento/infinitepay`,
+      });
+      await db.from("cobrancas").update({ link }).eq("id", cobranca.id);
+    } catch {
+      // Sem link agora; o comprador ainda vê o aviso e o leiloeiro cobra à mão.
+    }
+  }
+
+  await mensagemSistema(
+    lote.leilao_id,
+    `⏳ Aguardando ${lote.vencedor_nome} pagar ${lote.titulo} (${reaisTexto(lote.vencedor_centavos)}) · prazo ${minutos} min`,
+  );
+}
+
+// Quem não pagou no prazo: cobrança expira e o lote volta 20% mais barato.
+async function processarPrazos(leilaoId: string) {
+  const db = cliente();
+  const { data: vencidas } = await db
+    .from("cobrancas")
+    .select("id, lote_id, centavos")
+    .eq("leilao_id", leilaoId)
+    .eq("estado", "aberta")
+    .lt("pagar_ate", new Date().toISOString());
+
+  let mudou = false;
+  for (const cob of vencidas ?? []) {
+    // Só segue quem conseguiu virar a cobrança: evita reprise em dobro.
+    const { data: virou } = await db
+      .from("cobrancas")
+      .update({ estado: "expirada" })
+      .eq("id", cob.id)
+      .eq("estado", "aberta")
+      .select("id");
+    if (!virou?.length || !cob.lote_id) continue;
+    mudou = true;
+
+    const { data: original } = await db.from("lotes").select("*").eq("id", cob.lote_id).single();
+    if (!original) continue;
+
+    const { data: ultimo } = await db
+      .from("lotes")
+      .select("ordem")
+      .eq("leilao_id", leilaoId)
+      .order("ordem", { ascending: false })
+      .limit(1)
+      .single();
+
+    const novoInicial = Math.max(100, Math.round(cob.centavos * 0.8));
+    await db.from("lotes").insert({
+      leilao_id: leilaoId,
+      ordem: Number(ultimo?.ordem ?? 0) + 1,
+      titulo: original.titulo,
+      descricao: original.descricao,
+      imagem: original.imagem,
+      lance_inicial_centavos: novoInicial,
+      incremento_centavos: original.incremento_centavos,
+      carta_id: original.carta_id,
+      preco_ref_centavos: original.preco_ref_centavos,
+      reprise_de: original.id,
+    });
+
+    await mensagemSistema(
+      leilaoId,
+      `❌ ${original.vencedor_nome} não pagou. ${original.titulo} volta ao leilão por ${reaisTexto(novoInicial)} (20% abaixo)`,
+    );
+  }
+  return mudou;
+}
 
 // Fecha, apurando o vencedor, todo lote cujo relógio já acabou. Roda a cada
 // leitura: assim o lote não fica "aberto" no banco depois do tempo, mesmo que
@@ -82,24 +203,26 @@ export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
     .limit(1);
 
   const leilao = leiloes?.[0] ?? null;
-  if (!leilao) return { leilao: null, lotes: [], lances: [], mensagens: [] };
+  if (!leilao) return { leilao: null, lotes: [], lances: [], mensagens: [], pagamentos: [] };
 
-  let [{ data: lotes }, { data: mensagens }] = await Promise.all([
+  // Antes de ler: fecha lote vencido (que abre a cobrança) e resolve quem
+  // passou do prazo de pagamento (que devolve o lote à fila). Assim a tela
+  // já recebe o chat e os lotes com tudo isso aplicado.
+  const { data: situacao } = await db.from("lotes").select("id, estado, fecha_em").eq("leilao_id", leilao.id);
+  await fecharVencidos((situacao ?? []) as { id: string; estado: string; fecha_em: string | null }[]);
+  await processarPrazos(leilao.id).catch(() => false);
+
+  const [{ data: lotes }, { data: mensagens }, { data: cobrancas }] = await Promise.all([
     db.from("lotes").select("*").eq("leilao_id", leilao.id).order("ordem"),
     db
       .from("mensagens")
-      .select("id, nome, texto, em")
+      .select("id, nome, texto, em, tipo")
       .eq("leilao_id", leilao.id)
       .eq("oculta", false)
       .order("em", { ascending: false })
       .limit(60),
+    db.from("cobrancas").select("lote_id, estado, pagar_ate").eq("leilao_id", leilao.id).not("lote_id", "is", null),
   ]);
-
-  // Se algum lote passou da hora, fecha e lê de novo para devolver o vencedor.
-  if (await fecharVencidos((lotes ?? []) as { id: string; estado: string; fecha_em: string | null }[])) {
-    const { data: atualizados } = await db.from("lotes").select("*").eq("leilao_id", leilao.id).order("ordem");
-    lotes = atualizados;
-  }
 
   const ids = (lotes ?? []).map((l) => l.id);
   let lances: Record<string, unknown>[] = [];
@@ -113,8 +236,30 @@ export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
     lotes: (lotes ?? []).map(paraLote),
     lances: (lances ?? []).map(paraLance),
     mensagens: (mensagens ?? [])
-      .map((m) => ({ id: m.id, nome: m.nome, texto: m.texto, em: new Date(m.em).getTime() }))
+      .map((m) => ({ id: m.id, nome: m.nome, texto: m.texto, em: new Date(m.em).getTime(), tipo: m.tipo ?? "chat" }))
       .reverse(),
+    pagamentos: (cobrancas ?? []).map((c) => ({
+      loteId: String(c.lote_id),
+      estado: String(c.estado),
+      pagarAte: c.pagar_ate ? new Date(c.pagar_ate).getTime() : null,
+    })),
+  };
+}
+
+// O botão "Pagar agora" do comprador. Só devolve o link para quem arrematou.
+export async function pagamentoDoComprador(loteId: string, participanteId: string) {
+  const db = cliente();
+  const { data } = await db
+    .from("cobrancas")
+    .select("estado, link, pagar_ate, centavos, participante_id")
+    .eq("lote_id", loteId)
+    .maybeSingle();
+  if (!data || data.participante_id !== participanteId) return null;
+  return {
+    estado: String(data.estado),
+    link: data.estado === "aberta" ? (data.link as string | null) : null,
+    pagarAte: data.pagar_ate ? new Date(data.pagar_ate).getTime() : null,
+    centavos: Number(data.centavos),
   };
 }
 
@@ -214,6 +359,7 @@ export async function fecharLote(loteId: string) {
     })
     .eq("id", loteId);
   if (error) throw error;
+  if (vencedor) await abrirCobrancaDoLote(loteId).catch(() => {});
   return vencedor ?? null;
 }
 
@@ -353,29 +499,41 @@ export async function lerCartas(ids: string[]) {
 
 // ------------------------------------------------------------- cobranças
 
-export async function criarCobranca(
-  leilaoId: string,
-  participanteId: string,
-  centavos: number,
-  provedor = "infinitepay",
-) {
+// Painel: cada lote arrematado com a situação do pagamento, o link e o
+// WhatsApp de quem arrematou, para cobrar à mão quem estiver enrolando.
+export async function lerPagamentosDoLeilao(leilaoId: string) {
   const db = cliente();
-  const { data, error } = await db
+  const { data: cobrancas } = await db
     .from("cobrancas")
-    .upsert(
-      { leilao_id: leilaoId, participante_id: participanteId, centavos, provedor, estado: "aberta" },
-      { onConflict: "leilao_id,participante_id" },
-    )
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data.id as string;
-}
+    .select("id, lote_id, participante_id, centavos, estado, link, pagar_ate, paga_em")
+    .eq("leilao_id", leilaoId)
+    .not("lote_id", "is", null)
+    .order("pagar_ate", { ascending: true });
 
-export async function guardarLinkCobranca(cobrancaId: string, link: string) {
-  const db = cliente();
-  const { error } = await db.from("cobrancas").update({ link }).eq("id", cobrancaId);
-  if (error) throw error;
+  const loteIds = [...new Set((cobrancas ?? []).map((c) => c.lote_id as string))];
+  const pessoaIds = [...new Set((cobrancas ?? []).map((c) => c.participante_id as string))];
+
+  const [{ data: lotes }, { data: pessoas }] = await Promise.all([
+    loteIds.length ? db.from("lotes").select("id, titulo").in("id", loteIds) : Promise.resolve({ data: [] }),
+    pessoaIds.length ? db.from("participantes").select("id, nome, whatsapp").in("id", pessoaIds) : Promise.resolve({ data: [] }),
+  ]);
+
+  return (cobrancas ?? []).map((c) => {
+    const lote = (lotes as { id: string; titulo: string }[] | null)?.find((l) => l.id === c.lote_id);
+    const pessoa = (pessoas as { id: string; nome: string; whatsapp: string }[] | null)?.find(
+      (p) => p.id === c.participante_id,
+    );
+    return {
+      id: String(c.id),
+      titulo: lote?.titulo ?? "",
+      nome: pessoa?.nome ?? "",
+      whatsapp: pessoa?.whatsapp ?? "",
+      centavos: Number(c.centavos),
+      estado: String(c.estado),
+      link: (c.link as string | null) ?? null,
+      pagarAte: c.pagar_ate ? new Date(c.pagar_ate).getTime() : null,
+    };
+  });
 }
 
 export async function marcarCobrancaPaga(cobrancaId: string) {
@@ -384,9 +542,18 @@ export async function marcarCobrancaPaga(cobrancaId: string) {
     .from("cobrancas")
     .update({ estado: "paga", paga_em: new Date().toISOString() })
     .eq("id", cobrancaId)
-    .select("id");
+    .neq("estado", "paga")
+    .select("id, leilao_id, lote_id");
   if (error) throw error;
-  return (data ?? []).length > 0;
+  const cobranca = data?.[0];
+  if (!cobranca) return false;
+
+  // Avisa a sala que o arremate foi pago.
+  if (cobranca.lote_id) {
+    const { data: lote } = await db.from("lotes").select("titulo, vencedor_nome").eq("id", cobranca.lote_id).single();
+    if (lote) await mensagemSistema(cobranca.leilao_id, `✅ ${lote.vencedor_nome} pagou ${lote.titulo}`).catch(() => {});
+  }
+  return true;
 }
 
 // Guarda o aviso cru da operadora, para conferência quando algo não bater.

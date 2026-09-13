@@ -5,13 +5,15 @@ import Image from "next/image";
 import { Gavel, MessageCircle, Send, ShoppingBag, Timer, Trophy } from "lucide-react";
 import { maiorLance, proximoMinimo, reais, type Lance, type Lote } from "@/lib/leilao";
 
-type Mensagem = { id: string; nome: string; texto: string; em: number };
+type Mensagem = { id: string; nome: string; texto: string; em: number; tipo?: string };
+type Pagamento = { loteId: string; estado: string; pagarAte: number | null };
 type Dados = {
   demo: boolean;
   leilao: { id: string; titulo: string; descricao: string | null; estado: string } | null;
   lotes: Lote[];
   lances: Lance[];
   mensagens: Mensagem[];
+  pagamentos?: Pagamento[];
 };
 type Participante = { id: string; nome: string };
 
@@ -80,6 +82,12 @@ export default function LeilaoAoVivo() {
     }
     let vivo = true;
     let canal: { unsubscribe: () => void } | null = null;
+    // Mesmo com tempo real, uma leitura de 20 em 20 segundos: é ela que fecha
+    // lote vencido e devolve à fila o arremate que não foi pago no prazo,
+    // mesmo que ninguém esteja dando lance na hora.
+    const relogio = setInterval(() => {
+      if (document.visibilityState === "visible") buscar();
+    }, 20000);
     (async () => {
       const { createClient } = await import("@supabase/supabase-js");
       if (!vivo) return;
@@ -93,6 +101,7 @@ export default function LeilaoAoVivo() {
     })();
     return () => {
       vivo = false;
+      clearInterval(relogio);
       canal?.unsubscribe();
     };
   }, [buscar]);
@@ -188,6 +197,36 @@ export default function LeilaoAoVivo() {
     }
   }
 
+  // Abre o checkout da InfinitePay do lote arrematado.
+  async function pagarAgora(loteId: string) {
+    if (!participante) return;
+    setErro("");
+    // Abre a aba já no clique: navegador de celular bloqueia janela aberta depois.
+    const janela = window.open("", "_blank");
+    try {
+      const r = await fetch("/api/leilao/pagamento", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ loteId, participanteId: participante.id }),
+      });
+      const resposta = await r.json();
+      if (!r.ok || !resposta.link) {
+        janela?.close();
+        setErro(
+          resposta.estado === "paga"
+            ? "Esse arremate já está pago."
+            : "O link de pagamento ainda não saiu. Fale com a loja pelo WhatsApp.",
+        );
+        return;
+      }
+      if (janela) janela.location.href = resposta.link;
+      else window.location.href = resposta.link;
+    } catch {
+      janela?.close();
+      setErro("Não consegui abrir o pagamento agora.");
+    }
+  }
+
   // Lance automático: guarda o teto e deixa o sistema disputar.
   async function deixarAutomatico() {
     if (!loteAtual || !participante) return;
@@ -253,9 +292,17 @@ export default function LeilaoAoVivo() {
 
   // Sua caixa: o que você já arrematou nesta sessão, mais o que está ganhando
   // agora. Ver a caixa crescer é o que faz arrematar o próximo lote.
+  const pagamentoDe = (loteId: string) => dados.pagamentos?.find((p) => p.loteId === loteId);
+
+  // Lote que a pessoa não pagou a tempo sai da caixa: ele voltou ao leilão.
   const meusArremates = participante
-    ? encerrados.filter((l) => l.vencedorId === participante.id)
+    ? encerrados.filter((l) => l.vencedorId === participante.id && pagamentoDe(l.id)?.estado !== "expirada")
     : [];
+
+  // O que ela ganhou e ainda precisa pagar: vira o aviso grande com o botão.
+  const aPagar = meusArremates
+    .map((l) => ({ lote: l, pagamento: pagamentoDe(l.id) }))
+    .filter((x) => x.pagamento?.estado === "aberta");
   const ganhandoAgora = participante
     ? dados.lotes
         .filter((l) => l.estado === "aberto")
@@ -496,6 +543,33 @@ export default function LeilaoAoVivo() {
         </div>
       </section>
 
+      {/* ---------------------------------------------- pagar o arremate */}
+      {aPagar.map(({ lote, pagamento }) => {
+        const faltaMs = pagamento?.pagarAte ? Math.max(0, pagamento.pagarAte - agora) : null;
+        const min = faltaMs !== null ? Math.floor(faltaMs / 60000) : null;
+        const seg = faltaMs !== null ? Math.floor((faltaMs % 60000) / 1000) : null;
+        return (
+          <section key={lote.id} className="rounded-xl border-2 border-brand-green bg-brand-green/10 p-4 text-center">
+            <p className="text-[13px] font-bold text-brand-green">🎉 Você arrematou!</p>
+            <p className="mt-1 font-display text-lg font-extrabold text-ink">{lote.titulo}</p>
+            <p className="font-display text-3xl font-extrabold text-ink">{reais(lote.vencedorCentavos ?? 0)}</p>
+            <button
+              type="button"
+              onClick={() => pagarAgora(lote.id)}
+              className="mt-3 w-full rounded-full bg-brand-green px-4 py-3 text-[14px] font-bold uppercase tracking-wide text-white"
+            >
+              Pagar agora
+            </button>
+            {min !== null && seg !== null && (
+              <p className={`mt-2 text-[12px] font-medium ${faltaMs! <= 60000 ? "text-brand-red" : "text-ink/75"}`}>
+                Pague em {min}:{String(seg).padStart(2, "0")} — depois disso o lote volta ao leilão
+              </p>
+            )}
+            <p className="mt-1 text-[11px] text-muted">Pix ou cartão · o endereço de entrega você informa no pagamento</p>
+          </section>
+        );
+      })}
+
       {/* ------------------------------------------------------- sua caixa */}
       {totalCaixa > 0 && (
         <section className="rounded-xl border border-brand-green/40 bg-brand-green/5 p-4">
@@ -563,11 +637,27 @@ export default function LeilaoAoVivo() {
         </p>
         <div className="mt-2 max-h-56 space-y-1.5 overflow-y-auto text-[13px]">
           {dados.mensagens.length === 0 && <p className="text-muted">Ninguém falou ainda. Manda um oi.</p>}
-          {dados.mensagens.map((m) => (
-            <p key={m.id}>
-              <strong className="text-ink">{m.nome}</strong> <span className="text-ink/80">{m.texto}</span>
-            </p>
-          ))}
+          {dados.mensagens.map((m) =>
+            m.tipo === "sistema" ? (
+              // Recado do leilão: aguardando pagamento, pagou, não pagou.
+              <p
+                key={m.id}
+                className={`rounded-lg px-3 py-2 text-[12px] font-medium ${
+                  m.texto.startsWith("✅")
+                    ? "bg-brand-green/10 text-brand-green"
+                    : m.texto.startsWith("❌")
+                      ? "bg-brand-red/10 text-brand-red"
+                      : "bg-brand-yellow/15 text-ink"
+                }`}
+              >
+                {m.texto}
+              </p>
+            ) : (
+              <p key={m.id}>
+                <strong className="text-ink">{m.nome}</strong> <span className="text-ink/80">{m.texto}</span>
+              </p>
+            ),
+          )}
           <div ref={fimDoChat} />
         </div>
         {participante && (
@@ -617,6 +707,13 @@ export default function LeilaoAoVivo() {
                 </span>
                 <span className="shrink-0 text-muted">
                   {l.vencedorNome ? `${l.vencedorNome} · ${reais(l.vencedorCentavos ?? 0)}` : "sem lance"}
+                  {(() => {
+                    const pg = pagamentoDe(l.id);
+                    if (!pg) return null;
+                    if (pg.estado === "paga") return <span className="ml-1 text-brand-green">· pago</span>;
+                    if (pg.estado === "expirada") return <span className="ml-1 text-brand-red">· não pagou</span>;
+                    return <span className="ml-1 text-brand-yellow-text">· aguardando</span>;
+                  })()}
                 </span>
               </li>
             ))}

@@ -30,10 +30,11 @@ export function leilaoDemo(agora = Date.now()): EstadoLeilao {
       { id: "d2", loteId: "demo-2", participanteId: "demo-p1", nome: "Rafa", centavos: 19900, em: agora - 12000 },
       { id: "d3", loteId: "demo-2", participanteId: "demo-p3", nome: "Lu", centavos: 20900, em: agora - 6000 },
     ],
+    pagamentos: [],
     mensagens: [
-      { id: "m1", nome: "Bianca", texto: "essa carta é linda demais", em: agora - 30000 },
-      { id: "m2", nome: "Lu", texto: "vou até 250 nessa", em: agora - 15000 },
-      { id: "m3", nome: "Rafa", texto: "boa sorte pessoal 🔥", em: agora - 5000 },
+      { id: "m1", nome: "Bianca", texto: "essa carta é linda demais", em: agora - 30000, tipo: "chat" },
+      { id: "m2", nome: "Lu", texto: "vou até 250 nessa", em: agora - 15000, tipo: "chat" },
+      { id: "m3", nome: "Rafa", texto: "boa sorte pessoal 🔥", em: agora - 5000, tipo: "chat" },
     ],
   };
 }
