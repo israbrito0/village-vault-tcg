@@ -1,14 +1,19 @@
 import type { Metadata } from "next";
-import InfoPage from "@/components/InfoPage";
+import PageTitle from "@/components/PageTitle";
+import CarrinhoLoja from "@/components/CarrinhoLoja";
 
-export const metadata: Metadata = { title: "Carrinho" };
+export const metadata: Metadata = {
+  title: "Carrinho",
+  robots: { index: false, follow: false },
+};
 
 export default function CarrinhoPage() {
   return (
-    <InfoPage
-      title="Carrinho"
-      intro="O carrinho online está chegando. Por enquanto, as compras são feitas pelo WhatsApp: escolha o produto no catálogo e toque em “Comprar pelo WhatsApp” que a gente finaliza com você."
-      whatsappMessage="Olá! Quero fazer um pedido."
-    />
+    <main className="mx-auto max-w-2xl px-5 pb-10 pt-6">
+      <PageTitle title="Carrinho" />
+      <div className="mt-6">
+        <CarrinhoLoja />
+      </div>
+    </main>
   );
 }

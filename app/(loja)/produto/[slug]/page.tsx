@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { MessageCircle } from "lucide-react";
+import BotaoCarrinho from "@/components/BotaoCarrinho";
 import { PRODUCTS, getProductBySlug, formatPriceBRL, loadImageDirectly } from "@/lib/products";
 import { GAMES, SUBCATEGORIES } from "@/lib/types";
 import {
@@ -136,11 +137,13 @@ export default function ProdutoPage({ params }: { params: { slug: string } }) {
 
           <p className="mt-5 text-sm leading-relaxed text-ink/80">{product.description}</p>
 
+          {!product.preorder && <BotaoCarrinho slug={product.slug} estoque={product.stock} />}
+
           <a
             href={whatsappLink(buyMessage)}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-7 inline-flex w-full items-center justify-center gap-2 rounded border-2 border-brand-green bg-brand-green py-3 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-colors hover:bg-white hover:text-brand-green sm:w-auto sm:px-10"
+            className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded border-2 border-brand-green bg-brand-green py-3 text-[13px] font-bold uppercase tracking-wide text-white shadow-[0_2px_6px_rgba(0,0,0,0.08)] transition-colors hover:bg-white hover:text-brand-green sm:w-auto sm:px-10"
           >
             <MessageCircle size={18} strokeWidth={2} />
             {product.preorder ? "Reservar pelo WhatsApp" : "Comprar pelo WhatsApp"}

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Heart, Search, ShoppingCart, User } from "lucide-react";
+import { Heart, Search, User } from "lucide-react";
+import ContadorCarrinho from "./ContadorCarrinho";
 import HeaderWordmark from "./HeaderWordmark";
 
 export default function Header() {
@@ -12,9 +13,7 @@ export default function Header() {
         <Link href="/favoritos" className="hover:text-ink" aria-label="Favoritos">
           <Heart size={20} strokeWidth={1.75} />
         </Link>
-        <Link href="/carrinho" className="hover:text-ink" aria-label="Carrinho">
-          <ShoppingCart size={20} strokeWidth={1.75} />
-        </Link>
+        <ContadorCarrinho />
       </div>
 
       <HeaderWordmark />

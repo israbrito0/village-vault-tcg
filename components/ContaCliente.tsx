@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { LogOut, MapPin, Truck, User } from "lucide-react";
+import { LogOut, MapPin, Package, Truck, User } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 
 type Endereco = {
@@ -42,6 +42,9 @@ export default function ContaCliente() {
   const [ocupado, setOcupado] = useState(false);
 
   const [enderecos, setEnderecos] = useState<Endereco[]>([]);
+  const [pedidos, setPedidos] = useState<
+    { id: string; total_centavos: number; estado: string; link: string | null; criado_em: string; itens: { nome: string; quantidade: number }[]; rastreio: string | null }[]
+  >([]);
   const [novo, setNovo] = useState(enderecoVazio);
   const [frete, setFrete] = useState<OpcaoFrete[] | null>(null);
 
@@ -83,6 +86,13 @@ export default function ContaCliente() {
       .eq("cliente_id", uid)
       .order("principal", { ascending: false });
     setEnderecos((lista ?? []) as Endereco[]);
+
+    const { data: meusPedidos } = await db
+      .from("pedidos")
+      .select("id, total_centavos, estado, link, criado_em, itens, rastreio")
+      .order("criado_em", { ascending: false })
+      .limit(20);
+    setPedidos((meusPedidos ?? []) as typeof pedidos);
   }, [db, sessao]);
 
   useEffect(() => {
@@ -324,7 +334,9 @@ export default function ContaCliente() {
           </form>
         )}
 
-        {modo !== "nova-senha" && modo !== "esqueci" && (
+        {/* O Google só aparece depois de ligado no Supabase; antes disso o
+            cliente cairia numa tela de erro. */}
+        {process.env.NEXT_PUBLIC_LOGIN_GOOGLE === "1" && modo !== "nova-senha" && modo !== "esqueci" && (
           <button type="button" onClick={entrarComGoogle} className={`${BOTAO} w-full border border-card-border text-ink`}>
             Entrar com Google
           </button>
@@ -369,6 +381,52 @@ export default function ContaCliente() {
           </button>
         </div>
       </section>
+
+      {pedidos.length > 0 && (
+        <section className="rounded-xl border border-card-border bg-white p-4">
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
+            <Package size={14} />
+            Meus pedidos
+          </p>
+          <ul className="mt-2 space-y-2">
+            {pedidos.map((p) => {
+              const rotulo: Record<string, string> = {
+                aguardando: "Aguardando pagamento",
+                pago: "Pago · separando",
+                enviado: "Enviado",
+                entregue: "Entregue",
+                cancelado: "Cancelado",
+              };
+              return (
+                <li key={p.id} className="rounded-lg border border-card-border p-3 text-[13px]">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted">{new Date(p.criado_em).toLocaleDateString("pt-BR")}</span>
+                    <strong className="text-ink">{reais(p.total_centavos)}</strong>
+                  </div>
+                  <p className="mt-0.5 truncate text-ink">
+                    {p.itens.map((i) => `${i.nome}${i.quantidade > 1 ? ` x${i.quantidade}` : ""}`).join(", ")}
+                  </p>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <span
+                      className={`text-[12px] font-bold ${
+                        p.estado === "aguardando" ? "text-brand-yellow-text" : p.estado === "cancelado" ? "text-brand-red" : "text-brand-green"
+                      }`}
+                    >
+                      {rotulo[p.estado] ?? p.estado}
+                    </span>
+                    {p.estado === "aguardando" && p.link && (
+                      <a href={p.link} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-brand-blue">
+                        Pagar agora →
+                      </a>
+                    )}
+                    {p.rastreio && <span className="text-[12px] text-muted">Rastreio: {p.rastreio}</span>}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
 
       <section className="rounded-xl border border-card-border bg-white p-4">
         <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">

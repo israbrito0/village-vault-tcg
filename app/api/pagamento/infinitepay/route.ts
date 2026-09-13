@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { marcarCobrancaPaga, registrarAvisoPagamento, TEM_BANCO } from "@/lib/leilao-db";
+import { marcarPedidoPago } from "@/lib/loja";
 
 // Aviso de pagamento da InfinitePay. Ela chama este endereço quando o cliente
 // paga; respondendo 200 a gente confirma que recebeu, e 400 faz ela tentar de
@@ -23,8 +24,10 @@ export async function POST(req: Request) {
   if (!pago) return NextResponse.json({ ok: true, ignorado: "pagamento não confirmado" });
 
   try {
-    const achou = await marcarCobrancaPaga(nsu);
-    return NextResponse.json({ ok: true, cobranca: achou ? "paga" : "não encontrada" });
+    // O mesmo aviso serve para o arremate do leilão e para o pedido da loja.
+    if (await marcarCobrancaPaga(nsu)) return NextResponse.json({ ok: true, cobranca: "paga" });
+    if (await marcarPedidoPago(nsu)) return NextResponse.json({ ok: true, pedido: "pago" });
+    return NextResponse.json({ ok: true, aviso: "nsu não encontrado" });
   } catch {
     // 400 faz a InfinitePay tentar de novo, então nada se perde.
     return NextResponse.json({ erro: "falha ao registrar" }, { status: 400 });

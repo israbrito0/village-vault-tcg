@@ -43,14 +43,20 @@ type RespostaServico = {
   company?: { name?: string };
 };
 
+// Para o carrinho: vários produtos, cada um com a sua embalagem. O Melhor
+// Envio monta a caixa e cota o conjunto.
+export type ItemFrete = { pacote: TipoPacote; quantidade: number; valorCentavos: number };
+
 export async function cotarFrete({
   cepDestino,
   pacote = "carta",
   valorSeguroCentavos = 0,
+  itens,
 }: {
   cepDestino: string;
   pacote?: TipoPacote;
   valorSeguroCentavos?: number;
+  itens?: ItemFrete[];
 }): Promise<OpcaoFrete[]> {
   const token = process.env.MELHORENVIO_TOKEN;
   if (!token) throw new Error("Frete ainda não configurado (falta o token do Melhor Envio).");
@@ -59,6 +65,26 @@ export async function cotarFrete({
   if (destino.length !== 8) throw new Error("CEP inválido.");
 
   const medidas = PACOTES[pacote] ?? PACOTES.carta;
+  const conteudo = itens?.length
+    ? {
+        products: itens.map((item, i) => {
+          const m = PACOTES[item.pacote] ?? PACOTES.carta;
+          return {
+            id: String(i + 1),
+            width: m.width,
+            height: m.height,
+            length: m.length,
+            weight: m.weight,
+            insurance_value: item.valorCentavos / 100,
+            quantity: item.quantidade,
+          };
+        }),
+      }
+    : {
+        package: { width: medidas.width, height: medidas.height, length: medidas.length, weight: medidas.weight },
+        options: { insurance_value: valorSeguroCentavos / 100, receipt: false, own_hand: false },
+      };
+
   const r = await fetch(`${API}/api/v2/me/shipment/calculate`, {
     method: "POST",
     headers: {
@@ -71,8 +97,7 @@ export async function cotarFrete({
     body: JSON.stringify({
       from: { postal_code: CEP_ORIGEM },
       to: { postal_code: destino },
-      package: { width: medidas.width, height: medidas.height, length: medidas.length, weight: medidas.weight },
-      options: { insurance_value: valorSeguroCentavos / 100, receipt: false, own_hand: false },
+      ...conteudo,
     }),
   });
 
