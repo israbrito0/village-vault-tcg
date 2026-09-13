@@ -44,8 +44,8 @@ export async function POST(req: Request) {
       // Primeira vez que essa carta aparece: registra o mínimo para o preço ter onde morar.
       await salvarCarta({ id: cartaId, nome: nome ?? cartaId, fonte: fonte ?? "manual" });
     }
-    await definirPrecoManual(cartaId, valor);
-    return NextResponse.json({ ok: true, cartaId, centavos: valor }, { headers: CORS });
+    await definirPrecoManual(cartaId, valor, fonte);
+    return NextResponse.json({ ok: true, cartaId, centavos: valor, fonte }, { headers: CORS });
   } catch (e) {
     return NextResponse.json({ erro: String((e as Error).message) }, { status: 500, headers: CORS });
   }

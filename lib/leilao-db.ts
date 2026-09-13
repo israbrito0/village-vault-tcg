@@ -287,9 +287,12 @@ export async function salvarCarta(carta: {
   if (error) throw error;
 }
 
-export async function definirPrecoManual(cartaId: string, centavos: number | null) {
+export async function definirPrecoManual(cartaId: string, centavos: number | null, fonte?: string) {
   const db = cliente();
-  const { error } = await db.from("cartas").update({ preco_manual_centavos: centavos }).eq("id", cartaId);
+  // A origem guarda de onde veio o preço e em que condição (ex.: "liga NM").
+  const campos: Record<string, unknown> = { preco_manual_centavos: centavos, atualizado_em: new Date().toISOString() };
+  if (fonte) campos.fonte = fonte;
+  const { error } = await db.from("cartas").update(campos).eq("id", cartaId);
   if (error) throw error;
 }
 
