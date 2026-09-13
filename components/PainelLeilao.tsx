@@ -50,7 +50,9 @@ export default function PainelLeilao() {
   const [recado, setRecado] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [fotoPropria, setFotoPropria] = useState("");
-  const [caixas, setCaixas] = useState<{ nome: string; centavos: number; whatsapp: string; lotes: string[] }[] | null>(null);
+  const [caixas, setCaixas] = useState<
+    { nome: string; centavos: number; whatsapp: string; lotes: { titulo: string; centavos: number }[] }[] | null
+  >(null);
 
   const painel = useCallback(
     async (corpo: Record<string, unknown>) => {

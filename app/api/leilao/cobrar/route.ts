@@ -63,12 +63,9 @@ export async function POST(req: Request) {
       try {
         link = await criarLinkPagamento({
           nsu: cobrancaId,
-          itens: caixa.lotes.map((titulo, i) => ({
-            nome: titulo,
-            // O valor total vai no primeiro item; os outros entram como
-            // referência do que foi arrematado.
-            centavos: i === 0 ? caixa.centavos : 0,
-          })),
+          // Cada lote entra como um item, com o valor que ele arrematou: o
+          // cliente vê exatamente o que está pagando.
+          itens: caixa.lotes.map((l) => ({ nome: l.titulo, centavos: l.centavos })),
           redirecionar: `${SITE_URL}/leiloes`,
           webhook: `${SITE_URL}/api/pagamento/infinitepay`,
         });

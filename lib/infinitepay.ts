@@ -35,7 +35,8 @@ export async function criarLinkPagamento({
       order_nsu: nsu,
       redirect_url: redirecionar,
       webhook_url: webhook,
-      items: itens.map((i) => ({ name: i.nome.slice(0, 60), price: i.centavos, quantity: 1 })),
+      // A InfinitePay pede "description" (não "name") e o preço em centavos.
+      items: itens.map((i) => ({ description: i.nome.slice(0, 120), quantity: 1, price: i.centavos })),
     }),
   });
 

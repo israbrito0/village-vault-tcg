@@ -414,15 +414,15 @@ export async function caixasDoLeilao(leilaoId: string) {
     .eq("estado", "encerrado")
     .not("vencedor_id", "is", null);
 
-  const porPessoa = new Map<string, { nome: string; centavos: number; lotes: string[] }>();
+  const porPessoa = new Map<string, { nome: string; centavos: number; lotes: { titulo: string; centavos: number }[] }>();
   for (const lote of data ?? []) {
     const atual = porPessoa.get(lote.vencedor_id!) ?? {
       nome: (lote.vencedor_nome as string) ?? "",
       centavos: 0,
-      lotes: [] as string[],
+      lotes: [] as { titulo: string; centavos: number }[],
     };
     atual.centavos += lote.vencedor_centavos ?? 0;
-    atual.lotes.push(String(lote.titulo));
+    atual.lotes.push({ titulo: String(lote.titulo), centavos: lote.vencedor_centavos ?? 0 });
     porPessoa.set(lote.vencedor_id!, atual);
   }
 
