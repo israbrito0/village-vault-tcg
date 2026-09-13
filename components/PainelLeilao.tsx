@@ -48,6 +48,7 @@ export default function PainelLeilao() {
   const [precoRef, setPrecoRef] = useState("");
   const [recado, setRecado] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const [fotoPropria, setFotoPropria] = useState("");
   const [caixas, setCaixas] = useState<{ nome: string; centavos: number; whatsapp: string; lotes: string[] }[] | null>(null);
 
   const painel = useCallback(
@@ -106,7 +107,31 @@ export default function PainelLeilao() {
     }
   }
 
+  async function subirFoto(arquivo: File) {
+    setRecado("Subindo a foto…");
+    setOcupado(true);
+    try {
+      const form = new FormData();
+      form.append("foto", arquivo);
+      const r = await fetch("/api/leilao/foto", {
+        method: "POST",
+        headers: { authorization: `Bearer ${chave}` },
+        body: form,
+      });
+      const dados = await r.json();
+      if (!r.ok) {
+        setRecado(dados.erro ?? "Não consegui subir a foto.");
+        return;
+      }
+      setFotoPropria(dados.url);
+      setRecado("Foto pronta: é ela que vai no lote.");
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   function escolher(carta: Carta) {
+    setFotoPropria("");
     setEscolhida(carta);
     setTitulo(`${carta.nome} · ${carta.colecao} (${carta.numero}/${carta.totalOficial ?? "?"})`);
     const refCentavos = carta.precoManualCentavos ?? Math.round((carta.precos.referenciaBrl ?? 0) * 100);
@@ -136,7 +161,8 @@ export default function PainelLeilao() {
       const { ok, dados } = await painel({
         acao: "adicionar-lote",
         titulo,
-        imagem: escolhida.imagem,
+        // A foto que você tirou vale mais que a arte oficial da carta.
+        imagem: fotoPropria || escolhida.imagem,
         descricao: escolhida.raridade,
         lanceInicialCentavos,
         incrementoCentavos,
@@ -282,8 +308,27 @@ export default function PainelLeilao() {
                 <input value={precoRef} onChange={(e) => setPrecoRef(e.target.value)} className={CAMPO} />
               </label>
             </div>
+            <div className="flex items-center gap-3">
+              {fotoPropria ? (
+                <Image src={fotoPropria} alt="" width={48} height={66} className="rounded" unoptimized />
+              ) : null}
+              <label className="flex-1 text-[11px] text-ink">
+                Foto da sua carta (abre a câmera no celular)
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => {
+                    const arq = e.target.files?.[0];
+                    if (arq) subirFoto(arq);
+                  }}
+                  className="mt-1 block w-full text-[11px]"
+                />
+              </label>
+            </div>
             <p className="text-[10px] text-muted">
-              Se você mudar o valor de mercado, ele passa a valer como o seu preço para essa carta.
+              Sem foto sua, entra a arte oficial da carta. Se você mudar o valor de mercado, ele passa a valer
+              como o seu preço para essa carta.
             </p>
             <button type="button" onClick={adicionar} disabled={ocupado} className={`${BOTAO} w-full bg-brand-yellow text-ink`}>
               Adicionar ao leilão
