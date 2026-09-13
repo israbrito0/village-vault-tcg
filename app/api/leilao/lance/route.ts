@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { participanteDaRequisicao } from "@/lib/auth-servidor";
 import { darLance, TEM_BANCO } from "@/lib/leilao-db";
 
 export const dynamic = "force-dynamic";
@@ -16,24 +17,23 @@ const RECADOS: Record<string, string> = {
 };
 
 export async function POST(req: Request) {
-  if (!TEM_BANCO) {
-    return NextResponse.json({ erro: "O leilão ainda está em demonstração." }, { status: 503 });
-  }
+  if (!TEM_BANCO) return NextResponse.json({ erro: "O leilão ainda está em demonstração." }, { status: 503 });
 
-  const { loteId, participanteId, nome, centavos, confirmado } = (await req.json().catch(() => ({}))) as {
+  // Quem dá o lance é quem está logado — nunca o que a tela disser.
+  const pessoa = await participanteDaRequisicao(req);
+  if (!pessoa) return NextResponse.json({ erro: "Entre na sua conta para dar lance." }, { status: 401 });
+
+  const { loteId, centavos, confirmado } = (await req.json().catch(() => ({}))) as {
     loteId?: string;
-    participanteId?: string;
-    nome?: string;
     centavos?: number;
     confirmado?: boolean;
   };
-
-  if (!loteId || !participanteId || !nome || !Number.isFinite(centavos)) {
+  if (!loteId || !Number.isFinite(centavos)) {
     return NextResponse.json({ erro: "Faltou informação para registrar o lance." }, { status: 400 });
   }
 
   try {
-    const r = await darLance(loteId, participanteId, nome, Math.round(centavos as number), Boolean(confirmado));
+    const r = await darLance(loteId, pessoa.id, pessoa.nome, Math.round(centavos as number), Boolean(confirmado));
     if (!r.ok) {
       return NextResponse.json(
         { erro: RECADOS[r.erro ?? ""] ?? "Lance recusado.", motivo: r.erro, minimo: r.minimo },

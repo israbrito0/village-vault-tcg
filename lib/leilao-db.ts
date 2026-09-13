@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import type { Lance, Lote } from "./leilao";
 import { criarLinkPagamento, temInfinitePay } from "./infinitepay";
 import { SITE_URL } from "./site";
+import { cotarFrete, temMelhorEnvio } from "./frete";
 
 // Acesso ao banco do leilão pelo servidor, com a chave service_role: é aqui que
 // se escreve. O navegador nunca usa esta chave — ele só lê pelo Realtime.
@@ -98,21 +99,8 @@ async function abrirCobrancaDoLote(loteId: string) {
     .select("id")
     .single();
   // Outra leitura já criou a cobrança deste lote: não duplica o aviso.
+  // O link de pagamento só nasce quando o comprador escolhe o frete.
   if (error || !cobranca) return;
-
-  if (temInfinitePay()) {
-    try {
-      const link = await criarLinkPagamento({
-        nsu: cobranca.id,
-        itens: [{ nome: String(lote.titulo), centavos: lote.vencedor_centavos }],
-        redirecionar: `${SITE_URL}/leiloes`,
-        webhook: `${SITE_URL}/api/pagamento/infinitepay`,
-      });
-      await db.from("cobrancas").update({ link }).eq("id", cobranca.id);
-    } catch {
-      // Sem link agora; o comprador ainda vê o aviso e o leiloeiro cobra à mão.
-    }
-  }
 
   await mensagemSistema(
     lote.leilao_id,
@@ -244,6 +232,98 @@ export async function lerLeilaoAtual(): Promise<EstadoLeilao> {
       pagarAte: c.pagar_ate ? new Date(c.pagar_ate).getTime() : null,
     })),
   };
+}
+
+// O arremate precisa de frete? Só o primeiro pagamento do leilão leva frete;
+// os outros lotes da mesma pessoa vão juntos no mesmo envio.
+export async function freteJaPagoNoLeilao(leilaoId: string, participanteId: string) {
+  const db = cliente();
+  const { data } = await db
+    .from("cobrancas")
+    .select("id")
+    .eq("leilao_id", leilaoId)
+    .eq("participante_id", participanteId)
+    .eq("estado", "paga")
+    .gt("frete_centavos", 0)
+    .limit(1);
+  return (data ?? []).length > 0;
+}
+
+// Monta o pagamento do arremate: confere dono, calcula o frete de novo no
+// servidor (o preço nunca vem da tela) e gera o link da InfinitePay.
+export async function prepararPagamento({
+  loteId,
+  participanteId,
+  usuarioId,
+  enderecoId,
+  freteServicoId,
+}: {
+  loteId: string;
+  participanteId: string;
+  usuarioId: string;
+  enderecoId?: string;
+  freteServicoId?: number;
+}) {
+  const db = cliente();
+  const { data: cob } = await db
+    .from("cobrancas")
+    .select("id, leilao_id, participante_id, centavos, estado, pagar_ate")
+    .eq("lote_id", loteId)
+    .maybeSingle();
+  if (!cob || cob.participante_id !== participanteId) return { erro: "Nenhuma cobrança sua neste lote.", status: 404 };
+  if (cob.estado === "paga") return { erro: "Esse arremate já está pago.", status: 409 };
+  if (cob.estado !== "aberta") return { erro: "O prazo para pagar esse arremate acabou.", status: 409 };
+
+  const { data: lote } = await db.from("lotes").select("titulo").eq("id", loteId).single();
+  const jaPagouFrete = await freteJaPagoNoLeilao(cob.leilao_id, participanteId);
+
+  let frete: { centavos: number; servico: string } | null = null;
+  let enderecoUsado: string | null = null;
+
+  if (!jaPagouFrete) {
+    if (!enderecoId || !freteServicoId) return { erro: "Escolha o endereço e o frete.", status: 400, precisaFrete: true };
+
+    // O endereço tem que ser da própria pessoa.
+    const { data: endereco } = await db
+      .from("enderecos")
+      .select("id, cep")
+      .eq("id", enderecoId)
+      .eq("cliente_id", usuarioId)
+      .maybeSingle();
+    if (!endereco) return { erro: "Endereço não encontrado na sua conta.", status: 400, precisaFrete: true };
+
+    if (temMelhorEnvio()) {
+      const opcoes = await cotarFrete({ cepDestino: endereco.cep, pacote: "carta", valorSeguroCentavos: cob.centavos });
+      const escolhida = opcoes.find((o) => o.id === Number(freteServicoId));
+      if (!escolhida) return { erro: "Essa opção de frete não está mais disponível. Escolha de novo.", status: 409, precisaFrete: true };
+      frete = { centavos: escolhida.centavos, servico: `${escolhida.empresa} ${escolhida.nome}`.trim() };
+    }
+    enderecoUsado = endereco.id;
+  }
+
+  if (!temInfinitePay()) return { erro: "Pagamento online ainda não configurado.", status: 503 };
+
+  const itens = [{ nome: String(lote?.titulo ?? "Arremate"), centavos: cob.centavos }];
+  if (frete) itens.push({ nome: `Frete · ${frete.servico}`, centavos: frete.centavos });
+
+  const link = await criarLinkPagamento({
+    nsu: cob.id,
+    itens,
+    redirecionar: `${SITE_URL}/leiloes`,
+    webhook: `${SITE_URL}/api/pagamento/infinitepay`,
+  });
+
+  await db
+    .from("cobrancas")
+    .update({
+      link,
+      frete_centavos: frete?.centavos ?? 0,
+      frete_servico: frete?.servico ?? (jaPagouFrete ? "junto com outro arremate" : "a combinar"),
+      endereco_id: enderecoUsado,
+    })
+    .eq("id", cob.id);
+
+  return { link, freteCentavos: frete?.centavos ?? 0, jaPagouFrete };
 }
 
 // O botão "Pagar agora" do comprador. Só devolve o link para quem arrematou.

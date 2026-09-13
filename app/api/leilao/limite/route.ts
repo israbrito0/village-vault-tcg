@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { participanteDaRequisicao } from "@/lib/auth-servidor";
 import { definirLimite, TEM_BANCO } from "@/lib/leilao-db";
 
 // Lance automático: a pessoa diz o máximo, o sistema disputa por ela.
@@ -15,19 +16,16 @@ const RECADOS: Record<string, string> = {
 export async function POST(req: Request) {
   if (!TEM_BANCO) return NextResponse.json({ erro: "O leilão ainda está em demonstração." }, { status: 503 });
 
-  const { loteId, participanteId, nome, centavos } = (await req.json().catch(() => ({}))) as {
-    loteId?: string;
-    participanteId?: string;
-    nome?: string;
-    centavos?: number;
-  };
+  const pessoa = await participanteDaRequisicao(req);
+  if (!pessoa) return NextResponse.json({ erro: "Entre na sua conta para usar o automático." }, { status: 401 });
 
-  if (!loteId || !participanteId || !nome || !Number.isFinite(centavos)) {
+  const { loteId, centavos } = (await req.json().catch(() => ({}))) as { loteId?: string; centavos?: number };
+  if (!loteId || !Number.isFinite(centavos)) {
     return NextResponse.json({ erro: "Faltou informação para guardar seu limite." }, { status: 400 });
   }
 
   try {
-    const r = await definirLimite(loteId, participanteId, nome, Math.round(centavos as number));
+    const r = await definirLimite(loteId, pessoa.id, pessoa.nome, Math.round(centavos as number));
     if (!r.ok) {
       return NextResponse.json(
         { erro: RECADOS[r.erro ?? ""] ?? "Não consegui guardar seu limite.", motivo: r.erro, minimo: r.minimo },

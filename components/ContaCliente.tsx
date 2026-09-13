@@ -335,8 +335,21 @@ export default function ContaCliente() {
 
   // ------------------------------------------------------------ com login
   const principal = enderecos.find((e) => e.principal) ?? enderecos[0];
+  // Veio do leilão (ou do carrinho): mostra o caminho de volta. Só aceita
+  // endereço interno do site, nunca um link de fora.
+  const voltar =
+    typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("voltar") ?? "" : "";
+  const voltarSeguro = voltar.startsWith("/") && !voltar.startsWith("//") ? voltar : "";
   return (
     <div className="space-y-3">
+      {voltarSeguro && (
+        <a
+          href={voltarSeguro}
+          className="block rounded-xl border-2 border-brand-green bg-brand-green/10 p-3 text-center text-[13px] font-bold text-brand-green"
+        >
+          Pronto, você está na sua conta. Voltar para onde estava →
+        </a>
+      )}
       {recados}
 
       <section className="rounded-xl border border-card-border bg-white p-4">

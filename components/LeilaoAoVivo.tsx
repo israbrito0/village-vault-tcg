@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
 import { Gavel, MessageCircle, Send, ShoppingBag, Timer, Trophy } from "lucide-react";
+import Link from "next/link";
 import { maiorLance, proximoMinimo, reais, type Lance, type Lote } from "@/lib/leilao";
+import { supabaseNavegador } from "@/lib/supabase-navegador";
 
 type Mensagem = { id: string; nome: string; texto: string; em: number; tipo?: string };
 type Pagamento = { loteId: string; estado: string; pagarAte: number | null };
@@ -17,7 +19,6 @@ type Dados = {
 };
 type Participante = { id: string; nome: string };
 
-const CHAVE_LOCAL = "vv-leilao-participante";
 const URL_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const CHAVE_SUPABASE = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
@@ -39,8 +40,19 @@ export default function LeilaoAoVivo() {
   const [aviso, setAviso] = useState("");
   const [valorLivre, setValorLivre] = useState("");
   const [texto, setTexto] = useState("");
-  const [nome, setNome] = useState("");
-  const [whats, setWhats] = useState("");
+  // Login da conta do site: o token vai em toda chamada, e o servidor descobre
+  // quem é a pessoa por ele.
+  const [token, setToken] = useState<string | null>(null);
+  const [usuarioId, setUsuarioId] = useState<string | null>(null);
+
+  // Painel de pagamento do arremate.
+  const [pagando, setPagando] = useState<string | null>(null);
+  const [precisaFrete, setPrecisaFrete] = useState<boolean | null>(null);
+  const [enderecosPg, setEnderecosPg] = useState<{ id: string; cep: string; rua: string; numero: string; cidade: string; uf: string; principal: boolean }[]>([]);
+  const [enderecoPg, setEnderecoPg] = useState<string | null>(null);
+  const [opcoesFrete, setOpcoesFrete] = useState<{ id: number; nome: string; empresa: string; centavos: number; prazoDias: number | null }[] | null>(null);
+  const [freteEscolhido, setFreteEscolhido] = useState<number | null>(null);
+  const [freteACombinar, setFreteACombinar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   // Lance grande espera um segundo toque de confirmação — menos nos segundos
   // finais, quando parar para confirmar custaria o lote.
@@ -60,11 +72,31 @@ export default function LeilaoAoVivo() {
 
   useEffect(() => {
     buscar();
-    try {
-      const salvo = localStorage.getItem(CHAVE_LOCAL);
-      if (salvo) setParticipante(JSON.parse(salvo));
-    } catch {}
   }, [buscar]);
+
+  // Quem está logado na conta do site vira participante da sala.
+  useEffect(() => {
+    const db = supabaseNavegador();
+    if (!db) return;
+    const aplicar = async (acesso: string | null, uid: string | null) => {
+      setToken(acesso);
+      setUsuarioId(uid);
+      if (!acesso) {
+        setParticipante(null);
+        return;
+      }
+      const r = await fetch("/api/leilao/entrar", { method: "POST", headers: { authorization: `Bearer ${acesso}` } });
+      const resposta = await r.json().catch(() => ({}));
+      if (r.ok) setParticipante({ id: resposta.id, nome: resposta.nome });
+      else {
+        setParticipante(null);
+        if (resposta.erro) setErro(resposta.erro);
+      }
+    };
+    db.auth.getSession().then(({ data }) => aplicar(data.session?.access_token ?? null, data.session?.user.id ?? null));
+    const { data } = db.auth.onAuthStateChange((_evento, s) => aplicar(s?.access_token ?? null, s?.user.id ?? null));
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   // Relógio do cronômetro.
   useEffect(() => {
@@ -130,30 +162,7 @@ export default function LeilaoAoVivo() {
   const aberto = loteAtual?.estado === "aberto" && (restante ?? 0) > 0;
   const euGanhando = Boolean(maior && participante && maior.participanteId === participante.id);
 
-  async function entrar(e: React.FormEvent) {
-    e.preventDefault();
-    setErro("");
-    setEnviando(true);
-    try {
-      const r = await fetch("/api/leilao/entrar", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ nome, whatsapp: whats }),
-      });
-      const resposta = await r.json();
-      if (!r.ok) {
-        setErro(resposta.erro ?? "Não consegui te cadastrar.");
-        return;
-      }
-      const pessoa = { id: resposta.id, nome: resposta.nome };
-      try {
-        localStorage.setItem(CHAVE_LOCAL, JSON.stringify(pessoa));
-      } catch {}
-      setParticipante(pessoa);
-    } finally {
-      setEnviando(false);
-    }
-  }
+  const cabecalho = () => ({ "content-type": "application/json", authorization: `Bearer ${token}` });
 
   async function darLance(centavos: number, confirmado = false) {
     if (!loteAtual || !participante) return;
@@ -163,14 +172,8 @@ export default function LeilaoAoVivo() {
     try {
       const r = await fetch("/api/leilao/lance", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          loteId: loteAtual.id,
-          participanteId: participante.id,
-          nome: participante.nome,
-          centavos,
-          confirmado,
-        }),
+        headers: cabecalho(),
+        body: JSON.stringify({ loteId: loteAtual.id, centavos, confirmado }),
       });
       const resposta = await r.json();
       if (!r.ok) {
@@ -197,30 +200,86 @@ export default function LeilaoAoVivo() {
     }
   }
 
-  // Abre o checkout da InfinitePay do lote arrematado.
+  // Pagar o arremate: confere se precisa de frete (só no primeiro pagamento do
+  // leilão), busca os endereços da conta e cota o frete saindo de Maceió.
   async function pagarAgora(loteId: string) {
-    if (!participante) return;
+    if (!participante || !token) return;
     setErro("");
+    setPagando(loteId);
+    setPrecisaFrete(null);
+    setOpcoesFrete(null);
+    setFreteEscolhido(null);
+    setFreteACombinar(false);
+
+    const r = await fetch("/api/leilao/pagamento", {
+      method: "POST",
+      headers: cabecalho(),
+      body: JSON.stringify({ loteId, consultar: true, leilaoId: dados?.leilao?.id }),
+    });
+    const resposta = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      setErro(resposta.erro ?? "Não consegui abrir o pagamento.");
+      setPagando(null);
+      return;
+    }
+    setPrecisaFrete(Boolean(resposta.precisaFrete));
+    if (!resposta.precisaFrete) return;
+
+    const db = supabaseNavegador();
+    if (!db || !usuarioId) return;
+    const { data: lista } = await db
+      .from("enderecos")
+      .select("id, cep, rua, numero, cidade, uf, principal")
+      .eq("cliente_id", usuarioId)
+      .order("principal", { ascending: false });
+    setEnderecosPg(lista ?? []);
+    const principal = (lista ?? [])[0];
+    if (principal) escolherEndereco(principal.id, principal.cep);
+  }
+
+  async function escolherEndereco(id: string, cep: string) {
+    setEnderecoPg(id);
+    setOpcoesFrete(null);
+    setFreteEscolhido(null);
+    setFreteACombinar(false);
+    const r = await fetch("/api/frete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ cep, pacote: "carta" }),
+    });
+    const resposta = await r.json().catch(() => ({}));
+    if (r.status === 503) {
+      // Frete ainda não configurado: segue com frete combinado depois.
+      setFreteACombinar(true);
+      setFreteEscolhido(-1);
+      return;
+    }
+    if (!r.ok) return setErro(resposta.erro ?? "Não consegui calcular o frete.");
+    setOpcoesFrete(resposta.opcoes ?? []);
+    if (resposta.opcoes?.[0]) setFreteEscolhido(resposta.opcoes[0].id);
+  }
+
+  async function confirmarPagamento() {
+    if (!pagando || !token) return;
+    setErro("");
+    if (precisaFrete && (!enderecoPg || freteEscolhido === null)) return setErro("Escolha o endereço e o frete.");
     // Abre a aba já no clique: navegador de celular bloqueia janela aberta depois.
     const janela = window.open("", "_blank");
     try {
       const r = await fetch("/api/leilao/pagamento", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ loteId, participanteId: participante.id }),
+        headers: cabecalho(),
+        body: JSON.stringify({ loteId: pagando, enderecoId: enderecoPg, freteServicoId: freteEscolhido }),
       });
-      const resposta = await r.json();
+      const resposta = await r.json().catch(() => ({}));
       if (!r.ok || !resposta.link) {
         janela?.close();
-        setErro(
-          resposta.estado === "paga"
-            ? "Esse arremate já está pago."
-            : "O link de pagamento ainda não saiu. Fale com a loja pelo WhatsApp.",
-        );
+        setErro(resposta.erro ?? "Não consegui gerar o pagamento.");
         return;
       }
       if (janela) janela.location.href = resposta.link;
       else window.location.href = resposta.link;
+      setPagando(null);
     } catch {
       janela?.close();
       setErro("Não consegui abrir o pagamento agora.");
@@ -237,13 +296,8 @@ export default function LeilaoAoVivo() {
     try {
       const r = await fetch("/api/leilao/limite", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          loteId: loteAtual.id,
-          participanteId: participante.id,
-          nome: participante.nome,
-          centavos,
-        }),
+        headers: cabecalho(),
+        body: JSON.stringify({ loteId: loteAtual.id, centavos }),
       });
       const resposta = await r.json();
       if (!r.ok) {
@@ -270,8 +324,8 @@ export default function LeilaoAoVivo() {
     setTexto("");
     await fetch("/api/leilao/chat", {
       method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ leilaoId: dados.leilao.id, participanteId: participante.id, nome: participante.nome, texto: msg }),
+      headers: cabecalho(),
+      body: JSON.stringify({ leilaoId: dados.leilao.id, texto: msg }),
     });
     buscar();
   }
@@ -415,34 +469,18 @@ export default function LeilaoAoVivo() {
 
           {/* ---------------------------------------------------- dar lance */}
           {!participante ? (
-            <form onSubmit={entrar} className="mt-4 space-y-2 rounded-lg border border-card-border bg-surface p-3">
-              <p className="text-[12px] font-bold text-ink">Entre para dar lance</p>
-              <div className="flex flex-col gap-2 sm:flex-row">
-                <input
-                  value={nome}
-                  onChange={(e) => setNome(e.target.value)}
-                  placeholder="Seu nome"
-                  className="w-full rounded-lg border border-card-border px-3 py-2"
-                />
-                <input
-                  value={whats}
-                  onChange={(e) => setWhats(e.target.value)}
-                  inputMode="tel"
-                  placeholder="WhatsApp com DDD"
-                  className="w-full rounded-lg border border-card-border px-3 py-2"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={enviando}
-                className="w-full rounded-full bg-brand-yellow px-4 py-2.5 text-[12px] font-bold uppercase tracking-wide text-ink disabled:opacity-60"
-              >
-                Entrar no leilão
-              </button>
-              <p className="text-[10px] text-muted">
-                Seu WhatsApp serve para combinar o pagamento e o envio. Ele não aparece para os outros.
+            <div className="mt-4 space-y-2 rounded-lg border border-card-border bg-surface p-3 text-center">
+              <p className="text-[13px] font-bold text-ink">Entre na sua conta para dar lance</p>
+              <p className="text-[11px] text-muted">
+                É a mesma conta da loja: seus arremates, endereço e frete ficam juntos.
               </p>
-            </form>
+              <Link
+                href="/conta?voltar=/leiloes"
+                className="block w-full rounded-full bg-brand-yellow px-4 py-2.5 text-[12px] font-bold uppercase tracking-wide text-ink"
+              >
+                Entrar ou criar conta
+              </Link>
+            </div>
           ) : (
             <div className="mt-4 space-y-2">
               <div className="flex gap-2">
@@ -553,13 +591,96 @@ export default function LeilaoAoVivo() {
             <p className="text-[13px] font-bold text-brand-green">🎉 Você arrematou!</p>
             <p className="mt-1 font-display text-lg font-extrabold text-ink">{lote.titulo}</p>
             <p className="font-display text-3xl font-extrabold text-ink">{reais(lote.vencedorCentavos ?? 0)}</p>
-            <button
-              type="button"
-              onClick={() => pagarAgora(lote.id)}
-              className="mt-3 w-full rounded-full bg-brand-green px-4 py-3 text-[14px] font-bold uppercase tracking-wide text-white"
-            >
-              Pagar agora
-            </button>
+            {pagando !== lote.id ? (
+              <button
+                type="button"
+                onClick={() => pagarAgora(lote.id)}
+                className="mt-3 w-full rounded-full bg-brand-green px-4 py-3 text-[14px] font-bold uppercase tracking-wide text-white"
+              >
+                Pagar agora
+              </button>
+            ) : (
+              <div className="mt-3 space-y-2 rounded-lg bg-white p-3 text-left">
+                {precisaFrete === null && <p className="text-[12px] text-muted">Preparando o pagamento…</p>}
+
+                {precisaFrete === false && (
+                  <p className="text-[12px] font-medium text-brand-green">
+                    Frete já pago neste leilão: este lote vai junto no mesmo envio.
+                  </p>
+                )}
+
+                {precisaFrete && enderecosPg.length === 0 && (
+                  <p className="text-[12px] text-ink">
+                    Cadastre um endereço de entrega para calcular o frete.{" "}
+                    <Link href="/conta?voltar=/leiloes" className="font-bold text-brand-blue">
+                      Cadastrar endereço
+                    </Link>
+                  </p>
+                )}
+
+                {precisaFrete && enderecosPg.length > 0 && (
+                  <>
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-muted">Entregar em</p>
+                    {enderecosPg.map((e) => (
+                      <label key={e.id} className="flex cursor-pointer items-start gap-2 text-[12px]">
+                        <input
+                          type="radio"
+                          name={`endereco-${lote.id}`}
+                          checked={enderecoPg === e.id}
+                          onChange={() => escolherEndereco(e.id, e.cep)}
+                          className="mt-0.5"
+                        />
+                        <span className="text-ink">
+                          {e.rua}, {e.numero} · {e.cidade}/{e.uf}
+                        </span>
+                      </label>
+                    ))}
+
+                    <p className="pt-1 text-[11px] font-bold uppercase tracking-wide text-muted">Frete saindo de Maceió</p>
+                    {freteACombinar && (
+                      <p className="text-[12px] text-ink">O frete será combinado com a loja pelo WhatsApp.</p>
+                    )}
+                    {!freteACombinar && opcoesFrete === null && enderecoPg && (
+                      <p className="text-[12px] text-muted">Calculando…</p>
+                    )}
+                    {opcoesFrete?.map((o) => (
+                      <label key={o.id} className="flex cursor-pointer items-center justify-between gap-2 text-[12px]">
+                        <span className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name={`frete-${lote.id}`}
+                            checked={freteEscolhido === o.id}
+                            onChange={() => setFreteEscolhido(o.id)}
+                          />
+                          <span className="text-ink">
+                            {o.empresa} {o.nome}
+                            {o.prazoDias ? <span className="text-muted"> · até {o.prazoDias} dias úteis</span> : null}
+                          </span>
+                        </span>
+                        <strong className="text-ink">{reais(o.centavos)}</strong>
+                      </label>
+                    ))}
+                  </>
+                )}
+
+                {precisaFrete !== null && (
+                  <button
+                    type="button"
+                    onClick={confirmarPagamento}
+                    disabled={Boolean(precisaFrete) && (enderecosPg.length === 0 || freteEscolhido === null)}
+                    className="w-full rounded-full bg-brand-green px-4 py-3 text-[14px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                  >
+                    {(() => {
+                      const frete = opcoesFrete?.find((o) => o.id === freteEscolhido)?.centavos ?? 0;
+                      return `Pagar ${reais((lote.vencedorCentavos ?? 0) + (precisaFrete ? frete : 0))}`;
+                    })()}
+                  </button>
+                )}
+                <button type="button" onClick={() => setPagando(null)} className="w-full text-[11px] text-muted">
+                  Voltar
+                </button>
+              </div>
+            )}
             {min !== null && seg !== null && (
               <p className={`mt-2 text-[12px] font-medium ${faltaMs! <= 60000 ? "text-brand-red" : "text-ink/75"}`}>
                 Pague em {min}:{String(seg).padStart(2, "0")} — depois disso o lote volta ao leilão
