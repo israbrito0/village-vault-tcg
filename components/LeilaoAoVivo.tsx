@@ -40,6 +40,9 @@ export default function LeilaoAoVivo() {
   const [nome, setNome] = useState("");
   const [whats, setWhats] = useState("");
   const [enviando, setEnviando] = useState(false);
+  // Lance grande espera um segundo toque de confirmação — menos nos segundos
+  // finais, quando parar para confirmar custaria o lote.
+  const [aConfirmar, setAConfirmar] = useState<number | null>(null);
   const fimDoChat = useRef<HTMLDivElement>(null);
 
   const buscar = useCallback(async () => {
@@ -111,6 +114,8 @@ export default function LeilaoAoVivo() {
   );
   const minimo = loteAtual ? proximoMinimo(loteAtual, maior) : 0;
   const restante = loteAtual?.fechaEm ? Math.max(0, loteAtual.fechaEm - agora) : null;
+  // Últimos 20 segundos: nada de confirmação, o lance vai direto.
+  const apertado = restante !== null && restante <= 20000;
   const aberto = loteAtual?.estado === "aberto" && (restante ?? 0) > 0;
   const euGanhando = Boolean(maior && participante && maior.participanteId === participante.id);
 
@@ -158,20 +163,22 @@ export default function LeilaoAoVivo() {
       });
       const resposta = await r.json();
       if (!r.ok) {
-        // Salto grande: em vez de recusar, pergunta e manda de novo.
+        // O servidor também pede confirmação: repete já confirmado se o
+        // relógio estiver apertado, senão deixa o botão pedir o segundo toque.
         if (resposta.motivo === "confirmar-valor-alto") {
-          setErro("");
-          if (window.confirm(`Confirmar lance de ${reais(centavos)}? É bem acima do mínimo de ${reais(minimo)}.`)) {
+          if (apertado) {
             setEnviando(false);
             return darLance(centavos, true);
           }
-          setErro("Lance cancelado por você.");
+          setAConfirmar(centavos);
+          setErro("");
         } else {
           setErro(resposta.erro ?? "Lance recusado.");
         }
       } else {
         setAviso("Lance registrado!");
         setValorLivre("");
+        setAConfirmar(null);
       }
       buscar();
     } finally {
@@ -339,15 +346,26 @@ export default function LeilaoAoVivo() {
                   onClick={() => {
                     const c = centavosDe(valorLivre);
                     if (!c) return setErro("Escreva o valor, ex.: 250,00");
-                    darLance(c);
+                    // Segundo toque no mesmo valor = confirmado.
+                    darLance(c, apertado || aConfirmar === c);
                   }}
-                  className="shrink-0 rounded-full border border-card-border px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-ink disabled:opacity-50"
+                  className={`shrink-0 rounded-full px-4 py-2 text-[12px] font-bold uppercase tracking-wide disabled:opacity-50 ${
+                    aConfirmar !== null && aConfirmar === centavosDe(valorLivre)
+                      ? "bg-brand-red text-white"
+                      : "border border-card-border text-ink"
+                  }`}
                 >
-                  Enviar
+                  {aConfirmar !== null && aConfirmar === centavosDe(valorLivre) ? "Confirmar" : "Enviar"}
                 </button>
               </div>
+              {aConfirmar !== null && aConfirmar === centavosDe(valorLivre) && (
+                <p className="rounded-lg bg-brand-yellow/15 px-3 py-2 text-[12px] font-medium text-ink">
+                  {reais(aConfirmar)} é bem acima do mínimo de {reais(minimo)}. Toque em Confirmar se for isso mesmo.
+                </p>
+              )}
               <p className="text-[11px] text-muted">
                 Entrou como <strong className="text-ink">{participante.nome}</strong>. Lance dado é compromisso de compra.
+                {apertado && aberto ? " Nos segundos finais, o lance vai direto, sem confirmação." : ""}
               </p>
             </div>
           )}
