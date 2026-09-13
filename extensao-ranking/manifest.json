@@ -1,25 +1,48 @@
 {
   "manifest_version": 3,
   "name": "Village & Vault - Ranking da Live",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Lê as vendas da live na Jamble e atualiza o ranking de compradores no site.",
-  "permissions": ["storage", "alarms", "tabs"],
+  "permissions": [
+    "storage",
+    "alarms",
+    "tabs",
+    "scripting"
+  ],
   "host_permissions": [
     "https://*.jamble.com/*",
     "https://www.villagetcg.com.br/*",
-    "http://localhost:3100/*"
+    "http://localhost:3100/*",
+    "https://*.ligapokemon.com.br/*",
+    "https://www.ligapokemon.com.br/*"
   ],
-  "background": { "service_worker": "background.js" },
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
-      "matches": ["https://*.jamble.com/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://*.jamble.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start",
       "all_frames": true
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["inject.js"], "matches": ["https://*.jamble.com/*"] }
+    {
+      "resources": [
+        "inject.js"
+      ],
+      "matches": [
+        "https://*.jamble.com/*"
+      ]
+    }
   ],
-  "action": { "default_popup": "popup.html", "default_title": "Ranking da Live" }
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Ranking da Live"
+  }
 }
