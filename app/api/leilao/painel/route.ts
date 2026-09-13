@@ -66,13 +66,21 @@ export async function POST(req: Request) {
         } else {
           proxima = estado.lotes.length + 1;
         }
+        const inicial = Math.round(Number(corpo.lanceInicialCentavos));
+        const incremento = Math.round(Number(corpo.incrementoCentavos));
+        if (!Number.isFinite(inicial) || inicial < 100 || !Number.isFinite(incremento) || incremento < 100) {
+          return NextResponse.json(
+            { erro: "Lance inicial e incremento precisam ser de pelo menos R$ 1,00." },
+            { status: 400 },
+          );
+        }
         await criarLote(leilaoId, {
           ordem: Number(corpo.ordem) || proxima,
           titulo: String(corpo.titulo ?? "Lote"),
           descricao: corpo.descricao,
           imagem: corpo.imagem,
-          lanceInicialCentavos: Math.round(Number(corpo.lanceInicialCentavos)),
-          incrementoCentavos: Math.round(Number(corpo.incrementoCentavos)),
+          lanceInicialCentavos: inicial,
+          incrementoCentavos: incremento,
           cartaId: corpo.cartaId,
           precoRefCentavos: corpo.precoRefCentavos ? Math.round(Number(corpo.precoRefCentavos)) : undefined,
         });

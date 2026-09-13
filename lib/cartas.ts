@@ -5,7 +5,13 @@
 // manual no painel.
 
 const TCGDEX = "https://api.tcgdex.net/v2/pt";
-const CAMBIO = "https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL";
+// Duas fontes de cotação: se a primeira não responder (já aconteceu de a
+// AwesomeAPI não atender o servidor da Vercel), tenta a segunda.
+const CAMBIO_FRANKFURTER = "https://api.frankfurter.app/latest?from=USD&to=BRL,EUR";
+const CAMBIO_AWESOME = "https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL";
+// Último recurso, para o cadastro nunca travar por falta de cotação. Fica
+// marcado como aproximado e você ajusta o preço na mão se quiser.
+const APROXIMADA = { usd: 5.1, eur: 5.9 };
 
 export type PrecoCarta = {
   cardmarketEur?: number;
@@ -27,21 +33,43 @@ export type Carta = {
   precos: PrecoCarta;
 };
 
-let cambioCache: { em: number; usd: number; eur: number } | null = null;
+let cambioCache: { em: number; usd: number; eur: number; fonte: string } | null = null;
+
+async function comTempoLimite(url: string, ms = 6000) {
+  const controle = new AbortController();
+  const t = setTimeout(() => controle.abort(), ms);
+  try {
+    const r = await fetch(url, { cache: "no-store", signal: controle.signal });
+    if (!r.ok) return null;
+    return await r.json();
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
 
 export async function cotacoes() {
   if (cambioCache && Date.now() - cambioCache.em < 30 * 60 * 1000) return cambioCache;
-  try {
-    const r = await fetch(CAMBIO, { cache: "no-store" });
-    const j = (await r.json()) as Record<string, { bid: string }>;
-    cambioCache = {
-      em: Date.now(),
-      usd: Number(j.USDBRL?.bid) || 0,
-      eur: Number(j.EURBRL?.bid) || 0,
-    };
-  } catch {
-    cambioCache = cambioCache ?? { em: Date.now(), usd: 0, eur: 0 };
+
+  // Frankfurter devolve quanto vale 1 USD em BRL e em EUR.
+  const fr = (await comTempoLimite(CAMBIO_FRANKFURTER)) as { rates?: { BRL?: number; EUR?: number } } | null;
+  const usdBrl = Number(fr?.rates?.BRL) || 0;
+  const usdEur = Number(fr?.rates?.EUR) || 0;
+  if (usdBrl > 0 && usdEur > 0) {
+    cambioCache = { em: Date.now(), usd: usdBrl, eur: usdBrl / usdEur, fonte: "frankfurter" };
+    return cambioCache;
   }
+
+  const aw = (await comTempoLimite(CAMBIO_AWESOME)) as Record<string, { bid: string }> | null;
+  const usd = Number(aw?.USDBRL?.bid) || 0;
+  const eur = Number(aw?.EURBRL?.bid) || 0;
+  if (usd > 0 && eur > 0) {
+    cambioCache = { em: Date.now(), usd, eur, fonte: "awesomeapi" };
+    return cambioCache;
+  }
+
+  cambioCache = { em: Date.now(), ...APROXIMADA, fonte: "aproximada" };
   return cambioCache;
 }
 
