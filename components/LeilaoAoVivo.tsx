@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Image from "next/image";
-import { Gavel, MessageCircle, Send, Timer, Trophy } from "lucide-react";
+import { Gavel, MessageCircle, Send, ShoppingBag, Timer, Trophy } from "lucide-react";
 import { maiorLance, proximoMinimo, reais, type Lance, type Lote } from "@/lib/leilao";
 
 type Mensagem = { id: string; nome: string; texto: string; em: number };
@@ -250,6 +250,35 @@ export default function LeilaoAoVivo() {
   }
 
   const encerrados = dados.lotes.filter((l) => l.estado === "encerrado");
+
+  // Sua caixa: o que você já arrematou nesta sessão, mais o que está ganhando
+  // agora. Ver a caixa crescer é o que faz arrematar o próximo lote.
+  const meusArremates = participante
+    ? encerrados.filter((l) => l.vencedorId === participante.id)
+    : [];
+  const ganhandoAgora = participante
+    ? dados.lotes
+        .filter((l) => l.estado === "aberto")
+        .map((l) => ({ lote: l, lance: maiorLance(dados.lances, l.id) }))
+        .filter((x) => x.lance?.participanteId === participante.id)
+    : [];
+  const totalCaixa =
+    meusArremates.reduce((t, l) => t + (l.vencedorCentavos ?? 0), 0) +
+    ganhandoAgora.reduce((t, x) => t + (x.lance?.centavos ?? 0), 0);
+
+  // Ranking da sessão: quem mais levou até agora.
+  const ranking = Object.values(
+    encerrados.reduce<Record<string, { nome: string; centavos: number; lotes: number }>>((acc, l) => {
+      if (!l.vencedorId || !l.vencedorCentavos) return acc;
+      const atual = acc[l.vencedorId] ?? { nome: l.vencedorNome ?? "", centavos: 0, lotes: 0 };
+      atual.centavos += l.vencedorCentavos;
+      atual.lotes += 1;
+      acc[l.vencedorId] = atual;
+      return acc;
+    }, {}),
+  )
+    .sort((a, b) => b.centavos - a.centavos)
+    .slice(0, 5);
   const proximos = dados.lotes.filter((l) => l.estado === "aguardando" && l.id !== loteAtual?.id);
   const lancesDoLote = loteAtual
     ? dados.lances.filter((l) => l.loteId === loteAtual.id).sort((a, b) => b.em - a.em).slice(0, 8)
@@ -466,6 +495,65 @@ export default function LeilaoAoVivo() {
           )}
         </div>
       </section>
+
+      {/* ------------------------------------------------------- sua caixa */}
+      {totalCaixa > 0 && (
+        <section className="rounded-xl border border-brand-green/40 bg-brand-green/5 p-4">
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-brand-green">
+            <ShoppingBag size={14} />
+            Sua caixa
+          </p>
+          <p className="mt-1 font-display text-2xl font-extrabold text-ink">{reais(totalCaixa)}</p>
+          <p className="text-[12px] text-ink/75">
+            {meusArremates.length > 0 && `${meusArremates.length} arrematado${meusArremates.length > 1 ? "s" : ""}`}
+            {meusArremates.length > 0 && ganhandoAgora.length > 0 && " · "}
+            {ganhandoAgora.length > 0 && `${ganhandoAgora.length} ganhando agora`}
+          </p>
+          <ul className="mt-2 space-y-0.5 text-[12px] text-ink/80">
+            {meusArremates.map((l) => (
+              <li key={l.id} className="flex justify-between gap-3">
+                <span className="min-w-0 truncate">{l.titulo}</span>
+                <span className="shrink-0 font-medium">{reais(l.vencedorCentavos ?? 0)}</span>
+              </li>
+            ))}
+            {ganhandoAgora.map((x) => (
+              <li key={x.lote.id} className="flex justify-between gap-3 text-brand-green">
+                <span className="min-w-0 truncate">{x.lote.titulo} (em disputa)</span>
+                <span className="shrink-0 font-medium">{reais(x.lance?.centavos ?? 0)}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted">
+            Tudo vai junto numa cobrança só, com um frete só, quando o leilão acabar.
+          </p>
+        </section>
+      )}
+
+      {/* --------------------------------------------------- ranking da sessão */}
+      {ranking.length > 0 && (
+        <section className="rounded-xl border border-card-border bg-white p-4 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
+          <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted">
+            <Trophy size={14} />
+            Top do leilão de hoje
+          </p>
+          <ol className="mt-2 space-y-1 text-[13px]">
+            {ranking.map((r, i) => (
+              <li key={r.nome + i} className="flex items-center gap-2">
+                <span
+                  className={`grid h-5 w-5 shrink-0 place-items-center rounded-full text-[10px] font-bold ${
+                    i === 0 ? "bg-brand-yellow text-ink" : "bg-surface text-muted"
+                  }`}
+                >
+                  {i + 1}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-ink">{r.nome}</span>
+                <span className="shrink-0 text-muted">{r.lotes} lote{r.lotes > 1 ? "s" : ""}</span>
+                <span className="w-24 shrink-0 text-right font-bold text-ink">{reais(r.centavos)}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
 
       {/* ------------------------------------------------------------- chat */}
       <section className="rounded-xl border border-card-border bg-white p-4 shadow-[0_2px_6px_rgba(0,0,0,0.04)]">
