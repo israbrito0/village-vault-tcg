@@ -153,6 +153,21 @@ $("ligaLer").onclick = async () => {
 
   caixa.innerHTML = `<div class="painel"><b>${leitura.titulo}</b><div id="ligaLista"></div></div>`;
   const lista = document.getElementById("ligaLista");
+
+  // A regra da casa: menor preço em NM. Se existir, vira o botão principal.
+  const menorNM = leitura.achados.find((a) => a.condicao === "NM");
+  if (menorNM) {
+    const principal = document.createElement("button");
+    principal.textContent = `Usar menor NM — ${reais(menorNM.centavos)}`;
+    principal.className = "principal";
+    principal.style.cssText = "display:block;width:100%;margin-top:8px";
+    principal.onclick = () => salvarPrecoDaLiga(menorNM.centavos, "NM");
+    lista.appendChild(principal);
+    const nota = document.createElement("div");
+    nota.style.cssText = "margin-top:6px;color:#6b7280";
+    nota.textContent = "ou escolha outro valor:";
+    lista.appendChild(nota);
+  }
   for (const achado of leitura.achados.slice(0, 8)) {
     const b = document.createElement("button");
     const marca = achado.condicao ? `[${achado.condicao}] ` : "";
