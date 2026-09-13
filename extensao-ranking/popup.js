@@ -90,6 +90,17 @@ $("zerarLive").onclick = async () => {
 // Lê apenas a aba que VOCÊ abriu, quando você clica. Não navega, não varre.
 
 function lerPrecosDaPagina() {
+  const CONDICOES = /\b(NM|SP|MP|HP|D|M)\b|\b(Near ?Mint|Slightly ?Played|Moderately ?Played|Heavily ?Played|Damaged)\b/i;
+  const condicaoPerto = (el) => {
+    let atual = el;
+    for (let i = 0; i < 4 && atual; i += 1) {
+      const achou = (atual.innerText || "").replace(/\s+/g, " ").match(CONDICOES);
+      if (achou) return (achou[1] || achou[2]).toUpperCase().replace(/\s/g, "");
+      atual = atual.parentElement;
+    }
+    return "";
+  };
+
   const texto = document.body.innerText;
   const codigo = texto.match(/\b(\d{1,3}\s*\/\s*\d{1,3})\b/)?.[1]?.replace(/\s/g, "") ?? "";
   const vistos = new Set();
@@ -102,9 +113,12 @@ function lerPrecosDaPagina() {
     const centavos = Math.round(Number(m[1].replace(/\./g, "").replace(",", ".")) * 100);
     if (!centavos || vistos.has(centavos)) continue;
     vistos.add(centavos);
-    const contexto = (el.parentElement?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 60);
-    achados.push({ centavos, contexto });
-    if (achados.length >= 10) break;
+    achados.push({
+      centavos,
+      condicao: condicaoPerto(el),
+      contexto: (el.parentElement?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 70),
+    });
+    if (achados.length >= 12) break;
   }
   achados.sort((a, b) => a.centavos - b.centavos);
   return { titulo: document.title.slice(0, 80), codigo, achados };
@@ -139,16 +153,19 @@ $("ligaLer").onclick = async () => {
 
   caixa.innerHTML = `<div class="painel"><b>${leitura.titulo}</b><div id="ligaLista"></div></div>`;
   const lista = document.getElementById("ligaLista");
-  for (const achado of leitura.achados.slice(0, 6)) {
+  for (const achado of leitura.achados.slice(0, 8)) {
     const b = document.createElement("button");
-    b.textContent = `${reais(achado.centavos)} — ${achado.contexto || "usar este"}`;
+    const marca = achado.condicao ? `[${achado.condicao}] ` : "";
+    b.textContent = `${marca}${reais(achado.centavos)} — ${achado.contexto || "usar este"}`;
     b.style.cssText = "display:block;width:100%;text-align:left;margin-top:6px";
-    b.onclick = () => salvarPrecoDaLiga(achado.centavos);
+    // NM é o que costuma valer de referência: destaca.
+    if (achado.condicao === "NM") b.style.borderColor = "#f4af14";
+    b.onclick = () => salvarPrecoDaLiga(achado.centavos, achado.condicao);
     lista.appendChild(b);
   }
 };
 
-async function salvarPrecoDaLiga(centavos) {
+async function salvarPrecoDaLiga(centavos, condicao = "") {
   const caixa = $("ligaResultado");
   const codigo = $("ligaCodigo").value.trim();
   const painel = $("tokenPainel").value.trim();
@@ -168,11 +185,16 @@ async function salvarPrecoDaLiga(centavos) {
   const r = await fetch(`${site}/api/cartas/preco`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${painel}` },
-    body: JSON.stringify({ cartaId: carta.id, nome: carta.nome, centavos, fonte: "liga" }),
+    body: JSON.stringify({
+      cartaId: carta.id,
+      nome: carta.nome,
+      centavos,
+      fonte: condicao ? `liga ${condicao}` : "liga",
+    }),
   });
   const resposta = await r.json();
   caixa.innerHTML = r.ok
-    ? `<span class="ok">${carta.nome}: ${reais(centavos)} salvo como preço da casa.</span>`
+    ? `<span class="ok">${carta.nome}: ${reais(centavos)}${condicao ? ` (${condicao})` : ""} salvo como preço da casa.</span>`
     : `<span class="erro">${resposta.erro ?? "não deu"}</span>`;
   chrome.storage.local.set({ tokenPainel: painel });
 }
