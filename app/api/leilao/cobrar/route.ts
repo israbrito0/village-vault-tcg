@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     nome: string;
     whatsapp: string;
     centavos: number;
-    lotes: string[];
+    lotes: { titulo: string; centavos: number }[];
     link: string | null;
     estado: string;
     erro?: string;
