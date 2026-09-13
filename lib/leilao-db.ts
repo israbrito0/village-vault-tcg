@@ -296,6 +296,33 @@ export async function definirPrecoManual(cartaId: string, centavos: number | nul
   if (error) throw error;
 }
 
+// Preço por condição: NM, SP, MP, HP, D. O NM é o que vira o preço da casa,
+// porque é a referência que ele usa para abrir os lotes.
+export const CONDICOES = ["NM", "SP", "MP", "HP", "D", "M"] as const;
+export type Condicao = (typeof CONDICOES)[number];
+
+export async function salvarPrecoCondicao(cartaId: string, condicao: Condicao, centavos: number, fonte?: string) {
+  const db = cliente();
+  const { error } = await db.from("precos_condicao").upsert(
+    { carta_id: cartaId, condicao, centavos, fonte, atualizado_em: new Date().toISOString() },
+    { onConflict: "carta_id,condicao" },
+  );
+  if (error) throw error;
+}
+
+export async function lerPrecosCondicao(ids: string[]) {
+  if (!ids.length) return {} as Record<string, Record<string, number>>;
+  const db = cliente();
+  const { data } = await db.from("precos_condicao").select("carta_id, condicao, centavos").in("carta_id", ids);
+  const mapa: Record<string, Record<string, number>> = {};
+  for (const linha of data ?? []) {
+    const id = String(linha.carta_id);
+    mapa[id] = mapa[id] ?? {};
+    mapa[id][String(linha.condicao)] = Number(linha.centavos);
+  }
+  return mapa;
+}
+
 export async function lerCartas(ids: string[]) {
   if (!ids.length) return [];
   const db = cliente();

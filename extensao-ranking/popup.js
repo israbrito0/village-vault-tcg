@@ -204,6 +204,7 @@ async function salvarPrecoDaLiga(centavos, condicao = "") {
       cartaId: carta.id,
       nome: carta.nome,
       centavos,
+      condicao,
       fonte: condicao ? `liga ${condicao}` : "liga",
     }),
   });

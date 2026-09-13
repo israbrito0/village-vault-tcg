@@ -15,6 +15,7 @@ type Carta = {
   imagem: string;
   precos: { referenciaBrl?: number; cardmarketEur?: number; tcgplayerUsd?: number; fonte?: string };
   precoManualCentavos: number | null;
+  precosPorCondicao?: Record<string, number>;
 };
 
 type Estado = {
@@ -308,6 +309,21 @@ export default function PainelLeilao() {
                 <input value={precoRef} onChange={(e) => setPrecoRef(e.target.value)} className={CAMPO} />
               </label>
             </div>
+            {escolhida.precosPorCondicao && Object.keys(escolhida.precosPorCondicao).length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+                <span className="text-muted">Seus preços:</span>
+                {Object.entries(escolhida.precosPorCondicao).map(([cond, cent]) => (
+                  <button
+                    key={cond}
+                    type="button"
+                    onClick={() => setPrecoRef((cent / 100).toFixed(2).replace(".", ","))}
+                    className="rounded-full border border-card-border px-2 py-0.5 font-medium text-ink"
+                  >
+                    {cond} {reais(cent)}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="flex items-center gap-3">
               {fotoPropria ? (
                 <Image src={fotoPropria} alt="" width={48} height={66} className="rounded" unoptimized />

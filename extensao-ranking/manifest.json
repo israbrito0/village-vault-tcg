@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Village & Vault - Assistente",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Ranking das lives da Jamble e precos de cartas para o leilao do site.",
   "permissions": [
     "storage",

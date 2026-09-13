@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { buscarCarta, cotacoes } from "@/lib/cartas";
-import { lerCartas, salvarCarta, TEM_BANCO } from "@/lib/leilao-db";
+import { lerCartas, lerPrecosCondicao, salvarCarta, TEM_BANCO } from "@/lib/leilao-db";
 
 // Busca da carta pelo código, para o cadastro do lote. Só o painel usa.
 export const dynamic = "force-dynamic";
@@ -43,9 +43,12 @@ export async function POST(req: Request) {
       }
     }
 
+    const porCondicao = TEM_BANCO && achadas.length ? await lerPrecosCondicao(achadas.map((c) => c.id)) : {};
+
     const comManual = achadas.map((c) => ({
       ...c,
       precoManualCentavos: salvas[c.id]?.preco_manual_centavos ?? null,
+      precosPorCondicao: porCondicao[c.id] ?? {},
     }));
 
     return NextResponse.json({ cartas: comManual, cambio });

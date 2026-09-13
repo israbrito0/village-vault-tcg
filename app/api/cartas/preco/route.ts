@@ -1,5 +1,13 @@
 import { NextResponse } from "next/server";
-import { definirPrecoManual, lerCartas, salvarCarta, TEM_BANCO } from "@/lib/leilao-db";
+import {
+  CONDICOES,
+  definirPrecoManual,
+  lerCartas,
+  salvarCarta,
+  salvarPrecoCondicao,
+  TEM_BANCO,
+  type Condicao,
+} from "@/lib/leilao-db";
 
 // Recebe um preço que VOCÊ leu numa página aberta por você (a extensão manda ao
 // clicar no botão). Vira o preço da casa para aquela carta.
@@ -26,11 +34,12 @@ export async function POST(req: Request) {
   if (!autorizado(req)) return NextResponse.json({ erro: "chave inválida" }, { status: 401, headers: CORS });
   if (!TEM_BANCO) return NextResponse.json({ erro: "Supabase não configurado." }, { status: 503, headers: CORS });
 
-  const { cartaId, nome, centavos, fonte } = (await req.json().catch(() => ({}))) as {
+  const { cartaId, nome, centavos, fonte, condicao } = (await req.json().catch(() => ({}))) as {
     cartaId?: string;
     nome?: string;
     centavos?: number;
     fonte?: string;
+    condicao?: string;
   };
 
   const valor = Math.round(Number(centavos));
@@ -44,8 +53,14 @@ export async function POST(req: Request) {
       // Primeira vez que essa carta aparece: registra o mínimo para o preço ter onde morar.
       await salvarCarta({ id: cartaId, nome: nome ?? cartaId, fonte: fonte ?? "manual" });
     }
-    await definirPrecoManual(cartaId, valor, fonte);
-    return NextResponse.json({ ok: true, cartaId, centavos: valor, fonte }, { headers: CORS });
+    const cond = String(condicao ?? "").toUpperCase();
+    const valida = (CONDICOES as readonly string[]).includes(cond) ? (cond as Condicao) : null;
+    if (valida) await salvarPrecoCondicao(cartaId, valida, valor, fonte).catch(() => {});
+
+    // NM é a referência da casa; as outras condições ficam guardadas ao lado.
+    if (!valida || valida === "NM") await definirPrecoManual(cartaId, valor, fonte);
+
+    return NextResponse.json({ ok: true, cartaId, centavos: valor, condicao: valida, fonte }, { headers: CORS });
   } catch (e) {
     return NextResponse.json({ erro: String((e as Error).message) }, { status: 500, headers: CORS });
   }
