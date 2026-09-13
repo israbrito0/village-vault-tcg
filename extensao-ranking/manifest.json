@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Village & Vault - Assistente",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Ranking das lives da Jamble e precos de cartas para o leilao do site.",
   "permissions": [
     "storage",
@@ -29,6 +29,15 @@
       ],
       "run_at": "document_start",
       "all_frames": true
+    },
+    {
+      "matches": [
+        "https://*.ligapokemon.com.br/*"
+      ],
+      "js": [
+        "liga.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [

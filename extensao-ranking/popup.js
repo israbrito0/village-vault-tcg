@@ -111,10 +111,15 @@ $("ligaLer").onclick = async () => {
   }
   let leitura;
   try {
-    const [r] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, func: lerPrecosDaPagina });
-    leitura = r?.result;
+    if (chrome.scripting?.executeScript) {
+      const [r] = await chrome.scripting.executeScript({ target: { tabId: aba.id }, func: lerPrecosDaPagina });
+      leitura = r?.result;
+    } else {
+      // Extensão carregada antes da permissão nova: fala com o liga.js da página.
+      leitura = await chrome.tabs.sendMessage(aba.id, { tipo: "ler-precos" });
+    }
   } catch (e) {
-    caixa.innerHTML = `<span class="erro">${e.message}</span>`;
+    caixa.innerHTML = `<span class="erro">${e.message}. Recarregue a extensão em edge://extensions e recarregue a página da Liga.</span>`;
     return;
   }
   if (!leitura?.achados?.length) {
