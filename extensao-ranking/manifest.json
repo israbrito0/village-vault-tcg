@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Village & Vault - Ranking da Live",
+  "name": "Village & Vault - Assistente",
   "version": "1.1.0",
-  "description": "Lê as vendas da live na Jamble e atualiza o ranking de compradores no site.",
+  "description": "Ranking das lives da Jamble e precos de cartas para o leilao do site.",
   "permissions": [
     "storage",
     "alarms",
@@ -43,6 +43,6 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Ranking da Live"
+    "default_title": "Village & Vault"
   }
 }
