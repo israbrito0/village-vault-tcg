@@ -150,6 +150,20 @@ export async function darLance(
   return data as { ok: boolean; erro?: string; minimo?: number; fecha_em?: string; proximo_minimo?: number };
 }
 
+// Lance automático: guarda até quanto a pessoa quer ir. O banco disputa por
+// ela, subindo só o necessário. O valor é secreto — ninguém mais lê.
+export async function definirLimite(loteId: string, participanteId: string, nome: string, maximo: number) {
+  const db = cliente();
+  const { data, error } = await db.rpc("definir_limite", {
+    p_lote: loteId,
+    p_participante: participanteId,
+    p_nome: nome,
+    p_maximo: maximo,
+  });
+  if (error) throw error;
+  return data as { ok: boolean; erro?: string; minimo?: number; ganhando?: boolean; centavos?: number };
+}
+
 export async function mandarMensagem(leilaoId: string, participanteId: string, nome: string, texto: string) {
   const db = cliente();
   const { error } = await db.from("mensagens").insert({

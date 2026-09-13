@@ -43,6 +43,8 @@ export default function LeilaoAoVivo() {
   // Lance grande espera um segundo toque de confirmação — menos nos segundos
   // finais, quando parar para confirmar custaria o lote.
   const [aConfirmar, setAConfirmar] = useState<number | null>(null);
+  const [limite, setLimite] = useState("");
+  const [limiteAtivo, setLimiteAtivo] = useState<number | null>(null);
   const fimDoChat = useRef<HTMLDivElement>(null);
 
   const buscar = useCallback(async () => {
@@ -186,6 +188,42 @@ export default function LeilaoAoVivo() {
     }
   }
 
+  // Lance automático: guarda o teto e deixa o sistema disputar.
+  async function deixarAutomatico() {
+    if (!loteAtual || !participante) return;
+    const centavos = centavosDe(limite);
+    if (!centavos) return setErro("Escreva o valor máximo, ex.: 400,00");
+    setErro("");
+    setEnviando(true);
+    try {
+      const r = await fetch("/api/leilao/limite", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          loteId: loteAtual.id,
+          participanteId: participante.id,
+          nome: participante.nome,
+          centavos,
+        }),
+      });
+      const resposta = await r.json();
+      if (!r.ok) {
+        setErro(resposta.erro ?? "Não consegui guardar seu limite.");
+        return;
+      }
+      setLimiteAtivo(centavos);
+      setLimite("");
+      setAviso(
+        resposta.ganhando
+          ? `Automático ligado. Você está ganhando por ${reais(resposta.centavos ?? 0)}.`
+          : "Automático ligado, mas alguém tem limite maior.",
+      );
+      buscar();
+    } finally {
+      setEnviando(false);
+    }
+  }
+
   async function mandar(e: React.FormEvent) {
     e.preventDefault();
     if (!dados?.leilao || !participante || !texto.trim()) return;
@@ -249,7 +287,16 @@ export default function LeilaoAoVivo() {
           {loteAtual?.precoRefCentavos ? (
             <p className="mt-1 text-[12px] text-muted">
               Valor de mercado: <strong className="text-ink">{reais(loteAtual.precoRefCentavos)}</strong>
-              <span className="text-[10px]"> · referência, não é o preço da loja</span>
+              {(() => {
+                // Termômetro: o quanto o lance atual está abaixo (ou acima) do
+                // mercado. É o número que dá coragem para o próximo lance.
+                const atual = maior?.centavos ?? loteAtual.lanceInicialCentavos;
+                const dif = Math.round(((atual - loteAtual.precoRefCentavos!) / loteAtual.precoRefCentavos!) * 100);
+                if (dif <= -5)
+                  return <span className="font-bold text-brand-green"> · {Math.abs(dif)}% abaixo do mercado</span>;
+                if (dif >= 5) return <span className="font-bold text-brand-red"> · {dif}% acima do mercado</span>;
+                return <span className="font-bold text-ink"> · no preço de mercado</span>;
+              })()}
             </p>
           ) : null}
 
@@ -363,6 +410,38 @@ export default function LeilaoAoVivo() {
                   {reais(aConfirmar)} é bem acima do mínimo de {reais(minimo)}. Toque em Confirmar se for isso mesmo.
                 </p>
               )}
+              {/* Lance automático: quem não pode ficar grudado no celular
+                  continua no páreo, e o preço sobe só o necessário. */}
+              <div className="rounded-lg border border-card-border bg-surface p-3">
+                <p className="text-[12px] font-bold text-ink">Deixar no automático</p>
+                <p className="mt-0.5 text-[11px] text-muted">
+                  Diga até quanto você vai. O sistema cobre os outros por você, de {reais(loteAtual?.incrementoCentavos ?? 0)}{" "}
+                  em {reais(loteAtual?.incrementoCentavos ?? 0)}, e para no seu limite. Ninguém vê esse valor.
+                </p>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    value={limite}
+                    onChange={(e) => setLimite(e.target.value)}
+                    inputMode="decimal"
+                    placeholder={limiteAtivo ? `Seu limite: ${reais(limiteAtivo)}` : "Seu limite, ex.: 400,00"}
+                    className="w-full rounded-lg border border-card-border px-3 py-2"
+                  />
+                  <button
+                    type="button"
+                    disabled={!aberto || enviando}
+                    onClick={deixarAutomatico}
+                    className="shrink-0 rounded-full bg-brand-blue px-4 py-2 text-[12px] font-bold uppercase tracking-wide text-white disabled:opacity-50"
+                  >
+                    Ligar
+                  </button>
+                </div>
+                {limiteAtivo !== null && (
+                  <p className="mt-1.5 text-[11px] font-medium text-brand-blue">
+                    Automático ligado até {reais(limiteAtivo)}. Para aumentar, é só mandar um valor maior.
+                  </p>
+                )}
+              </div>
+
               <p className="text-[11px] text-muted">
                 Entrou como <strong className="text-ink">{participante.nome}</strong>. Lance dado é compromisso de compra.
                 {apertado && aberto ? " Nos segundos finais, o lance vai direto, sem confirmação." : ""}
