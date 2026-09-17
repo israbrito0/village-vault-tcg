@@ -31,21 +31,20 @@ const AJUSTE = {
   olhoDir: new THREE.Vector3(0.11, 0.16, 0.2),
   boca: new THREE.Vector3(0, -0.02, 0.22),
   abreBoca: 0.75, // radianos que a mandíbula abre na rajada (eixo X do osso)
-  direcaoFogo: new THREE.Vector3(0.38, -0.12, 1).normalize(),
-  // Câmera: de frente para a cabeça, na altura dos olhos, longe o bastante
-  // para as asas aparecerem. O alvo fica um pouco abaixo da cabeça, para ela
-  // ficar na parte de cima da tela (o menu entra embaixo).
-  camera: new THREE.Vector3(0.25, 0.1, 4.2),
-  cameraFim: new THREE.Vector3(0.0, 0.05, 3.7), // aproxima devagar ao longo da cena
-  alvoAbaixo: 0.55,
+  direcaoFogo: new THREE.Vector3(0.55, 0.18, 1).normalize(), // para a frente-direita, passa ao lado da câmera
+  // Câmera: close fechado no rosto, de frente, na altura dos olhos; as asas
+  // aparecem atrás. Aproxima um pouco ao longo da cena.
+  camera: new THREE.Vector3(0.0, 0.05, 2.6),
+  cameraFim: new THREE.Vector3(0.0, 0.02, 2.25),
+  velocidadeVoo: 0.45, // a animação de voo original é rápida demais para um close
 };
 
 // Linha do tempo (segundos).
 const T = {
   olhos: 0.7, // olhos começam a acender no escuro
   olhosCheios: 1.6,
-  revela: 2.6, // a luz acende de repente: rosto e asas
-  revelaFim: 2.95,
+  revela: 2.4, // a luz revela o rosto e as asas
+  revelaFim: 3.3,
   pisca: 3.6, // pisca um olho
   piscaFim: 3.85,
   inspira: 4.2,
@@ -207,7 +206,7 @@ export default function HeroCharizard() {
     const dpr = Math.min(window.devicePixelRatio || 1, celular ? 1.5 : 2);
     renderer.setPixelRatio(dpr);
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.1;
+    renderer.toneMappingExposure = 0.95;
 
     const cena = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 60);
@@ -222,8 +221,8 @@ export default function HeroCharizard() {
 
     const dragao = new THREE.Group();
     cena.add(dragao);
-    const olhoEsq = brilho("rgba(255,140,40,0.9)", 0.22);
-    const olhoDir = brilho("rgba(255,140,40,0.9)", 0.22);
+    const olhoEsq = brilho("rgba(255,140,40,0.9)", 0.16);
+    const olhoDir = brilho("rgba(255,140,40,0.9)", 0.16);
     const gargantaBrilho = brilho("rgba(255,120,20,0.9)", 0.5);
     cena.add(olhoEsq, olhoDir, gargantaBrilho);
     // Pálpebra: um disco na cor do corpo que cobre o olho direito na piscada.
@@ -231,13 +230,16 @@ export default function HeroCharizard() {
       const cv = document.createElement("canvas");
       cv.width = cv.height = 64;
       const ctx = cv.getContext("2d")!;
-      const g = ctx.createRadialGradient(32, 28, 4, 32, 32, 32);
-      g.addColorStop(0, "#f08a3a");
-      g.addColorStop(0.75, "#d9672a");
-      g.addColorStop(1, "rgba(160,70,20,0)");
+      const g = ctx.createRadialGradient(32, 30, 6, 32, 32, 32);
+      g.addColorStop(0, "#d9661f");
+      g.addColorStop(0.7, "#c2531a");
+      g.addColorStop(0.9, "rgba(170,75,25,0.9)");
+      g.addColorStop(1, "rgba(150,65,20,0)");
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, 64, 64);
-      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(cv), transparent: true, opacity: 0, depthTest: false }));
+      const tex = new THREE.CanvasTexture(cv);
+      tex.colorSpace = THREE.SRGBColorSpace; // senão a pálpebra sai clara demais
+      const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, opacity: 0, depthTest: false }));
       s.renderOrder = 11;
       return s;
     })();
@@ -245,6 +247,45 @@ export default function HeroCharizard() {
 
     const fogo = montarFogo(dpr);
     cena.add(fogo);
+
+    // Céu estrelado atrás: pontos brancos e azulados, alguns grandes e macios.
+    const estrelas = (() => {
+      const n = celular ? 350 : 700;
+      const pos = new Float32Array(n * 3);
+      const tam = new Float32Array(n);
+      for (let i = 0; i < n; i++) {
+        pos.set([(Math.random() - 0.5) * 30, (Math.random() - 0.5) * 18, -3 - Math.random() * 14], i * 3);
+        tam[i] = Math.random() < 0.12 ? 2.5 + Math.random() * 3 : 0.6 + Math.random() * 1.2;
+      }
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.BufferAttribute(pos, 3));
+      geo.setAttribute("aTam", new THREE.BufferAttribute(tam, 1));
+      const mat = new THREE.ShaderMaterial({
+        transparent: true,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+        uniforms: { uTempo: { value: 0 }, uDpr: { value: dpr }, uAlfa: { value: 0 } },
+        vertexShader: `
+          attribute float aTam; uniform float uTempo; uniform float uDpr; varying float vTam; varying float vPisca;
+          void main() {
+            vec3 p = position; p.y += sin(uTempo * 0.15 + position.x) * 0.15; p.x += uTempo * 0.03;
+            vec4 mv = modelViewMatrix * vec4(p, 1.0); gl_Position = projectionMatrix * mv;
+            vTam = aTam; vPisca = 0.6 + 0.4 * sin(uTempo * 1.5 + position.x * 7.0 + position.y * 3.0);
+            gl_PointSize = aTam * 3.0 * uDpr * (8.0 / max(1.0, -mv.z)) * 2.5;
+          }`,
+        fragmentShader: `
+          uniform float uAlfa; varying float vTam; varying float vPisca;
+          void main() {
+            float d = length(gl_PointCoord - 0.5); if (d > 0.5) discard;
+            float a = vTam > 2.0 ? smoothstep(0.5, 0.0, d) * 0.35 : smoothstep(0.5, 0.15, d);
+            gl_FragColor = vec4(mix(vec3(0.75, 0.85, 1.0), vec3(1.0), 0.5), a * vPisca * uAlfa);
+          }`,
+      });
+      const p = new THREE.Points(geo, mat);
+      p.frustumCulled = false;
+      return p;
+    })();
+    cena.add(estrelas);
 
     let vivo = true;
     let visivel = true;
@@ -348,6 +389,7 @@ export default function HeroCharizard() {
         if (gltf.animations.length) {
           mixer = new THREE.AnimationMixer(modelo);
           const acao = mixer.clipAction(gltf.animations[0]);
+          acao.timeScale = AJUSTE.velocidadeVoo;
           acao.play();
         }
         inicio = relogio.getElapsedTime();
@@ -372,8 +414,7 @@ export default function HeroCharizard() {
       const olhos = faixa(t, T.olhos, T.olhosCheios);
       // Revelação súbita, com uma tremida de lâmpada acendendo.
       const revela = faixa(t, T.revela, T.revelaFim);
-      const tremida = revela > 0 && revela < 1 ? 0.6 + 0.4 * Math.sin(t * 90) : 1;
-      const luz = revela * tremida;
+      const luz = revela;
       // Piscada e rajada repetem a cada ciclo.
       const tCiclo = t < T.ciclo ? t : T.pisca - 0.2 + ((t - (T.pisca - 0.2)) % T.ciclo);
       const pisca = faixa(tCiclo, T.pisca, T.pisca + 0.1) * (1 - faixa(tCiclo, T.piscaFim - 0.1, T.piscaFim));
@@ -397,44 +438,54 @@ export default function HeroCharizard() {
       dirBoca.copy(AJUSTE.direcaoFogo).applyQuaternion(dragao.quaternion).normalize();
       olhoEsq.position.copy(posOlhoE);
       olhoDir.position.copy(posOlhoD);
-      // A pálpebra fica um pouco à frente do olho, virada para a câmera.
-      palpebra.position.copy(posOlhoD).addScaledVector(tmp.subVectors(camera.position, posOlhoD).normalize(), 0.06);
+      // A piscada é no olho mais virado para a câmera (a cabeça vira com o voo);
+      // a pálpebra fica um pouco à frente dele.
+      const piscaDireito = posOlhoD.distanceTo(camera.position) <= posOlhoE.distanceTo(camera.position);
+      const olhoPisca = piscaDireito ? posOlhoD : posOlhoE;
+      palpebra.position.copy(olhoPisca).addScaledVector(tmp.subVectors(camera.position, olhoPisca).normalize(), 0.05);
       gargantaBrilho.position.copy(posBoca);
 
       // Com a luz acesa o brilho dos olhos diminui (o olho de verdade aparece).
-      for (const m of olhosMateriais) m.emissiveIntensity = olhos * (2.5 - 1.5 * luz);
-      const brilhoOlhos = olhos * (1 - 0.55 * luz);
-      (olhoEsq.material as THREE.SpriteMaterial).opacity = brilhoOlhos * (0.75 + 0.25 * Math.sin(t * 2.1));
-      (olhoDir.material as THREE.SpriteMaterial).opacity = brilhoOlhos * (0.75 + 0.25 * Math.cos(t * 1.9)) * (1 - pisca);
-      // A piscada fecha o olho direito: o brilho some e a pálpebra (escala) achata.
-      olhoDir.scale.set(0.22, 0.22 * (1 - 0.9 * pisca), 1);
+      for (const m of olhosMateriais) m.emissiveIntensity = olhos * (2.5 - 2.0 * luz);
+      const brilhoOlhos = olhos * (1 - 0.8 * luz);
+      (olhoEsq.material as THREE.SpriteMaterial).opacity = brilhoOlhos * (0.75 + 0.25 * Math.sin(t * 2.1)) * (piscaDireito ? 1 : 1 - pisca);
+      (olhoDir.material as THREE.SpriteMaterial).opacity = brilhoOlhos * (0.75 + 0.25 * Math.cos(t * 1.9)) * (piscaDireito ? 1 - pisca : 1);
+      // O olho que pisca: o brilho some e a pálpebra cobre.
+      olhoDir.scale.set(0.16, 0.16 * (1 - 0.9 * (piscaDireito ? pisca : 0)), 1);
+      olhoEsq.scale.set(0.16, 0.16 * (1 - 0.9 * (piscaDireito ? 0 : pisca)), 1);
       (palpebra.material as THREE.SpriteMaterial).opacity = pisca * luz;
       palpebra.scale.set(0.2, 0.16, 1);
-      ambiente.intensity = 0.2 * luz;
-      principal.intensity = 40 * luz;
-      contra.intensity = 1.5 * luz;
+      ambiente.intensity = 0.12 * luz;
+      principal.intensity = 14 * luz;
+      contra.intensity = 2.2 * luz;
       const chama = rajada * (0.7 + 0.3 * Math.sin(t * 27));
       garganta.intensity = 8 * chama + 1.5 * inspira;
       (gargantaBrilho.material as THREE.SpriteMaterial).opacity = 0.9 * chama + 0.35 * inspira;
       garganta.position.copy(posBoca).addScaledVector(dirBoca, 0.5);
 
       // Luz principal acompanha a cabeça, vindo de cima e da frente.
-      principal.position.copy(posCabeca).add(tmp.set(1.8, 2.4, 3.0));
+      principal.position.copy(posCabeca).add(tmp.set(1.4, 2.0, 3.4));
       principal.target.position.copy(posCabeca);
 
       // O dragão inteiro balança um pouco com o mouse e recua ao inspirar.
-      dragao.rotation.y = AJUSTE.rotacaoY + mouse.x * 0.12;
-      dragao.rotation.x = mouse.y * 0.06 - inspira * 0.05;
+      dragao.rotation.y = AJUSTE.rotacaoY + mouse.x * 0.08;
+      dragao.rotation.x = mouse.y * 0.04 - inspira * 0.05;
 
       // Câmera: de frente para a cabeça, aproximando devagar ao longo da cena.
       // Não segue a cabeça quadro a quadro (enjoaria); segue uma média suave.
-      alvoCam.lerp(tmp.copy(posCabeca).setY(posCabeca.y - AJUSTE.alvoAbaixo), 0.08);
+      // Alvo: entre os olhos, um pouco abaixo (o rosto fica centralizado).
+      alvoCam.lerp(tmp.addVectors(posOlhoE, posOlhoD).multiplyScalar(0.5).setY((posOlhoE.y + posOlhoD.y) * 0.5 - 0.12), 0.08);
+      const ue = (estrelas.material as THREE.ShaderMaterial).uniforms;
+      ue.uTempo.value = t;
+      ue.uAlfa.value = 0.15 + 0.85 * luz;
       const aproxima = faixa(t, 0, 12);
       // Tela estreita: afasta para caber.
-      const afastar = Math.max(1, 1.2 / camera.aspect);
+      const afastar = Math.max(1, 0.95 / camera.aspect);
       tmp.lerpVectors(AJUSTE.camera, AJUSTE.cameraFim, aproxima).multiplyScalar(afastar).add(alvoCam);
       posCam.lerp(tmp, 0.08);
       camera.position.copy(posCam);
+      camera.position.x += mouse.x * 0.12;
+      camera.position.y += -mouse.y * 0.08;
       camera.lookAt(alvoCam);
 
       // Fogo sai da boca, na direção em que a cabeça aponta.
@@ -526,14 +577,22 @@ export default function HeroCharizard() {
         </Link>
       </div>
 
-      {/* Título e menu entram depois da rajada. */}
+      {/* Marca no topo, como no vídeo de referência. */}
       <div
-        className="absolute inset-x-0 bottom-[6vh] z-10 flex flex-col items-center px-5 text-center transition-all duration-1000"
+        className="absolute inset-x-0 top-5 z-10 flex justify-center transition-opacity duration-1000"
+        style={{ opacity: textoVisivel ? 1 : 0 }}
+      >
+        <Wordmark tone="dark" />
+      </div>
+
+      {/* Menu entra depois da rajada. */}
+      <div
+        className="absolute inset-x-0 bottom-[5vh] z-10 flex flex-col items-center px-5 text-center transition-all duration-1000"
         style={{ opacity: textoVisivel ? 1 : 0, transform: `translateY(${textoVisivel ? 0 : 24}px)`, pointerEvents: textoVisivel ? "auto" : "none" }}
       >
-        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-28 bottom-0 -z-10 bg-gradient-to-t from-[#050408] via-[#050408]/70 to-transparent" />
-        <Wordmark tone="dark" />
-        <nav aria-label="Menu inicial" className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-3">
+        <div aria-hidden className="pointer-events-none absolute inset-x-0 -top-20 bottom-0 -z-10 bg-gradient-to-t from-[#050408] via-[#050408]/60 to-transparent" />
+        <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-white/80">A loja de cartas que respira fogo</p>
+        <nav aria-label="Menu inicial" className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-3">
           {MENU_INICIAL.map((item) => (
             <Link
               key={item.label}
