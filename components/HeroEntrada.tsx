@@ -3,13 +3,12 @@
 import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import HeroEstatico from "./HeroEstatico";
-import type { ProdutoEntrada } from "./HeroCharizard";
 
 // O 3D só existe no navegador: no servidor sai a versão parada, que também
 // fica para quem pediu menos movimento no sistema.
 const HeroCharizard = dynamic(() => import("./HeroCharizard"), { ssr: false, loading: () => <HeroEstatico /> });
 
-export default function HeroEntrada({ produtos }: { produtos: ProdutoEntrada[] }) {
+export default function HeroEntrada() {
   const [animar, setAnimar] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -18,5 +17,5 @@ export default function HeroEntrada({ produtos }: { produtos: ProdutoEntrada[] }
   }, []);
 
   if (animar === null || !animar) return <HeroEstatico />;
-  return <HeroCharizard produtos={produtos} />;
+  return <HeroCharizard />;
 }

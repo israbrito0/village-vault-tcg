@@ -1,0 +1,3 @@
+Modelo 3D usado na entrada do site (charizard-voando.glb), comprimido a partir do original.
+
+This work is based on "Charizard Flying Animation" (https://sketchfab.com/3d-models/charizard-flying-animation-cf5a229a8ce34ff2b7c3f92426c5709b) by ryad_raba (https://sketchfab.com/ryad_raba) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
