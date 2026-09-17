@@ -34,15 +34,25 @@ function Wing({ gradientId, className }: { gradientId: string; className: string
 
 // Nome da loja centralizado com o subtítulo; com `wings`, ganha as asas batendo
 // dos lados (hoje só na página do catálogo).
-export default function Wordmark({ large = false, wings = false }: { large?: boolean; wings?: boolean }) {
+// `tone="dark"` é a versão para fundo escuro (entrada do site).
+export default function Wordmark({
+  large = false,
+  wings = false,
+  tone = "light",
+}: {
+  large?: boolean;
+  wings?: boolean;
+  tone?: "light" | "dark";
+}) {
   const wingSize = large ? "w-9 sm:w-16 lg:w-24" : "w-8 sm:w-14";
+  const texto = tone === "dark" ? "text-white" : "text-ink";
 
   return (
     <div className="text-center">
       <Link href="/" className="inline-flex items-center gap-1.5 sm:gap-3">
         {wings && <Wing gradientId="vv-wing-left" className={wingSize} />}
         <span
-          className={`whitespace-nowrap font-display font-extrabold tracking-wide text-ink ${
+          className={`whitespace-nowrap font-display font-extrabold tracking-wide ${texto} ${
             large ? "text-2xl sm:text-4xl lg:text-5xl" : "text-xl sm:text-3xl"
           }`}
         >
@@ -56,7 +66,7 @@ export default function Wordmark({ large = false, wings = false }: { large?: boo
         )}
       </Link>
       <p
-        className={`mt-2 font-bold uppercase tracking-[0.22em] text-ink ${
+        className={`mt-2 font-bold uppercase tracking-[0.22em] ${texto} ${
           large ? "text-[11px] sm:text-xs" : "text-[10px] sm:text-[11px]"
         }`}
       >
