@@ -3,6 +3,7 @@ import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
 import WhatsAppButton from "@/components/WhatsAppButton";
+import Atendimento from "@/components/Atendimento";
 import { SHARE_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
 // Nome da loja e títulos.
@@ -49,6 +50,7 @@ export default function RootLayout({
         {children}
         <Footer />
         <WhatsAppButton />
+        <Atendimento />
       </body>
     </html>
   );
