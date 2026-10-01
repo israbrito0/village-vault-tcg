@@ -168,11 +168,13 @@ Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as seis suítes, 152 casos:
+Roda as sete suítes, 164 casos:
   manifest e ligações entre os arquivos (arquivo que falta, ordem errada)
   leitura dos payloads da Jamble (vendas, participação, tabela de preços)
   a ponte entre a página e a extensão (content.js)
   contas de gemas (o "ao vivo", a janela de 5 min, o id da live)
   o que o background guarda (troca de live, duas lives abertas, limites)
   nome de fora não vira código (escape de HTML)
+  da resposta crua da Jamble até os números do painel (ponta a ponta, com as
+    20 linhas reais de 30/09 conferidas contra o que a tela mostrava)
 Sai com código 1 se alguma falhar.

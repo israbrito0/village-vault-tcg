@@ -11,6 +11,7 @@ const testes = [
   ["contas de gemas", "teste-gemas.js"],
   ["o que o background guarda", "teste-background.js"],
   ["nome de fora não vira código", "teste-escape.js"],
+  ["da resposta crua da Jamble até os números do painel", "teste-ponta-a-ponta.js"],
 ];
 
 let ruim = 0;
