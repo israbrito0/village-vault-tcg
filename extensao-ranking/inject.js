@@ -217,7 +217,11 @@
       return;
     }
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
-    if (origem.includes("show-participation")) guardarParticipacao(dados, origem);
+    // Dois endereços dão a mesma coisa: o do painel do vendedor e o da
+    // própria página da live. Vale o que chegar.
+    if (origem.includes("show-participation") || origem.includes("/api/live/participation")) {
+      guardarParticipacao(dados, origem);
+    }
 
     const emocoes = [];
     varrerEmocoes(dados, origem, emocoes);

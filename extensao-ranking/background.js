@@ -10,6 +10,9 @@ try {
   // Sem o arquivo: o token é o que estiver salvo pela janelinha da extensão.
 }
 
+// As contas de gemas ficam em gemas.js, compartilhadas com o painel e o teste.
+importScripts("gemas.js");
+
 const PADRAO = {
   endpoint: "https://www.villagetcg.com.br/api/ranking/eventos",
   token: "",
@@ -105,20 +108,31 @@ async function guardarEmocao(evento, ctx) {
   });
 }
 
-// O ranking por pessoa vem pronto da Jamble (aba "Participacao" do painel do
-// vendedor). Guardamos a ultima resposta inteira: ela ja e o estado completo
-// da live, entao substitui a anterior em vez de somar.
+// O ranking por pessoa vem pronto da Jamble (aba "Participacao"). A resposta e
+// a foto completa da live, entao substitui a anterior em vez de somar -- mas
+// antes comparamos com a foto de antes para saber quem enviou gemas agora.
 async function guardarParticipacao(dados, ctx) {
   const liveId = ctx?.liveId ?? "sem-live";
+  const g = await ler(["participacaoLive", "gemasAnterior", "gemasEventos"]);
+  const mesmaLive = g.participacaoLive === liveId;
+
+  const quando = dados.quando ?? Date.now();
+  const linhas = Array.isArray(dados.linhas) ? dados.linhas : [];
+  const { eventos, agora } = diffGemas(mesmaLive ? g.gemasAnterior : null, linhas, quando);
+
+  const historico = (mesmaLive ? g.gemasEventos ?? [] : []).concat(eventos);
+
   await chrome.storage.local.set({
     participacao: {
-      quando: dados.quando ?? Date.now(),
+      quando,
       aoVivo: !!dados.aoVivo,
       pesos: dados.pesos ?? null,
-      linhas: Array.isArray(dados.linhas) ? dados.linhas : [],
+      linhas,
     },
     participacaoLive: liveId,
     participacaoTitulo: ctx?.titulo ?? "",
+    gemasAnterior: agora,
+    gemasEventos: historico.slice(-3000),
   });
 }
 
@@ -181,11 +195,13 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok: true });
       return;
     }
-    // Pedido do painel: manda a aba do painel da Jamble apertar "Atualizar".
+    // Pedido do painel: manda a aba da Jamble apertar o "Atualizar" dela. Vale
+    // tanto o painel do vendedor quanto a página da live -- as duas têm a
+    // participação, e quem acha o botão é o content.js de cada aba.
     if (msg?.tipo === "atualizar-participacao") {
       let pedidos = 0;
       try {
-        const abas = await chrome.tabs.query({ url: "https://*.jamble.com/seller/dashboard/lives/*" });
+        const abas = await chrome.tabs.query({ url: "https://*.jamble.com/*" });
         for (const aba of abas) {
           try {
             const r = await chrome.tabs.sendMessage(aba.id, { tipo: "atualizar-participacao" });

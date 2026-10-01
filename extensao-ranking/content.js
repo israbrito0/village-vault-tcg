@@ -45,10 +45,16 @@
     // O painel pede para atualizar os numeros: aperta o proprio botao
     // "Atualizar" da pagina da Jamble, que refaz a chamada e o inject.js le a
     // resposta nova. Nao inventa requisicao nenhuma por fora.
+    //
+    // So em pagina de live. Em outra tela da Jamble pode existir um botao
+    // "Atualizar" que faz outra coisa, e nao e para sair clicando sozinho.
     if (msg?.tipo === "atualizar-participacao") {
-      const botao = [...document.querySelectorAll("button")].find(
-        (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
-      );
+      const ehLive = /^\/(live|seller\/dashboard\/lives)\//.test(location.pathname);
+      const botao = ehLive
+        ? [...document.querySelectorAll("button")].find(
+            (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
+          )
+        : null;
       if (botao) botao.click();
       responder({ ok: !!botao });
     }

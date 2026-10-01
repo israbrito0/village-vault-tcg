@@ -11,7 +11,8 @@
         --texto: #ece9ff;
         --fraco: #9a92c7;
         --destaque: #ffc83d;
-        --carpa: #ff9f43;
+        --gema: #5ac8fa;
+        --vivo: #4ade80;
       }
       * { box-sizing: border-box; }
       body {
@@ -23,30 +24,33 @@
       }
       h1 { font-size: 18px; margin: 0 0 2px; }
       .sub { color: var(--fraco); font-size: 12px; margin-bottom: 16px; }
-      .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 16px; }
+      .sub.vivo { color: var(--vivo); }
+      .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
       .cartao { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; }
       .cartao .rotulo { color: var(--fraco); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
-      .cartao .valor { font-size: 28px; font-weight: 700; margin-top: 2px; }
-      .cartao.carpa .valor { color: var(--carpa); }
-      .cartao.dinheiro .valor { font-size: 20px; }
-      .grade { display: grid; grid-template-columns: 1.4fr 1fr; gap: 12px; }
-      @media (max-width: 860px) { .grade { grid-template-columns: 1fr; } }
+      .cartao .valor { font-size: 26px; font-weight: 700; margin-top: 2px; }
+      .cartao.gema .valor { color: var(--gema); }
+      .cartao.gema.grande .valor { font-size: 34px; }
+      .cartao.dinheiro .valor { font-size: 19px; }
+      .grade { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
+      @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
       .painel { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
-      .painel h2 { font-size: 13px; margin: 0 0 8px; color: var(--destaque); text-transform: uppercase; letter-spacing: .04em; }
+      .painel h2 { font-size: 13px; margin: 0 0 8px; color: var(--destaque); text-transform: uppercase; letter-spacing: .04em; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; }
       th { text-align: left; color: var(--fraco); font-weight: 500; font-size: 11px; text-transform: uppercase; padding-bottom: 4px; }
       td { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.05); }
       td.n, th.n { text-align: right; }
-      td.carpa { color: var(--carpa); }
+      td.gema { color: var(--gema); }
       td.forte { font-weight: 700; }
-      .fraco { color: var(--fraco); font-size: 11px; }
-      .lista { max-height: 420px; overflow: auto; }
+      .fraco { color: var(--fraco); font-size: 11px; font-weight: 400; }
+      .lista { max-height: 430px; overflow: auto; }
       .vazio { color: var(--fraco); font-style: italic; }
       button { background: var(--destaque); color: #2a2000; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px; }
       button:disabled { opacity: .5; cursor: default; }
       button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borda); font-weight: 500; }
+      select { background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); border-radius: 7px; padding: 5px 7px; font: inherit; font-size: 12px; }
       label { font-size: 12px; color: var(--fraco); display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; }
-      .ganhador { font-size: 24px; font-weight: 800; color: var(--carpa); margin: 10px 0 4px; }
+      .ganhador { font-size: 24px; font-weight: 800; color: var(--destaque); margin: 10px 0 4px; }
       .controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
       .aviso { color: var(--destaque); font-size: 12px; }
       .rodape { color: var(--fraco); font-size: 11px; margin-top: 14px; }
@@ -59,26 +63,38 @@
   </head>
   <body>
     <h1 id="titulo">Painel da live</h1>
-    <div class="sub" id="periodo">abra a aba Participação da sua live no painel da Jamble</div>
+    <div class="sub" id="periodo">abra a sua live no painel da Jamble, na aba Participação</div>
 
     <div class="cartoes">
-      <div class="cartao carpa"><div class="rotulo">Carpas</div><div class="valor" id="c-carpas">0</div></div>
-      <div class="cartao"><div class="rotulo">Gemas</div><div class="valor" id="c-gemas">0</div></div>
+      <div class="cartao gema grande"><div class="rotulo">Gemas enviadas</div><div class="valor" id="c-gemas">0</div></div>
+      <div class="cartao gema"><div class="rotulo">Últimos 5 min</div><div class="valor" id="c-recentes">0</div></div>
+      <div class="cartao"><div class="rotulo">Carpas (equiv.)</div><div class="valor" id="c-carpas">0</div></div>
       <div class="cartao"><div class="rotulo">Pontos</div><div class="valor" id="c-pontos">0</div></div>
-      <div class="cartao"><div class="rotulo">Pessoas</div><div class="valor" id="c-pessoas">0</div></div>
+      <div class="cartao"><div class="rotulo">Enviaram</div><div class="valor" id="c-enviaram">0/0</div></div>
       <div class="cartao dinheiro"><div class="rotulo">Comprado</div><div class="valor" id="c-comprado">R$ 0,00</div></div>
     </div>
 
     <div class="painel nao-imprimir">
       <h2>Sorteio entre quem participou</h2>
       <div class="controles">
-        <label><input type="radio" name="quem" value="gemas" checked /> só quem mandou gemas</label>
+        <label><input type="radio" name="quem" value="gemas" checked /> só quem enviou gemas</label>
         <label><input type="radio" name="quem" value="todos" /> todo mundo da live</label>
         <label><input type="checkbox" id="peso" /> mais gemas, mais chance</label>
         <label><input type="checkbox" id="semRepetir" checked /> não repetir ganhador</label>
         <button id="sortear">Sortear</button>
         <button class="secundario" id="limparSorteios">Limpar</button>
-        <button class="secundario" id="atualizar">Atualizar números</button>
+      </div>
+      <div class="controles" style="margin-bottom:0">
+        <button class="secundario" id="atualizar">Ler agora</button>
+        <label>
+          atualizar sozinho
+          <select id="intervalo">
+            <option value="15">a cada 15s</option>
+            <option value="30">a cada 30s</option>
+            <option value="60">a cada 1 min</option>
+            <option value="0">desligado</option>
+          </select>
+        </label>
       </div>
       <div id="ganhador" class="ganhador"></div>
       <div id="detalheSorteio" class="sub" style="margin-bottom:0"></div>
@@ -87,20 +103,32 @@
 
     <div class="grade">
       <div class="painel">
-        <h2>Ranking de participação</h2>
+        <h2>
+          <span>Ranking</span>
+          <select id="ordem" class="nao-imprimir">
+            <option value="gemas">por gemas</option>
+            <option value="pontos">por pontos</option>
+            <option value="gastou">por quanto comprou</option>
+          </select>
+        </h2>
         <div class="lista">
           <table id="t-ranking">
             <thead>
-              <tr><th>#</th><th>Pessoa</th><th class="n">Comprou</th><th class="n">Gemas</th><th class="n">Msgs</th><th class="n">Pontos</th></tr>
+              <tr><th>#</th><th>Pessoa</th><th class="n">Gemas</th><th class="n">Comprou</th><th class="n">Msgs</th><th class="n">Pontos</th></tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
       <div>
-        <div class="painel" id="caixa-icones" style="display:none">
-          <h2>Emotions por ícone</h2>
-          <table id="t-icones"><thead><tr><th>Ícone</th><th class="n">Qtd</th><th class="n">Gemas</th></tr></thead><tbody></tbody></table>
+        <div class="painel">
+          <h2>Gemas ao vivo</h2>
+          <div class="lista" style="max-height:260px">
+            <table id="t-feed">
+              <thead><tr><th>Hora</th><th>Pessoa</th><th class="n">Enviou</th><th class="n">Total</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
         <div class="painel">
           <h2>Sorteios realizados</h2>
@@ -114,6 +142,7 @@
     </div>
     <div class="rodape" id="rodape"></div>
 
+    <script src="gemas.js"></script>
     <script src="painel.js"></script>
   </body>
 </html>

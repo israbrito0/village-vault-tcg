@@ -65,46 +65,66 @@ Privacidade
 A extensão só roda em páginas do jamble.com e só envia: @ do comprador,
 valor e identificador do pedido. Nada de endereço, telefone ou pagamento.
 
-Painel da live (carpas e sorteio)
----------------------------------
+Painel da live (gemas e sorteio)
+--------------------------------
 Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
-própria e mostra os números da live aberta no painel do vendedor:
+própria e mostra, da live que estiver aberta numa aba da Jamble:
 
-  - carpas, gemas, pontos, pessoas e quanto foi comprado
-  - ranking de participação: quem comprou quanto, quantas gemas mandou,
-    quantas mensagens escreveu e quantos pontos fez
-  - sorteio entre quem participou, com três opções:
-      só quem mandou gemas (ou todo mundo da live)
+  - GEMAS ENVIADAS no total e quanto entrou nos ÚLTIMOS 5 MINUTOS
+  - quantas pessoas enviaram gemas, de quantas estão na live
+  - ranking pessoa a pessoa, podendo ordenar por gemas, por pontos ou por
+    quanto cada um comprou
+  - GEMAS AO VIVO: hora, quem enviou, quanto enviou e o total dessa pessoa
+  - sorteio, com três opções:
+      só quem enviou gemas (ou todo mundo da live)
       mais gemas = mais chance (ou chance igual para todos)
       não repetir quem já ganhou
   - "Salvar relatório em PDF": usa a impressão do navegador, já sem os botões
 
+Como deixar ligado durante a live
+---------------------------------
+Deixe a live aberta numa aba, em qualquer um destes dois lugares:
+
+  Painel -> Lives -> a sua live -> aba Participação
+  ou a própria página da live
+
+No painel, escolha "atualizar sozinho: a cada 30s". A cada intervalo ele manda
+aquela aba apertar o próprio botão "Atualizar" da Jamble, e pega a resposta
+nova. "Ler agora" faz na hora. Se não achar a aba, ele avisa na tela.
+
 De onde vêm os números
 ----------------------
-Da própria Jamble, de duas respostas que a página do painel do vendedor já
-pede sozinha. A extensão só lê o que passa; não inventa conta nem chama
-endereço nenhum por fora:
+Da própria Jamble, de respostas que a página dela já pede sozinha. A extensão
+só lê o que passa; não inventa conta nem chama endereço nenhum por fora:
 
   /api/seller/show-participation  -> por pessoa: comprou, gemas, mensagens
-                                     e pontos (é a aba "Participação")
+  /api/live/participation            e pontos (os dois dão a mesma coisa)
   /api/live/emojis                -> quanto cada ícone custa em gemas (36 hoje)
 
-Para o painel funcionar, deixe a sua live aberta no painel do vendedor, na aba
-Participação:  Painel -> Lives -> a sua live -> Participação.
-O botão "Atualizar números" do painel aperta o "Atualizar" daquela página, que
-refaz a chamada; o painel pega a resposta nova sozinho.
+O "ao vivo" é conta nossa, e é simples: a Jamble não avisa "fulano acabou de
+enviar 500 gemas", ela só diz o total de cada um. Então guardamos a leitura
+anterior e comparamos com a nova -- quem subiu, enviou. Por isso a PRIMEIRA
+leitura de cada live não enche o feed: ela é o ponto de partida. Gemas que já
+estavam lá antes de você abrir o painel entram no total, mas não no feed,
+porque não dá para saber a que horas foram enviadas.
 
 Sobre "carpas"
 --------------
 Uma carpa (Carpa Zika, magikarp_shiny) custa 500 gemas. A Jamble entrega
-quantas gemas cada pessoa mandou, mas NÃO diz qual ícone foi. Então o número
-de carpas do painel é o total de gemas dividido por 500 -- é equivalência, não
-contagem de carpa uma por uma. Quem mandou 500 gemas em pixel_heart aparece
-igual a quem mandou uma carpa.
+quantas gemas cada pessoa enviou, mas NÃO diz qual ícone foi -- isso foi
+testado numa live ao vivo em 01/10/2026: para quem assiste chega só o total
+(like_count), nunca quem mandou o quê. Por isso o número de carpas do painel é
+o total de gemas dividido por 500: é equivalência, não contagem carpa a carpa.
+Quem enviar 500 gemas em coraçãozinho aparece igual a quem enviou uma carpa.
 
-O quadro "Emotions por ícone" fica escondido e só aparece se algum evento de
-emotion pessoa a pessoa for capturado. Testei numa live de verdade em 01/10:
-para quem assiste, a Jamble manda só o total (like_count), nunca quem mandou o
-quê. Se no seu próprio ar isso vier diferente, o quadro aparece sozinho.
+Nada disso vai para o site -- fica só neste computador. E CPF, telefone e
+e-mail são escondidos antes de entrar no arquivo de depuração (o canal
+show_user da Jamble carrega esses campos).
 
-Nada disso vai para o site -- fica só neste computador.
+Testes
+------
+  node extensao-ranking/teste.js
+
+Roda as três suítes: leitura dos payloads da Jamble, contas de gemas e o que o
+background guarda (inclusive troca de live e limite do histórico). Sai com
+código 1 se alguma falhar.

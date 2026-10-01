@@ -1,20 +1,22 @@
-// Painel da live: mostra o ranking de participação que a própria Jamble
-// calcula (aba "Participação" do painel do vendedor) e faz o sorteio em cima
-// dele. Tudo local -- nada daqui vai para o site.
+// Painel da live: quantas gemas cada pessoa enviou, ao vivo, e o sorteio em
+// cima disso. Tudo local -- nada daqui vai para o site.
 //
-// De onde vem cada número:
-//   gemas, comprou, mensagens e pontos -> /api/seller/show-participation
-//   valor de cada ícone (quando houver)  -> /api/live/emojis
-// A extensão não inventa conta nenhuma: só lê o que a página já pediu.
-
-const GEMAS_POR_CARPA = 500; // "Carpa Zika" custa 500 gemas na tabela da Jamble
+// De onde vem cada número (a extensão só lê o que a página da Jamble já pediu;
+// não inventa conta nem chama endereço nenhum por fora):
+//   /api/seller/show-participation  -> painel do vendedor, aba Participação
+//   /api/live/participation         -> a mesma coisa, pela página da live
+//   /api/live/emojis                -> quanto cada ícone custa em gemas
+//
+// O "ao vivo" sai da comparação entre uma leitura e a seguinte: quem subiu de
+// gemas, enviou. Quem faz essa conta é o gemas.js.
 
 const $ = (s) => document.querySelector(s);
 const num = (n) => Math.round(n).toLocaleString("pt-BR");
 const reais = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
-const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 let sorteios = [];
+let ordem = "gemas";
 
 // Fora da extensão (servindo a pasta só para conferir a tela) não existe
 // chrome.storage: aí usa o que estiver em window.__teste, se alguém pôs.
@@ -25,7 +27,7 @@ async function ler() {
     ? await chrome.storage.local.get([
         "participacao",
         "participacaoTitulo",
-        "emocoes",
+        "gemasEventos",
         "tabelaEmocoes",
         "sorteios",
       ])
@@ -34,7 +36,7 @@ async function ler() {
   return {
     p: g.participacao ?? null,
     titulo: g.participacaoTitulo || "",
-    emocoes: g.emocoes ?? [],
+    eventos: g.gemasEventos ?? [],
     tabela: g.tabelaEmocoes ?? {},
   };
 }
@@ -53,56 +55,49 @@ function linhas(tbody, dados, montar, colunas) {
   for (const d of dados) tbody.insertAdjacentHTML("beforeend", montar(d));
 }
 
-// Quem entra no sorteio, na mesma ordem em que o ranking mostra.
-function candidatosDe(p, soGemas) {
-  return (p?.linhas ?? []).filter((l) => l.handle && (!soGemas || l.gemas > 0));
-}
+const PORORDEM = {
+  gemas: (a, b) => b.gemas - a.gemas,
+  pontos: (a, b) => b.pontos - a.pontos,
+  gastou: (a, b) => b.gastou - a.gastou,
+};
 
 async function pintar() {
-  const { p, titulo, emocoes, tabela } = await ler();
+  const { p, titulo, eventos, tabela } = await ler();
   const linhasP = p?.linhas ?? [];
-
-  const gemas = linhasP.reduce((s, l) => s + l.gemas, 0);
-  const pontos = linhasP.reduce((s, l) => s + l.pontos, 0);
-  const comprado = linhasP.reduce((s, l) => s + l.gastou, 0);
+  const r = resumirGemas(linhasP);
 
   $("#titulo").textContent = titulo || "Painel da live";
   $("#periodo").textContent = p
-    ? `${p.aoVivo ? "ao vivo" : "encerrada"} · números de ${hora(p.quando)}`
-    : "abra a aba Participação da sua live no painel da Jamble";
+    ? `${p.aoVivo ? "● ao vivo" : "encerrada"} · lido às ${hora(p.quando)}`
+    : "abra a sua live no painel da Jamble, na aba Participação";
+  $("#periodo").classList.toggle("vivo", !!p?.aoVivo);
 
-  $("#c-carpas").textContent = num(gemas / GEMAS_POR_CARPA);
-  $("#c-gemas").textContent = num(gemas);
-  $("#c-pontos").textContent = num(pontos);
-  $("#c-pessoas").textContent = num(linhasP.length);
-  $("#c-comprado").textContent = reais(comprado);
+  $("#c-gemas").textContent = num(r.gemas);
+  $("#c-recentes").textContent = num(gemasRecentes(eventos, 5 * 60 * 1000));
+  $("#c-carpas").textContent = num(r.carpas);
+  $("#c-pontos").textContent = num(r.pontos);
+  $("#c-enviaram").textContent = `${num(r.enviaram)}/${num(r.pessoas)}`;
+  $("#c-comprado").textContent = reais(r.comprado);
 
+  const ordenado = linhasP.slice().sort(PORORDEM[ordem] ?? PORORDEM.gemas);
   linhas(
     $("#t-ranking tbody"),
-    linhasP.slice(0, 60).map((l, i) => ({ i: i + 1, ...l })),
+    ordenado.slice(0, 80).map((l, i) => ({ i: i + 1, ...l })),
     (d) =>
       `<tr><td>${d.i}</td><td>${d.nome} <span class="fraco">@${d.handle}</span></td>` +
+      `<td class="n gema">${d.gemas ? num(d.gemas) : "—"}</td>` +
       `<td class="n">${d.gastou ? reais(d.gastou) : "—"}</td>` +
-      `<td class="n carpa">${d.gemas ? num(d.gemas) : "—"}</td>` +
       `<td class="n">${num(d.mensagens)}</td><td class="n forte">${num(d.pontos)}</td></tr>`,
     6,
   );
 
-  // A conta por ícone só aparece se algum evento de emotion for capturado. A
-  // participação da Jamble dá o total de gemas, mas não diz qual ícone foi.
-  const porIcone = new Map();
-  for (const e of emocoes) {
-    const v = porIcone.get(e.icone) ?? { qtd: 0, pontos: 0 };
-    v.qtd += e.quantidade || 1;
-    v.pontos += e.pontos || 0;
-    porIcone.set(e.icone, v);
-  }
-  $("#caixa-icones").style.display = porIcone.size ? "" : "none";
   linhas(
-    $("#t-icones tbody"),
-    [...porIcone.entries()].sort((a, b) => b[1].pontos - a[1].pontos).map(([ic, v]) => ({ ic, ...v })),
-    (d) => `<tr><td>${d.ic}</td><td class="n">${num(d.qtd)}</td><td class="n">${num(d.pontos)}</td></tr>`,
-    3,
+    $("#t-feed tbody"),
+    eventos.slice(-40).reverse(),
+    (e) =>
+      `<tr><td>${hora(e.ts)}</td><td>${e.nome} <span class="fraco">@${e.handle}</span></td>` +
+      `<td class="n gema forte">+${num(e.gemas)}</td><td class="n fraco">${num(e.total)}</td></tr>`,
+    4,
   );
 
   linhas(
@@ -112,33 +107,60 @@ async function pintar() {
     3,
   );
 
-  const quantosIcones = Object.keys(tabela).length;
+  const quantos = Object.keys(tabela).length;
   $("#rodape").textContent = p
-    ? `Uma carpa custa ${GEMAS_POR_CARPA} gemas, então o número de carpas aqui é o total de gemas ` +
-      `dividido por ${GEMAS_POR_CARPA}: a Jamble entrega quantas gemas cada pessoa mandou, mas não ` +
-      `diz qual ícone foi.` +
-      (quantosIcones ? ` Tabela de preços lida da Jamble: ${quantosIcones} ícones.` : "")
+    ? `A Jamble entrega quantas gemas cada pessoa enviou no total, mas não diz qual ícone foi. ` +
+      `"Carpas" aqui é o total de gemas dividido por ${GEMAS_POR_CARPA} (o preço da Carpa Zika), ` +
+      `então é equivalência, não contagem carpa a carpa.` +
+      (quantos ? ` Tabela de preços lida da Jamble: ${quantos} ícones.` : "") +
+      (eventos.length
+        ? ""
+        : ` O "ao vivo" começa a encher na segunda leitura: a primeira serve de ponto de partida.`)
     : "";
 }
 
 // ---------- atualizar ----------
 
+let relogio = null;
+
+async function atualizarAgora(silencioso) {
+  if (!temStorage) return;
+  const r = await chrome.runtime.sendMessage({ tipo: "atualizar-participacao" }).catch(() => null);
+  if (!silencioso || !r?.ok) {
+    $("#aviso").textContent = r?.ok
+      ? ""
+      : "Não achei a aba da Jamble com a participação aberta. Abra a sua live (painel do vendedor → Lives → a live → Participação, ou a própria página da live) e deixe a aba aberta.";
+  }
+}
+
+function ligarRelogio() {
+  if (relogio) clearInterval(relogio);
+  const seg = Number($("#intervalo").value);
+  if (!seg) return;
+  relogio = setInterval(() => atualizarAgora(true), seg * 1000);
+}
+
 $("#atualizar").addEventListener("click", async () => {
   const b = $("#atualizar");
   const antes = b.textContent;
   b.disabled = true;
-  b.textContent = "atualizando…";
-  if (temStorage) {
-    const r = await chrome.runtime.sendMessage({ tipo: "atualizar-participacao" }).catch(() => null);
-    $("#aviso").textContent = r?.ok
-      ? ""
-      : "Não achei a aba da live no painel da Jamble. Abra Painel → Lives → a sua live → aba Participação e deixe a aba aberta.";
-  }
+  b.textContent = "lendo…";
+  await atualizarAgora(false);
   setTimeout(() => {
     b.disabled = false;
     b.textContent = antes;
     pintar();
   }, 2500);
+});
+
+$("#intervalo").addEventListener("change", () => {
+  localStorage.setItem("intervalo", $("#intervalo").value);
+  ligarRelogio();
+});
+
+$("#ordem").addEventListener("change", () => {
+  ordem = $("#ordem").value;
+  pintar();
 });
 
 // ---------- sorteio ----------
@@ -149,7 +171,7 @@ async function sortear() {
   const comPeso = $("#peso").checked;
   const semRepetir = $("#semRepetir").checked;
 
-  let candidatos = candidatosDe(p, soGemas);
+  let candidatos = (p?.linhas ?? []).filter((l) => l.handle && (!soGemas || l.gemas > 0));
 
   if (semRepetir) {
     const jaGanharam = new Set(sorteios.map((s) => s.ganhador));
@@ -160,12 +182,13 @@ async function sortear() {
   if (!candidatos.length) {
     $("#ganhador").textContent = "";
     $("#detalheSorteio").textContent = soGemas
-      ? "Ninguém mandou gemas nesta live ainda."
+      ? "Ninguém enviou gemas nesta live ainda."
       : "Ainda não tenho a participação desta live.";
     return;
   }
 
-  // Com peso, cada carpa equivalente vale um bilhete. Sem peso, um por pessoa.
+  // Com peso, cada carpa equivalente vale um bilhete (quem enviou pouco fica
+  // com um). Sem peso, uma chance por pessoa.
   const bilhetes = [];
   for (const c of candidatos) {
     const n = comPeso ? Math.max(1, Math.round(c.gemas / GEMAS_POR_CARPA)) : 1;
@@ -176,11 +199,9 @@ async function sortear() {
   sorteios.push({ ts: Date.now(), ganhador: ganho.handle, entre: candidatos.length, soGemas, comPeso });
   await salvar({ sorteios });
 
-  const carpas = Math.round(ganho.gemas / GEMAS_POR_CARPA);
   $("#ganhador").textContent = "@" + ganho.handle;
   $("#detalheSorteio").textContent =
-    `${num(ganho.gemas)} gemas (${num(carpas)} ${carpas === 1 ? "carpa" : "carpas"}) · ` +
-    `sorteado entre ${candidatos.length} pessoas` +
+    `${num(ganho.gemas)} gemas · sorteado entre ${candidatos.length} pessoas` +
     (comPeso ? " · mais gemas, mais chance" : " · chance igual") +
     (semRepetir ? " · sem repetir" : "");
   pintar();
@@ -198,5 +219,7 @@ $("#limparSorteios").addEventListener("click", async () => {
 
 $("#imprimir").addEventListener("click", () => window.print());
 
+$("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
+ligarRelogio();
 pintar();
 setInterval(pintar, 2000);
