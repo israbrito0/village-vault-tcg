@@ -7,6 +7,7 @@ const path = require("node:path");
 const testes = [
   ["manifest e ligações entre os arquivos", "teste-manifest.js"],
   ["leitura da Jamble (vendas, participação, tabela)", "teste-leitura.js"],
+  ["a ponte entre a página e a extensão", "teste-content.js"],
   ["contas de gemas", "teste-gemas.js"],
   ["o que o background guarda", "teste-background.js"],
 ];
