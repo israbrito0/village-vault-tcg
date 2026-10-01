@@ -157,6 +157,8 @@ testado numa live ao vivo em 01/10/2026: para quem assiste chega só o total
 (like_count), nunca quem mandou o quê. Por isso o número de carpas do painel é
 o total de gemas dividido por 500: é equivalência, não contagem carpa a carpa.
 Quem enviar 500 gemas em coraçãozinho aparece igual a quem enviou uma carpa.
+O 500 não fica escrito na unha: a extensão lê o preço em /api/live/emojis, então
+se a Jamble mudar, o painel acompanha sozinho.
 
 Nada disso vai para o site -- fica só neste computador. E CPF, telefone e
 e-mail são escondidos antes de entrar no arquivo de depuração (o canal
@@ -166,6 +168,11 @@ Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as três suítes: leitura dos payloads da Jamble, contas de gemas e o que o
-background guarda (inclusive troca de live e limite do histórico). Sai com
-código 1 se alguma falhar.
+Roda as seis suítes, 152 casos:
+  manifest e ligações entre os arquivos (arquivo que falta, ordem errada)
+  leitura dos payloads da Jamble (vendas, participação, tabela de preços)
+  a ponte entre a página e a extensão (content.js)
+  contas de gemas (o "ao vivo", a janela de 5 min, o id da live)
+  o que o background guarda (troca de live, duas lives abertas, limites)
+  nome de fora não vira código (escape de HTML)
+Sai com código 1 se alguma falhar.

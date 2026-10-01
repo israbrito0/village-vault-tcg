@@ -90,6 +90,10 @@ const PORORDEM = {
 async function pintar() {
   const { lives, p, titulo, eventos, tabela } = await ler();
   const linhasP = p?.linhas ?? [];
+  // O preço da carpa vem da tabela da própria Jamble quando ela já passou por
+  // aqui; os 500 só valem até a primeira leitura. Assim, se eles mudarem o
+  // preço, o painel acompanha sozinho.
+  const porCarpa = Number(tabela?.magikarp_shiny) || GEMAS_POR_CARPA;
   const r = resumirGemas(linhasP);
 
   // Só mostra o seletor quando existe mais de uma live para escolher.
@@ -117,7 +121,7 @@ async function pintar() {
 
   $("#c-gemas").textContent = num(r.gemas);
   $("#c-recentes").textContent = num(gemasRecentes(eventos, 5 * 60 * 1000));
-  $("#c-carpas").textContent = num(r.carpas);
+  $("#c-carpas").textContent = num(r.gemas / porCarpa);
   $("#c-pontos").textContent = num(r.pontos);
   $("#c-enviaram").textContent = `${num(r.enviaram)}/${num(r.pessoas)}`;
   $("#c-comprado").textContent = reais(r.comprado);
@@ -163,7 +167,7 @@ async function pintar() {
   const quantos = Object.keys(tabela).length;
   $("#rodape").textContent = p
     ? `A Jamble entrega quantas gemas cada pessoa enviou no total, mas não diz qual ícone foi. ` +
-      `"Carpas" aqui é o total de gemas dividido por ${GEMAS_POR_CARPA} (o preço da Carpa Zika), ` +
+      `"Carpas" aqui é o total de gemas dividido por ${num(porCarpa)} (o preço da Carpa Zika), ` +
       `então é equivalência, não contagem carpa a carpa.` +
       (quantos ? ` Tabela de preços lida da Jamble: ${quantos} ícones.` : "") +
       (eventos.length
@@ -224,7 +228,8 @@ $("#qualLive").addEventListener("change", () => {
 // ---------- sorteio ----------
 
 async function sortear() {
-  const { p } = await ler();
+  const { p, tabela } = await ler();
+  const porCarpa = Number(tabela?.magikarp_shiny) || GEMAS_POR_CARPA;
   const soGemas = document.querySelector('input[name="quem"]:checked').value === "gemas";
   const comPeso = $("#peso").checked;
   const semRepetir = $("#semRepetir").checked;
@@ -249,7 +254,7 @@ async function sortear() {
   // com um). Sem peso, uma chance por pessoa.
   const bilhetes = [];
   for (const c of candidatos) {
-    const n = comPeso ? Math.max(1, Math.round(c.gemas / GEMAS_POR_CARPA)) : 1;
+    const n = comPeso ? Math.max(1, Math.round(c.gemas / porCarpa)) : 1;
     for (let i = 0; i < n; i++) bilhetes.push(c);
   }
   const ganho = bilhetes[Math.floor(Math.random() * bilhetes.length)];

@@ -128,7 +128,6 @@
   // chutar quanto vale cada ícone, a extensão lê essa resposta quando a página
   // pede e guarda os valores. São 36 ícones hoje, e a lista muda sozinha
   // quando eles criam um novo -- por isso nada fica escrito na unha aqui.
-  let PONTOS_ICONE = {};
 
   function guardarTabela(dados) {
     if (!Array.isArray(dados?.emojis)) return;
@@ -137,7 +136,6 @@
       if (typeof e?.id === "string" && typeof e?.gemPrice === "number") tabela[e.id] = e.gemPrice;
     }
     if (!Object.keys(tabela).length) return;
-    PONTOS_ICONE = tabela;
     avisar("tabela-emocoes", { tabela });
   }
 
@@ -164,50 +162,6 @@
     });
   }
 
-  // Extra: se algum dia passar um evento de emotion pessoa a pessoa, ele é
-  // aproveitado para abrir a conta por ícone. Só aceita ícone que exista na
-  // tabela oficial: sem essa trava, nomes curtos como "flash" e "battle"
-  // casavam por pedaço com campos que não têm nada a ver (is_flash_sale).
-  const CHAVES_ICONE = /^(emoji|emojiId|emoji_id|icon|icone|pattern|emotion|reaction|sticker|gift|slug)$/i;
-  const CHAVES_QTD = /^(count|quantity|qty|quantidade|amount)$/i;
-
-  function varrerEmocoes(valor, caminho, saida, profundidade = 0) {
-    if (!valor || typeof valor !== "object" || profundidade > 8) return;
-    if (Array.isArray(valor)) {
-      valor.forEach((v, i) => varrerEmocoes(v, `${caminho}[${i}]`, saida, profundidade + 1));
-      return;
-    }
-    let icone = null;
-    for (const [k, v] of Object.entries(valor)) {
-      if (CHAVES_ICONE.test(k) && typeof v === "string" && v in PONTOS_ICONE) {
-        icone = v;
-        break;
-      }
-    }
-    if (icone) {
-      const usuario = acharUsuario(valor);
-      let qtd = 1;
-      for (const [k, v] of Object.entries(valor)) {
-        if (CHAVES_QTD.test(k) && typeof v === "number" && v > 0 && v < 10000) {
-          qtd = v;
-          break;
-        }
-      }
-      saida.push({
-        id: `emo:${usuario ?? "anon"}:${icone}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`,
-        handle: usuario ? String(usuario).replace(/^@/, "") : "",
-        icone,
-        quantidade: qtd,
-        pontos: PONTOS_ICONE[icone] * qtd,
-        ts: Date.now(),
-        _caminho: caminho,
-      });
-    }
-    for (const [k, v] of Object.entries(valor)) {
-      varrerEmocoes(v, `${caminho}.${k}`, saida, profundidade + 1);
-    }
-  }
-
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -223,9 +177,6 @@
       guardarParticipacao(dados, origem);
     }
 
-    const emocoes = [];
-    varrerEmocoes(dados, origem, emocoes);
-    for (const e of emocoes) avisar("emocao", { ...e, origem });
 
     const vendas = [];
     const candidatos = [];

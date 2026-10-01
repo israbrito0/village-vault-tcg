@@ -157,13 +157,15 @@ async function pedir(url, corpo) {
   );
   conferir(!part.some((m) => m.tipo === "venda"), "participação não vira venda no ranking do site");
 
-  // 3) o ícone só conta se existir na tabela oficial: "flash" dentro de
-  //    is_flash_sale não pode virar emotion (foi o falso positivo de 01/10)
-  const falso = await pedir(
+  // 3) a extensão não tenta mais adivinhar emotion por ícone: a Jamble não
+  //    manda isso por pessoa, e a tentativa dava falso positivo ("flash" da
+  //    tabela de ícones casava com is_flash_sale_enabled dos leilões).
+  const leilao = await pedir(
     "https://www.jamble.com/api/live/x",
     JSON.stringify({ sale: { settings: { is_flash_sale_enabled: false, type: "AUCTION" }, buyer: { username: "zé" } } }),
   );
-  conferir(!falso.some((m) => m.tipo === "emocao"), "is_flash_sale não vira emotion");
+  conferir(!leilao.some((m) => m.tipo === "emocao"), "não existe mais mensagem de emotion");
+  conferir(!leilao.some((m) => m.tipo === "venda"), "leilão sem valor não vira venda");
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);

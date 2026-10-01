@@ -108,13 +108,18 @@ const botaoFalso = (texto) => {
     p.daPagina("venda", { id: "v1", handle: "jako", centavos: 1000 });
     p.daPagina("participacao", { quando: 1, linhas: [] });
     p.daPagina("tabela-emocoes", { tabela: { magikarp_shiny: 500 } });
-    p.daPagina("emocao", { icone: "magikarp_shiny" });
     p.daPagina("candidato", { origem: "x", itens: [] });
 
     const tipos = p.enviadas.map((m) => m.tipo);
-    for (const t of ["venda", "participacao", "tabela-emocoes", "emocao", "candidato"]) {
+    for (const t of ["venda", "participacao", "tabela-emocoes", "candidato"]) {
       conferir(tipos.includes(t), `repassa "${t}" para o background`, tipos.join(", "));
     }
+
+    // Emotion por pessoa não existe mais: a Jamble não entrega isso, e a
+    // tentativa de adivinhar só gerava falso positivo.
+    p.enviadas.length = 0;
+    p.daPagina("emocao", { icone: "magikarp_shiny" });
+    conferir(p.enviadas.length === 0, "não repassa mais emotion");
   }
 
   // ---------- o contexto vai certo em cada tipo de página ----------
