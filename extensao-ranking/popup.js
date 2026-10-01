@@ -1,6 +1,13 @@
 const $ = (id) => document.getElementById(id);
 const pedir = (msg) => new Promise((r) => chrome.runtime.sendMessage(msg, r));
 
+// Título de live, nome de comprador, texto de erro e título de página da
+// LigaPokemon são escritos por outra gente e entram em HTML aqui. Esta janela
+// é da extensão e enxerga o chrome.storage (onde mora o token), então nada
+// disso pode virar código.
+const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
+
 function reais(centavos) {
   return (centavos / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
@@ -38,11 +45,11 @@ async function pintar() {
 
   const topo = e.stats.ultimaResposta?.top ?? [];
   $("painel").innerHTML = `
-    <div><b>${e.liveAtual?.titulo || "Nenhuma live detectada"}</b></div>
+    <div><b>${esc(e.liveAtual?.titulo) || "Nenhuma live detectada"}</b></div>
     <div>na fila: ${e.fila.length} · enviados: ${e.stats.enviados ?? 0}</div>
     <div>última venda: ${quando(e.stats.ultimaVenda)} · último envio: ${quando(e.stats.ultimoEnvio)}</div>
-    ${e.stats.ultimoErro ? `<div class="erro">erro: ${e.stats.ultimoErro}</div>` : '<div class="ok">sem erros</div>'}
-    ${topo.length ? `<div style="margin-top:6px">${topo.map((c, i) => `${i + 1}. @${c.handle} — ${reais(c.centavos)}`).join("<br>")}</div>` : ""}
+    ${e.stats.ultimoErro ? `<div class="erro">erro: ${esc(e.stats.ultimoErro)}</div>` : '<div class="ok">sem erros</div>'}
+    ${topo.length ? `<div style="margin-top:6px">${topo.map((c, i) => `${i + 1}. @${esc(c.handle)} — ${reais(c.centavos)}`).join("<br>")}</div>` : ""}
     <div style="margin-top:4px;color:#9ca3af">versão ${versaoExtensao()} · ler preço: ${chrome.scripting?.executeScript ? "direto" : "pela página"}</div>
     ${e.candidatos.length ? `<div style="margin-top:6px;color:#6b7280">${e.candidatos.length} payloads em dúvida (use "Baixar depuração")</div>` : ""}
   `;
@@ -142,7 +149,7 @@ $("ligaLer").onclick = async () => {
       leitura = await chrome.tabs.sendMessage(aba.id, { tipo: "ler-precos" });
     }
   } catch (e) {
-    caixa.innerHTML = `<span class="erro">${e.message}. Recarregue a extensão em edge://extensions e recarregue a página da Liga.</span>`;
+    caixa.innerHTML = `<span class="erro">${esc(e.message)}. Recarregue a extensão em edge://extensions e recarregue a página da Liga.</span>`;
     return;
   }
   if (!leitura?.achados?.length) {
@@ -151,7 +158,7 @@ $("ligaLer").onclick = async () => {
   }
   if (leitura.codigo && !$("ligaCodigo").value) $("ligaCodigo").value = leitura.codigo;
 
-  caixa.innerHTML = `<div class="painel"><b>${leitura.titulo}</b><div id="ligaLista"></div></div>`;
+  caixa.innerHTML = `<div class="painel"><b>${esc(leitura.titulo)}</b><div id="ligaLista"></div></div>`;
   const lista = document.getElementById("ligaLista");
 
   // A regra da casa: menor preço em NM. Se existir, vira o botão principal.
@@ -210,8 +217,8 @@ async function salvarPrecoDaLiga(centavos, condicao = "") {
   });
   const resposta = await r.json();
   caixa.innerHTML = r.ok
-    ? `<span class="ok">${carta.nome}: ${reais(centavos)}${condicao ? ` (${condicao})` : ""} salvo como preço da casa.</span>`
-    : `<span class="erro">${resposta.erro ?? "não deu"}</span>`;
+    ? `<span class="ok">${esc(carta.nome)}: ${reais(centavos)}${condicao ? ` (${condicao})` : ""} salvo como preço da casa.</span>`
+    : `<span class="erro">${esc(resposta.erro ?? "não deu")}</span>`;
   chrome.storage.local.set({ tokenPainel: painel });
 }
 

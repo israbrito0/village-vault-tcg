@@ -10,6 +10,7 @@ const testes = [
   ["a ponte entre a página e a extensão", "teste-content.js"],
   ["contas de gemas", "teste-gemas.js"],
   ["o que o background guarda", "teste-background.js"],
+  ["nome de fora não vira código", "teste-escape.js"],
 ];
 
 let ruim = 0;

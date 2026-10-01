@@ -11,6 +11,14 @@
 // gemas, enviou. Quem faz essa conta é o gemas.js.
 
 const $ = (s) => document.querySelector(s);
+
+// Nome e @ vêm do que o espectador escreveu no perfil dele, e o título vem do
+// que o vendedor escreveu. Tudo isso entra em HTML aqui, então tem que ser
+// escapado: esta página é da extensão e enxerga o chrome.storage (onde mora o
+// token do site). Um nome com <img onerror=...> não pode virar código.
+const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
+
 const num = (n) => Math.round(n).toLocaleString("pt-BR");
 const reais = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
@@ -93,7 +101,7 @@ async function pintar() {
     const novo = ordenadas
       .map(
         (l) =>
-          `<option value="${l.id}">${l.doPainel ? "★ " : ""}${(l.titulo || l.id).slice(0, 40)}</option>`,
+          `<option value="${esc(l.id)}">${l.doPainel ? "★ " : ""}${esc(String(l.titulo || l.id).slice(0, 40))}</option>`,
       )
       .join("");
     if (cx.innerHTML !== novo) cx.innerHTML = novo;
@@ -119,7 +127,7 @@ async function pintar() {
     $("#t-ranking tbody"),
     ordenado.slice(0, 80).map((l, i) => ({ i: i + 1, ...l })),
     (d) =>
-      `<tr><td>${d.i}</td><td>${d.nome} <span class="fraco">@${d.handle}</span></td>` +
+      `<tr><td>${d.i}</td><td>${esc(d.nome)} <span class="fraco">@${esc(d.handle)}</span></td>` +
       `<td class="n gema">${d.gemas ? num(d.gemas) : "—"}</td>` +
       `<td class="n">${d.gastou ? reais(d.gastou) : "—"}</td>` +
       `<td class="n">${num(d.mensagens)}</td><td class="n forte">${num(d.pontos)}</td></tr>`,
@@ -130,7 +138,7 @@ async function pintar() {
     $("#t-feed tbody"),
     eventos.slice(-40).reverse(),
     (e) =>
-      `<tr><td>${hora(e.ts)}</td><td>${e.nome} <span class="fraco">@${e.handle}</span></td>` +
+      `<tr><td>${hora(e.ts)}</td><td>${esc(e.nome)} <span class="fraco">@${esc(e.handle)}</span></td>` +
       `<td class="n gema forte">+${num(e.gemas)}</td><td class="n fraco">${num(e.total)}</td></tr>`,
     4,
   );
@@ -138,7 +146,7 @@ async function pintar() {
   linhas(
     $("#t-sorteios tbody"),
     sorteios.slice().reverse(),
-    (s) => `<tr><td>${hora(s.ts)}</td><td>@${s.ganhador}</td><td>${s.entre} pessoas</td></tr>`,
+    (s) => `<tr><td>${hora(s.ts)}</td><td>@${esc(s.ganhador)}</td><td>${num(s.entre)} pessoas</td></tr>`,
     3,
   );
 
