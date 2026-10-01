@@ -32,6 +32,8 @@
     else if (e.data.tipo === "emocao") mandar("emocao", e.data.dados);
     else if (e.data.tipo === "candidato") mandar("candidato", e.data.dados);
     else if (e.data.tipo === "ligado") mandar("ligado", e.data.dados);
+    else if (e.data.tipo === "participacao") mandar("participacao", e.data.dados);
+    else if (e.data.tipo === "tabela-emocoes") mandar("tabela-emocoes", e.data.dados);
   });
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
@@ -39,6 +41,17 @@
       window.postMessage({ marca: MARCA, tipo: "modo", dados: msg.dados }, "*");
     }
     if (msg?.tipo === "contexto") responder(contexto());
+
+    // O painel pede para atualizar os numeros: aperta o proprio botao
+    // "Atualizar" da pagina da Jamble, que refaz a chamada e o inject.js le a
+    // resposta nova. Nao inventa requisicao nenhuma por fora.
+    if (msg?.tipo === "atualizar-participacao") {
+      const botao = [...document.querySelectorAll("button")].find(
+        (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
+      );
+      if (botao) botao.click();
+      responder({ ok: !!botao });
+    }
     return true;
   });
 

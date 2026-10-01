@@ -68,31 +68,43 @@ valor e identificador do pedido. Nada de endereço, telefone ou pagamento.
 Painel da live (carpas e sorteio)
 ---------------------------------
 Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
-própria e mostra, enquanto a live estiver aberta em outra aba:
+própria e mostra os números da live aberta no painel do vendedor:
 
-  - contador de CARPAS (a emotion magikarp_shiny), emotions, pontos e pessoas
-  - ranking de carpas por pessoa
-  - emotions por ícone, com os pontos de cada uma
-  - feed ao vivo de quem mandou o quê e a que horas
-  - sorteio entre quem enviou, com três opções:
-      só quem mandou carpa (ou qualquer emotion)
-      mais carpa = mais chance (ou chance igual para todos)
+  - carpas, gemas, pontos, pessoas e quanto foi comprado
+  - ranking de participação: quem comprou quanto, quantas gemas mandou,
+    quantas mensagens escreveu e quantos pontos fez
+  - sorteio entre quem participou, com três opções:
+      só quem mandou gemas (ou todo mundo da live)
+      mais gemas = mais chance (ou chance igual para todos)
       não repetir quem já ganhou
   - "Salvar relatório em PDF": usa a impressão do navegador, já sem os botões
 
-Tabela de pontos por ícone (veio do relatório da live de 30/09):
-  magikarp_shiny 500 (a carpa) | masterball 250 | squirtle_sax 80
-  joystick 80 | magikarp 70 | charmander 60 | bulbasaur 60
-  finish_flag 50 | snorlax 20 | pokeball 20 | pixel_heart 10
+De onde vêm os números
+----------------------
+Da própria Jamble, de duas respostas que a página do painel do vendedor já
+pede sozinha. A extensão só lê o que passa; não inventa conta nem chama
+endereço nenhum por fora:
 
-Ícone novo que a Jamble lançar aparece na contagem de emotions, mas sem pontos,
-e o rodapé do painel avisa o nome dele para alguém acrescentar na tabela
-(a lista fica em inject.js, em PONTOS_ICONE).
+  /api/seller/show-participation  -> por pessoa: comprou, gemas, mensagens
+                                     e pontos (é a aba "Participação")
+  /api/live/emojis                -> quanto cada ícone custa em gemas (36 hoje)
 
-A contagem é por live: ao trocar de live, começa do zero. Nada disso vai para o
-site -- fica só neste computador.
+Para o painel funcionar, deixe a sua live aberta no painel do vendedor, na aba
+Participação:  Painel -> Lives -> a sua live -> Participação.
+O botão "Atualizar números" do painel aperta o "Atualizar" daquela página, que
+refaz a chamada; o painel pega a resposta nova sozinho.
 
-ATENÇÃO: a captura das emotions ainda não foi testada numa live de verdade.
-O caminho é o mesmo que já funciona para as vendas (WebSocket, fetch e XHR da
-página), mas o formato do evento de emotion é suposição até a primeira live.
-Se o contador ficar zerado, abra "Baixar depuração" e me mande o arquivo.
+Sobre "carpas"
+--------------
+Uma carpa (Carpa Zika, magikarp_shiny) custa 500 gemas. A Jamble entrega
+quantas gemas cada pessoa mandou, mas NÃO diz qual ícone foi. Então o número
+de carpas do painel é o total de gemas dividido por 500 -- é equivalência, não
+contagem de carpa uma por uma. Quem mandou 500 gemas em pixel_heart aparece
+igual a quem mandou uma carpa.
+
+O quadro "Emotions por ícone" fica escondido e só aparece se algum evento de
+emotion pessoa a pessoa for capturado. Testei numa live de verdade em 01/10:
+para quem assiste, a Jamble manda só o total (like_count), nunca quem mandou o
+quê. Se no seu próprio ar isso vier diferente, o quadro aparece sozinho.
+
+Nada disso vai para o site -- fica só neste computador.

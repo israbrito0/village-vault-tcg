@@ -10,6 +10,15 @@ const codigo = fs.readFileSync(
 );
 
 const recebidos = [];
+let falhas = 0;
+
+// O gancho do inject.js guarda o fetch original assim que é instalado, então
+// o original já precisa ser este despachante: o teste só troca o corpo.
+let proximaResposta = "";
+function respostaFalsa(corpo) {
+  const r = { headers: { get: () => "application/json" }, clone: () => r, text: async () => corpo };
+  return r;
+}
 let aoAbrir = null;
 
 class WebSocketFake {
@@ -30,7 +39,7 @@ const janela = {
   addEventListener: () => {},
   postMessage: (msg) => recebidos.push(msg),
   WebSocket: WebSocketFake,
-  fetch: async () => new Response(""),
+  fetch: async () => respostaFalsa(proximaResposta),
   XMLHttpRequest: function () {},
   location: { href: "https://www.jamble.com/live/abc123" },
 };
@@ -81,11 +90,81 @@ for (const caso of casos) {
   const vendas = recebidos.filter((m) => m.tipo === "venda").map((m) => m.dados);
   const candidatos = recebidos.filter((m) => m.tipo === "candidato");
   if (!caso.espera) {
+    if (vendas.length !== 0) falhas++;
     console.log(`${vendas.length === 0 ? "OK  " : "FALHA"} ${caso.nome} (vendas: ${vendas.length}, dúvidas: ${candidatos.length})`);
     continue;
   }
   const achou = vendas.find((v) => v.handle === caso.espera.handle && v.centavos === caso.espera.centavos);
+  if (!achou) falhas++;
   console.log(
     `${achou ? "OK  " : "FALHA"} ${caso.nome} -> ${vendas.map((v) => v.handle + ":" + v.centavos).join(", ") || "nada"}`,
   );
 }
+
+// ---------- participação e tabela de preços (o que o painel da live usa) ----------
+// Caminho de verdade: a página pede, o gancho do fetch lê a resposta.
+
+const conferir = (ok, nome, detalhe = "") => {
+  if (!ok) falhas++;
+  console.log(`${ok ? "OK  " : "FALHA"} ${nome}${detalhe ? " -> " + detalhe : ""}`);
+};
+
+async function pedir(url, corpo) {
+  recebidos.length = 0;
+  proximaResposta = corpo;
+  await contexto.fetch(url);
+  await new Promise((r) => setImmediate(r));
+  return recebidos;
+}
+
+(async () => {
+  // 1) tabela de preços, no formato exato que a Jamble devolve
+  const tabela = await pedir(
+    "https://www.jamble.com/api/live/emojis",
+    JSON.stringify({
+      success: true,
+      emojis: [
+        { id: "pixel_heart", name: "Coração Pixel", gemPrice: 10 },
+        { id: "magikarp_shiny", name: "Carpa Zika", gemPrice: 500 },
+      ],
+    }),
+  );
+  const t = tabela.find((m) => m.tipo === "tabela-emocoes")?.dados?.tabela;
+  conferir(t?.magikarp_shiny === 500 && t?.pixel_heart === 10, "tabela de preços lida de /api/live/emojis", JSON.stringify(t));
+
+  // 2) participação, no formato exato da live de 30/09
+  const part = await pedir(
+    "https://www.jamble.com/api/seller/show-participation?show_id=2P5LgSdtPTmHDSMdXGKV",
+    JSON.stringify({
+      success: true,
+      participation: {
+        weights: { spent: 1, gems: 0.1, messages: 0 },
+        isLive: true,
+        rows: [
+          { userId: "u1", rank: 1, score: 9580, spent: 9530, gems: 500, messages: 38, username: "fabiomeneguello", displayName: "fabio.meneguello" },
+          { userId: "u2", rank: 2, score: 2473, spent: 5, gems: 24680, messages: 40, username: "jakolino", displayName: "jako" },
+        ],
+      },
+    }),
+  );
+  const p = part.find((m) => m.tipo === "participacao")?.dados;
+  conferir(p?.linhas?.length === 2, "participação lida de /api/seller/show-participation", `${p?.linhas?.length} linhas`);
+  conferir(p?.aoVivo === true, "marca a live como ao vivo");
+  conferir(
+    p?.linhas?.[1]?.handle === "jakolino" && p?.linhas?.[1]?.gemas === 24680 && p?.linhas?.[1]?.pontos === 2473,
+    "gemas e pontos de cada pessoa",
+    JSON.stringify(p?.linhas?.[1]),
+  );
+  conferir(!part.some((m) => m.tipo === "venda"), "participação não vira venda no ranking do site");
+
+  // 3) o ícone só conta se existir na tabela oficial: "flash" dentro de
+  //    is_flash_sale não pode virar emotion (foi o falso positivo de 01/10)
+  const falso = await pedir(
+    "https://www.jamble.com/api/live/x",
+    JSON.stringify({ sale: { settings: { is_flash_sale_enabled: false, type: "AUCTION" }, buyer: { username: "zé" } } }),
+  );
+  conferir(!falso.some((m) => m.tipo === "emocao"), "is_flash_sale não vira emotion");
+
+  console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
+  process.exit(falhas ? 1 : 0);
+})();

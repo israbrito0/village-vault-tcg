@@ -69,6 +69,16 @@
     return `sem-id:${usuario}:${centavos}:${Math.floor(Date.now() / 5000)}`;
   }
 
+  // A amostra crua serve para depurar, mas o canal show_user da Jamble carrega
+  // CPF, telefone e e-mail do dono da conta. Isso some antes de sair daqui: o
+  // arquivo de depuracao nao pode virar um vazamento de dado pessoal.
+  const SEGREDOS =
+    /"(cpf|cnpj|phone_number|phoneNumber|telefone|email|birth_?date|document|rg|pix_key|bank_account|postal_code|zip_?code|street|address_line\w*)"\s*:\s*("[^"]*"|-?\d+(\.\d+)?|null)/gi;
+
+  function semSegredo(texto) {
+    return texto.replace(SEGREDOS, (_, campo) => '"' + campo + '":"(escondido)"');
+  }
+
   function pareceVenda(obj, caminho) {
     if (PISTA_VENDA.test(caminho)) return true;
     const tipo = obj.type || obj.event || obj.kind || obj.action || obj.name || "";
@@ -98,7 +108,7 @@
         _confiavel: ehVenda,
       };
       if (registro._confiavel) saida.push(registro);
-      else candidatos.push({ ...registro, _amostra: JSON.stringify(valor).slice(0, 600) });
+      else candidatos.push({ ...registro, _amostra: semSegredo(JSON.stringify(valor)).slice(0, 600) });
     }
     for (const [k, v] of Object.entries(valor)) {
       varrer(v, `${caminho}.${k}`, saida, candidatos, modo, profundidade + 1, ehVenda);
@@ -112,33 +122,55 @@
     }
   });
 
-  // ---------- emotions (carpas e companhia) ----------
+  // ---------- emotions e participação ----------
 
-  // Quanto cada ícone custa em gemas. Veio do relatório da live de 30/09:
-  // quantidade x pontos de cada um bate exatamente com esta tabela. Ícone que
-  // não estiver aqui ainda é contado, só fica sem valor até alguém mapear.
-  const PONTOS_ICONE = {
-    magikarp_shiny: 500, // a carpa
-    masterball: 250,
-    squirtle_sax: 80,
-    joystick: 80,
-    magikarp: 70,
-    charmander: 60,
-    bulbasaur: 60,
-    finish_flag: 50,
-    snorlax: 20,
-    pokeball: 20,
-    pixel_heart: 10,
-  };
+  // A própria Jamble publica a tabela de preços em /api/live/emojis. Em vez de
+  // chutar quanto vale cada ícone, a extensão lê essa resposta quando a página
+  // pede e guarda os valores. São 36 ícones hoje, e a lista muda sozinha
+  // quando eles criam um novo -- por isso nada fica escrito na unha aqui.
+  let PONTOS_ICONE = {};
 
-  const CHAVES_ICONE = /^(emoji|icon|icone|pattern|emotion|reaction|sticker|gift|nome|name|slug|type)$/i;
-  const CHAVES_PONTOS = /^(points|pontos|gems|gemas|amount|quantity|qty|value)$/i;
-
-  function pareceIcone(v) {
-    return typeof v === "string" && /^[a-z][a-z0-9_]{2,30}$/.test(v) && (v in PONTOS_ICONE || /magikarp|pokeball|heart|ball|flag|sax|joystick|snorlax|charmander|bulbasaur/i.test(v));
+  function guardarTabela(dados) {
+    if (!Array.isArray(dados?.emojis)) return;
+    const tabela = {};
+    for (const e of dados.emojis) {
+      if (typeof e?.id === "string" && typeof e?.gemPrice === "number") tabela[e.id] = e.gemPrice;
+    }
+    if (!Object.keys(tabela).length) return;
+    PONTOS_ICONE = tabela;
+    avisar("tabela-emocoes", { tabela });
   }
 
-  // Procura objetos que tenham um ícone de emotion e, de preferência, quem mandou.
+  // O ranking por pessoa vem pronto em /api/seller/show-participation: cada
+  // linha diz quanto a pessoa comprou, quantas gemas mandou e quantos pontos
+  // fez. É exatamente o que a aba "Participação" mostra no painel do vendedor,
+  // calculado pela Jamble -- não é conta nossa.
+  function guardarParticipacao(dados, origem) {
+    const p = dados?.participation;
+    if (!Array.isArray(p?.rows)) return;
+    avisar("participacao", {
+      origem,
+      quando: Date.now(),
+      aoVivo: p.isLive === true,
+      pesos: p.weights ?? null,
+      linhas: p.rows.map((r) => ({
+        handle: String(r.username ?? "").replace(/^@/, ""),
+        nome: r.displayName || r.username || "",
+        pontos: Number(r.score) || 0,
+        gastou: Number(r.spent) || 0,
+        gemas: Number(r.gems) || 0,
+        mensagens: Number(r.messages) || 0,
+      })),
+    });
+  }
+
+  // Extra: se algum dia passar um evento de emotion pessoa a pessoa, ele é
+  // aproveitado para abrir a conta por ícone. Só aceita ícone que exista na
+  // tabela oficial: sem essa trava, nomes curtos como "flash" e "battle"
+  // casavam por pedaço com campos que não têm nada a ver (is_flash_sale).
+  const CHAVES_ICONE = /^(emoji|emojiId|emoji_id|icon|icone|pattern|emotion|reaction|sticker|gift|slug)$/i;
+  const CHAVES_QTD = /^(count|quantity|qty|quantidade|amount)$/i;
+
   function varrerEmocoes(valor, caminho, saida, profundidade = 0) {
     if (!valor || typeof valor !== "object" || profundidade > 8) return;
     if (Array.isArray(valor)) {
@@ -147,22 +179,26 @@
     }
     let icone = null;
     for (const [k, v] of Object.entries(valor)) {
-      if (CHAVES_ICONE.test(k) && pareceIcone(v)) { icone = v; break; }
+      if (CHAVES_ICONE.test(k) && typeof v === "string" && v in PONTOS_ICONE) {
+        icone = v;
+        break;
+      }
     }
     if (icone) {
       const usuario = acharUsuario(valor);
       let qtd = 1;
       for (const [k, v] of Object.entries(valor)) {
-        if (CHAVES_PONTOS.test(k) && typeof v === "number" && v > 0 && v < 10000) { qtd = v; break; }
+        if (CHAVES_QTD.test(k) && typeof v === "number" && v > 0 && v < 10000) {
+          qtd = v;
+          break;
+        }
       }
-      const pontosUnidade = PONTOS_ICONE[icone] ?? 0;
       saida.push({
         id: `emo:${usuario ?? "anon"}:${icone}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`,
         handle: usuario ? String(usuario).replace(/^@/, "") : "",
         icone,
         quantidade: qtd,
-        pontos: pontosUnidade * qtd,
-        conhecido: pontosUnidade > 0,
+        pontos: PONTOS_ICONE[icone] * qtd,
         ts: Date.now(),
         _caminho: caminho,
       });
@@ -180,6 +216,9 @@
     } catch {
       return;
     }
+    if (origem.includes("/api/live/emojis")) guardarTabela(dados);
+    if (origem.includes("show-participation")) guardarParticipacao(dados, origem);
+
     const emocoes = [];
     varrerEmocoes(dados, origem, emocoes);
     for (const e of emocoes) avisar("emocao", { ...e, origem });

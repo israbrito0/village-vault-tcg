@@ -105,6 +105,23 @@ async function guardarEmocao(evento, ctx) {
   });
 }
 
+// O ranking por pessoa vem pronto da Jamble (aba "Participacao" do painel do
+// vendedor). Guardamos a ultima resposta inteira: ela ja e o estado completo
+// da live, entao substitui a anterior em vez de somar.
+async function guardarParticipacao(dados, ctx) {
+  const liveId = ctx?.liveId ?? "sem-live";
+  await chrome.storage.local.set({
+    participacao: {
+      quando: dados.quando ?? Date.now(),
+      aoVivo: !!dados.aoVivo,
+      pesos: dados.pesos ?? null,
+      linhas: Array.isArray(dados.linhas) ? dados.linhas : [],
+    },
+    participacaoLive: liveId,
+    participacaoTitulo: ctx?.titulo ?? "",
+  });
+}
+
 async function enviar() {
   agendado = null;
   const cfg = await config();
@@ -152,6 +169,33 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     if (msg?.tipo === "emocao") {
       await guardarEmocao(msg.dados, msg.contexto);
       responder({ ok: true });
+      return;
+    }
+    if (msg?.tipo === "participacao") {
+      await guardarParticipacao(msg.dados, msg.contexto);
+      responder({ ok: true });
+      return;
+    }
+    if (msg?.tipo === "tabela-emocoes") {
+      await chrome.storage.local.set({ tabelaEmocoes: msg.dados?.tabela ?? {} });
+      responder({ ok: true });
+      return;
+    }
+    // Pedido do painel: manda a aba do painel da Jamble apertar "Atualizar".
+    if (msg?.tipo === "atualizar-participacao") {
+      let pedidos = 0;
+      try {
+        const abas = await chrome.tabs.query({ url: "https://*.jamble.com/seller/dashboard/lives/*" });
+        for (const aba of abas) {
+          try {
+            const r = await chrome.tabs.sendMessage(aba.id, { tipo: "atualizar-participacao" });
+            if (r?.ok) pedidos++;
+          } catch {
+            // Aba sem o content script ainda: recarregar a pagina resolve.
+          }
+        }
+      } catch {}
+      responder({ ok: pedidos > 0, pedidos });
       return;
     }
     if (msg?.tipo === "candidato") {
