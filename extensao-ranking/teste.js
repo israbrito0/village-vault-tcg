@@ -5,6 +5,7 @@ const { spawnSync } = require("node:child_process");
 const path = require("node:path");
 
 const testes = [
+  ["manifest e ligações entre os arquivos", "teste-manifest.js"],
   ["leitura da Jamble (vendas, participação, tabela)", "teste-leitura.js"],
   ["contas de gemas", "teste-gemas.js"],
   ["o que o background guarda", "teste-background.js"],

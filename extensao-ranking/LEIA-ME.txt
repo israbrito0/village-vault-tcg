@@ -1,6 +1,20 @@
 RANKING DA LIVE - EXTENSÃO DO CHROME
 ====================================
 
+NA HORA DA LIVE, EM 3 PASSOS
+----------------------------
+1. No Chrome, abra a sua live:
+      Painel -> Lives -> a sua live -> aba Participacao
+   (ou a propria pagina da live). Deixe essa aba aberta.
+2. Clique no icone da extensao -> "Painel da live (gemas e sorteio)".
+3. No painel, deixe "atualizar sozinho: a cada 30s". Pronto.
+
+O contador de gemas comeca a subir sozinho. Para mostrar na transmissao, pegue
+essa aba no OBS com "Captura de janela".
+
+Se ficar tudo zerado: e porque nenhuma aba da Jamble com a participacao esta
+aberta -- o painel avisa isso na tela, em amarelo.
+
 O que ela faz
 -------------
 Enquanto a live da Jamble estiver aberta numa aba do Chrome, a extensão lê as
