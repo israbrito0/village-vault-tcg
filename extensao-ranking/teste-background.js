@@ -72,7 +72,13 @@ function montar() {
 
 const linha = (handle, gemas, pontos = 0) => ({ handle, nome: handle, gemas, pontos, gastou: 0, mensagens: 0 });
 const participacao = (linhas, quando, aoVivo = true) => ({ quando, aoVivo, pesos: null, linhas });
-const live = (id) => ({ liveId: id, titulo: "Live " + id, url: "https://www.jamble.com/live/x/" + id });
+const live = (id, doPainel = true) => ({
+  liveId: id,
+  showId: id,
+  doPainel,
+  titulo: "Live " + id,
+  url: "https://www.jamble.com/live/x/" + id,
+});
 
 (async () => {
   const t0 = 1_700_000_000_000;
@@ -82,35 +88,54 @@ const live = (id) => ({ liveId: id, titulo: "Live " + id, url: "https://www.jamb
     const { guardado, mandar } = montar();
 
     await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000), linha("bruno", 500)], t0), contexto: live("L1") });
-    conferir(guardado.participacao.linhas.length === 2, "guarda a primeira leitura");
-    conferir((guardado.gemasEventos ?? []).length === 0, "primeira leitura não vira evento", String((guardado.gemasEventos ?? []).length));
-    conferir(guardado.participacaoTitulo === "Live L1", "guarda o título da live");
+    conferir(guardado.lives.L1.linhas.length === 2, "guarda a primeira leitura");
+    conferir(guardado.lives.L1.eventos.length === 0, "primeira leitura não vira evento", String(guardado.lives.L1.eventos.length));
+    conferir(guardado.lives.L1.titulo === "Live L1", "guarda o título da live");
 
     await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500), linha("bruno", 500)], t0 + 30000), contexto: live("L1") });
-    conferir(guardado.gemasEventos.length === 1, "segunda leitura gera o envio", JSON.stringify(guardado.gemasEventos));
-    conferir(guardado.gemasEventos[0].handle === "jako" && guardado.gemasEventos[0].gemas === 500, "o envio é a diferença");
+    conferir(guardado.lives.L1.eventos.length === 1, "segunda leitura gera o envio", JSON.stringify(guardado.lives.L1.eventos));
+    conferir(guardado.lives.L1.eventos[0].handle === "jako" && guardado.lives.L1.eventos[0].gemas === 500, "o envio é a diferença");
 
     await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500), linha("bruno", 2500)], t0 + 60000), contexto: live("L1") });
-    conferir(guardado.gemasEventos.length === 2, "os eventos se acumulam", String(guardado.gemasEventos.length));
-    conferir(guardado.participacao.linhas.find((l) => l.handle === "bruno").gemas === 2500, "o total fica sendo o da última leitura");
+    conferir(guardado.lives.L1.eventos.length === 2, "os eventos se acumulam", String(guardado.lives.L1.eventos.length));
+    conferir(guardado.lives.L1.linhas.find((l) => l.handle === "bruno").gemas === 2500, "o total fica sendo o da última leitura");
   }
 
-  // ---------- trocou de live: começa do zero ----------
+  // ---------- a live dela e a de outra pessoa, abertas juntas ----------
+  // Ela abre a live de outro vendedor durante a propria live para ver o
+  // ranking mensal. As duas mandam participacao; uma nao pode apagar a outra.
   {
     const { guardado, mandar } = montar();
 
-    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000)], t0), contexto: live("L1") });
-    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500)], t0 + 30000), contexto: live("L1") });
-    conferir(guardado.gemasEventos.length === 1, "um evento na primeira live");
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000)], t0), contexto: live("MINHA") });
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500)], t0 + 30000), contexto: live("MINHA") });
+    conferir(guardado.lives.MINHA.eventos.length === 1, "um envio na live dela");
 
-    await mandar({ tipo: "participacao", dados: participacao([linha("outro", 9000)], t0 + 90000), contexto: live("L2") });
-    conferir(guardado.gemasEventos.length === 0, "live nova zera o histórico", String(guardado.gemasEventos.length));
-    conferir(guardado.participacaoLive === "L2", "e passa a seguir a live nova");
-    conferir(guardado.gemasAnterior.jako === undefined, "não sobra ninguém da live antiga");
+    // Agora chega a participacao da live alheia, no meio.
+    await mandar({ tipo: "participacao", dados: participacao([linha("outro", 9000)], t0 + 40000), contexto: live("ALHEIA", false) });
+    await mandar({ tipo: "participacao", dados: participacao([linha("outro", 9500)], t0 + 50000), contexto: live("ALHEIA", false) });
 
-    // E a live nova continua contando normalmente.
-    await mandar({ tipo: "participacao", dados: participacao([linha("outro", 9500)], t0 + 120000), contexto: live("L2") });
-    conferir(guardado.gemasEventos.length === 1 && guardado.gemasEventos[0].gemas === 500, "a live nova conta a partir dela mesma");
+    conferir(guardado.lives.MINHA.eventos.length === 1, "a live dela não perdeu o histórico", String(guardado.lives.MINHA.eventos.length));
+    conferir(guardado.lives.MINHA.anterior.jako === 1500, "nem o ponto de partida dela");
+    conferir(guardado.lives.ALHEIA.eventos.length === 1, "e a live alheia conta separado");
+    conferir(guardado.lives.ALHEIA.doPainel === false, "a live alheia fica marcada como de outra pessoa");
+    conferir(guardado.lives.MINHA.doPainel === true, "a dela fica marcada como do painel do vendedor");
+
+    // E a live dela continua contando depois disso.
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 2000)], t0 + 60000), contexto: live("MINHA") });
+    conferir(guardado.lives.MINHA.eventos.length === 2, "a live dela segue contando", String(guardado.lives.MINHA.eventos.length));
+    conferir(guardado.lives.MINHA.eventos[1].gemas === 500, "com o valor certo");
+  }
+
+  // ---------- muitas lives: guarda só as mais recentes ----------
+  {
+    const { guardado, mandar } = montar();
+    for (let i = 1; i <= 6; i++) {
+      await mandar({ tipo: "participacao", dados: participacao([linha("a", 10)], t0 + i * 1000), contexto: live("L" + i) });
+    }
+    const ids = Object.keys(guardado.lives).sort();
+    conferir(ids.length === 4, "guarda no máximo 4 lives", ids.join(","));
+    conferir(ids.includes("L6") && ids.includes("L3") && !ids.includes("L1"), "e são as mais recentes", ids.join(","));
   }
 
   // ---------- live muito longa não estoura a memória ----------
@@ -120,8 +145,37 @@ const live = (id) => ({ liveId: id, titulo: "Live " + id, url: "https://www.jamb
     for (let i = 1; i <= 3100; i++) {
       await mandar({ tipo: "participacao", dados: participacao([linha("a", i * 10)], t0 + i * 1000), contexto: live("L1") });
     }
-    conferir(guardado.gemasEventos.length === 3000, "o histórico para em 3000 eventos", String(guardado.gemasEventos.length));
-    conferir(guardado.gemasEventos[guardado.gemasEventos.length - 1].total === 31000, "e mantém os mais novos", String(guardado.gemasEventos.at(-1).total));
+    conferir(guardado.lives.L1.eventos.length === 3000, "o histórico para em 3000 eventos", String(guardado.lives.L1.eventos.length));
+    conferir(guardado.lives.L1.eventos.at(-1).total === 31000, "e mantém os mais novos", String(guardado.lives.L1.eventos.at(-1).total));
+  }
+
+  // ---------- sorteio e "ao vivo" são de UMA live ----------
+  {
+    const { guardado, mandar } = montar();
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000)], t0), contexto: live("A") });
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500)], t0 + 10000), contexto: live("A") });
+    await mandar({ tipo: "participacao", dados: participacao([linha("zz", 50)], t0 + 20000), contexto: live("B", false) });
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "sortear", sorteio: { ts: t0, ganhador: "jako", entre: 1 } });
+    conferir(guardado.lives.A.sorteios.length === 1, "o sorteio entra na live certa");
+    conferir((guardado.lives.B.sorteios ?? []).length === 0, "e não aparece na outra live");
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "zerar-ao-vivo" });
+    conferir(guardado.lives.A.eventos.length === 0, "zerar o ao vivo limpa o feed");
+    conferir(guardado.lives.A.linhas[0].gemas === 1500, "mas não mexe nos totais");
+    conferir(guardado.lives.A.anterior.jako === 1500, "e o ponto de partida fica onde está");
+    conferir(guardado.lives.A.sorteios.length === 1, "nem nos sorteios já feitos");
+
+    // E a contagem continua dali em diante.
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 2000)], t0 + 30000), contexto: live("A") });
+    conferir(guardado.lives.A.eventos.length === 1 && guardado.lives.A.eventos[0].gemas === 500, "depois de zerar, conta a partir dali");
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "limpar-sorteios" });
+    conferir(guardado.lives.A.sorteios.length === 0, "limpar sorteios limpa só os sorteios");
+    conferir(guardado.lives.A.eventos.length === 1, "e deixa o ao vivo em paz");
+
+    const r = await mandar({ tipo: "mexer-na-live", id: "NAO-EXISTE", acao: "zerar-ao-vivo" });
+    conferir(r?.ok === false, "mexer em live que não existe responde que não deu");
   }
 
   // ---------- tabela de preços ----------

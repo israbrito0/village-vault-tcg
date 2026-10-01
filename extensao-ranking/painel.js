@@ -17,33 +17,51 @@ const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit",
 
 let sorteios = [];
 let ordem = "gemas";
+let liveEscolhida = null; // null = deixa o painel escolher sozinho
+
+// Pode haver mais de uma live guardada (a dela e a que ela abriu para ver o
+// ranking). A boa é a do painel do vendedor; entre as do mesmo tipo, a mais
+// recente. O seletor em cima deixa trocar na mão.
+function escolherLive(lives) {
+  const todas = Object.values(lives ?? {});
+  if (!todas.length) return null;
+  if (liveEscolhida && lives[liveEscolhida]) return lives[liveEscolhida];
+  return todas.sort((a, b) => (b.doPainel ? 1 : 0) - (a.doPainel ? 1 : 0) || b.quando - a.quando)[0];
+}
 
 // Fora da extensão (servindo a pasta só para conferir a tela) não existe
 // chrome.storage: aí usa o que estiver em window.__teste, se alguém pôs.
 const temStorage = typeof chrome !== "undefined" && chrome.storage?.local;
 
 async function ler() {
-  const g = temStorage
-    ? await chrome.storage.local.get([
-        "participacao",
-        "participacaoTitulo",
-        "gemasEventos",
-        "tabelaEmocoes",
-        "sorteios",
-      ])
-    : window.__teste ?? {};
-  sorteios = g.sorteios ?? [];
+  const g = temStorage ? await chrome.storage.local.get(["lives", "tabelaEmocoes"]) : window.__teste ?? {};
+  const lives = g.lives ?? {};
+  const live = escolherLive(lives);
+  // Sorteio é de uma live: trocar de live não leva os ganhadores junto.
+  sorteios = live?.sorteios ?? [];
   return {
-    p: g.participacao ?? null,
-    titulo: g.participacaoTitulo || "",
-    eventos: g.gemasEventos ?? [],
+    lives,
+    p: live,
+    titulo: live?.titulo || "",
+    eventos: live?.eventos ?? [],
     tabela: g.tabelaEmocoes ?? {},
   };
 }
 
-async function salvar(dados) {
-  if (temStorage) await chrome.storage.local.set(dados);
-  else window.__teste = { ...(window.__teste ?? {}), ...dados };
+// Mexer no que é de uma live passa pelo background, que é quem grava, para
+// duas gravações não se atropelarem.
+async function mexer(id, acao, extra = {}) {
+  if (!id) return false;
+  if (temStorage) {
+    const r = await chrome.runtime.sendMessage({ tipo: "mexer-na-live", id, acao, ...extra }).catch(() => null);
+    return !!r?.ok;
+  }
+  const live = window.__teste?.lives?.[id];
+  if (!live) return false;
+  if (acao === "zerar-ao-vivo") live.eventos = [];
+  else if (acao === "sortear") live.sorteios = (live.sorteios ?? []).concat(extra.sorteio);
+  else if (acao === "limpar-sorteios") live.sorteios = [];
+  return true;
 }
 
 function linhas(tbody, dados, montar, colunas) {
@@ -62,13 +80,30 @@ const PORORDEM = {
 };
 
 async function pintar() {
-  const { p, titulo, eventos, tabela } = await ler();
+  const { lives, p, titulo, eventos, tabela } = await ler();
   const linhasP = p?.linhas ?? [];
   const r = resumirGemas(linhasP);
 
+  // Só mostra o seletor quando existe mais de uma live para escolher.
+  const outras = Object.values(lives);
+  const cx = $("#qualLive");
+  cx.style.display = outras.length > 1 ? "" : "none";
+  if (outras.length > 1 && document.activeElement !== cx) {
+    const ordenadas = outras.sort((a, b) => b.quando - a.quando);
+    const novo = ordenadas
+      .map(
+        (l) =>
+          `<option value="${l.id}">${l.doPainel ? "★ " : ""}${(l.titulo || l.id).slice(0, 40)}</option>`,
+      )
+      .join("");
+    if (cx.innerHTML !== novo) cx.innerHTML = novo;
+    cx.value = p?.id ?? "";
+  }
+
   $("#titulo").textContent = titulo || "Painel da live";
   $("#periodo").textContent = p
-    ? `${p.aoVivo ? "● ao vivo" : "encerrada"} · lido às ${hora(p.quando)}`
+    ? `${p.aoVivo ? "● ao vivo" : "encerrada"} · lido às ${hora(p.quando)}` +
+      (p.doPainel ? "" : " · live de outra pessoa")
     : "abra a sua live no painel da Jamble, na aba Participação";
   $("#periodo").classList.toggle("vivo", !!p?.aoVivo);
 
@@ -163,6 +198,11 @@ $("#ordem").addEventListener("change", () => {
   pintar();
 });
 
+$("#qualLive").addEventListener("change", () => {
+  liveEscolhida = $("#qualLive").value || null;
+  pintar();
+});
+
 // ---------- sorteio ----------
 
 async function sortear() {
@@ -196,8 +236,9 @@ async function sortear() {
   }
   const ganho = bilhetes[Math.floor(Math.random() * bilhetes.length)];
 
-  sorteios.push({ ts: Date.now(), ganhador: ganho.handle, entre: candidatos.length, soGemas, comPeso });
-  await salvar({ sorteios });
+  await mexer(p.id, "sortear", {
+    sorteio: { ts: Date.now(), ganhador: ganho.handle, entre: candidatos.length, soGemas, comPeso },
+  });
 
   $("#ganhador").textContent = "@" + ganho.handle;
   $("#detalheSorteio").textContent =
@@ -210,10 +251,21 @@ async function sortear() {
 $("#sortear").addEventListener("click", sortear);
 
 $("#limparSorteios").addEventListener("click", async () => {
-  sorteios = [];
-  await salvar({ sorteios });
+  const { p } = await ler();
+  await mexer(p?.id, "limpar-sorteios");
   $("#ganhador").textContent = "";
   $("#detalheSorteio").textContent = "";
+  pintar();
+});
+
+// Para rodar um segundo sorteio contando só o que vier daqui em diante
+// (a segunda hora da live, por exemplo). Os totais continuam: o que zera é a
+// lista do "ao vivo", e as próximas comparações partem de onde está agora.
+$("#zerarAoVivo").addEventListener("click", async () => {
+  const { p } = await ler();
+  if (!p) return;
+  if (!confirm(`Zerar a lista "Gemas ao vivo" desta live? Os totais continuam como estão.`)) return;
+  await mexer(p.id, "zerar-ao-vivo");
   pintar();
 });
 

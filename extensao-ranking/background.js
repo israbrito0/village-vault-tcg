@@ -108,32 +108,45 @@ async function guardarEmocao(evento, ctx) {
   });
 }
 
+// Quantas lives guardamos ao mesmo tempo. Ela costuma abrir a live de outra
+// pessoa durante a propria live (para ver o ranking mensal), e aquela live
+// tambem manda participacao. Se tudo caisse num balde so, uma apagaria o
+// historico da outra -- entao cada live tem o seu.
+const LIVES_GUARDADAS = 4;
+
 // O ranking por pessoa vem pronto da Jamble (aba "Participacao"). A resposta e
 // a foto completa da live, entao substitui a anterior em vez de somar -- mas
 // antes comparamos com a foto de antes para saber quem enviou gemas agora.
 async function guardarParticipacao(dados, ctx) {
-  const liveId = ctx?.liveId ?? "sem-live";
-  const g = await ler(["participacaoLive", "gemasAnterior", "gemasEventos"]);
-  const mesmaLive = g.participacaoLive === liveId;
+  const id = ctx?.showId || ctx?.liveId || "sem-live";
+  const g = await ler(["lives"]);
+  const lives = g.lives ?? {};
+  const antes = lives[id];
 
   const quando = dados.quando ?? Date.now();
   const linhas = Array.isArray(dados.linhas) ? dados.linhas : [];
-  const { eventos, agora } = diffGemas(mesmaLive ? g.gemasAnterior : null, linhas, quando);
+  const { eventos, agora } = diffGemas(antes?.anterior, linhas, quando);
 
-  const historico = (mesmaLive ? g.gemasEventos ?? [] : []).concat(eventos);
+  lives[id] = {
+    id,
+    titulo: ctx?.titulo || antes?.titulo || "",
+    doPainel: ctx?.doPainel ?? antes?.doPainel ?? false,
+    quando,
+    aoVivo: !!dados.aoVivo,
+    pesos: dados.pesos ?? null,
+    linhas,
+    anterior: agora,
+    eventos: (antes?.eventos ?? []).concat(eventos).slice(-3000),
+    sorteios: antes?.sorteios ?? [],
+  };
 
-  await chrome.storage.local.set({
-    participacao: {
-      quando,
-      aoVivo: !!dados.aoVivo,
-      pesos: dados.pesos ?? null,
-      linhas,
-    },
-    participacaoLive: liveId,
-    participacaoTitulo: ctx?.titulo ?? "",
-    gemasAnterior: agora,
-    gemasEventos: historico.slice(-3000),
-  });
+  // Deixa so as lives mexidas mais recentemente, para o armazenamento nao
+  // crescer sem fim depois de muitas lives.
+  const vivas = Object.values(lives)
+    .sort((a, b) => b.quando - a.quando)
+    .slice(0, LIVES_GUARDADAS);
+
+  await chrome.storage.local.set({ lives: Object.fromEntries(vivas.map((l) => [l.id, l])) });
 }
 
 async function enviar() {
@@ -192,6 +205,23 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     }
     if (msg?.tipo === "tabela-emocoes") {
       await chrome.storage.local.set({ tabelaEmocoes: msg.dados?.tabela ?? {} });
+      responder({ ok: true });
+      return;
+    }
+    // Sorteio e contagem "ao vivo" pertencem a UMA live. Passam por aqui em vez
+    // de o painel escrever direto, para duas gravacoes nao se atropelarem.
+    if (msg?.tipo === "mexer-na-live") {
+      const { lives } = await ler(["lives"]);
+      const todas = lives ?? {};
+      const live = todas[msg.id];
+      if (!live) {
+        responder({ ok: false });
+        return;
+      }
+      if (msg.acao === "zerar-ao-vivo") live.eventos = [];
+      else if (msg.acao === "sortear") live.sorteios = (live.sorteios ?? []).concat(msg.sorteio);
+      else if (msg.acao === "limpar-sorteios") live.sorteios = [];
+      await chrome.storage.local.set({ lives: todas });
       responder({ ok: true });
       return;
     }

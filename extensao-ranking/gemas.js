@@ -73,7 +73,34 @@
     return (eventos ?? []).reduce((s, e) => (e.ts >= corte ? s + e.gemas : s), 0);
   }
 
-  const api = { GEMAS_POR_CARPA, porPessoa, diffGemas, resumirGemas, gemasRecentes };
+  // Identificador da live a partir do endereço. Importa acertar porque cada
+  // live tem a sua contagem: se duas lives caírem no mesmo id, uma apaga a
+  // outra. A página da live é /live/<vendedor>/<id> -- o id é o SEGUNDO
+  // pedaço, não o nome do vendedor.
+  function idDaLive(caminho) {
+    const p = String(caminho || "");
+    const m =
+      p.match(/^\/live\/[^/]+\/([\w-]+)/) ||
+      p.match(/^\/seller\/dashboard\/lives\/([\w-]+)/) ||
+      p.match(/^\/l\/([\w-]+)/);
+    return m ? m[1] : null;
+  }
+
+  // A live é dela quando a página é o painel do vendedor. Serve para o painel
+  // escolher qual live mostrar quando houver mais de uma aba aberta.
+  function ehPainelDoVendedor(caminho) {
+    return /^\/seller\/dashboard\/lives\//.test(String(caminho || ""));
+  }
+
+  const api = {
+    GEMAS_POR_CARPA,
+    porPessoa,
+    diffGemas,
+    resumirGemas,
+    gemasRecentes,
+    idDaLive,
+    ehPainelDoVendedor,
+  };
   if (raiz) Object.assign(raiz, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
 })(typeof self !== "undefined" ? self : undefined);

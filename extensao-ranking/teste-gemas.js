@@ -1,7 +1,14 @@
 // Teste das contas de gemas: rode com `node extensao-ranking/teste-gemas.js`.
 // O "ao vivo" do painel sai da comparação entre uma leitura da Jamble e a
 // seguinte, então é aqui que um erro apareceria como gema inventada ou perdida.
-const { diffGemas, resumirGemas, gemasRecentes, GEMAS_POR_CARPA } = require("./gemas.js");
+const {
+  diffGemas,
+  resumirGemas,
+  gemasRecentes,
+  idDaLive,
+  ehPainelDoVendedor,
+  GEMAS_POR_CARPA,
+} = require("./gemas.js");
 
 let falhas = 0;
 function conferir(ok, nome, detalhe = "") {
@@ -111,6 +118,30 @@ conferir(real.enviaram === 16, "16 das 20 pessoas enviaram gemas", String(real.e
 // é porque eles mudaram o peso -- e o painel precisa saber.
 const fora = live3009.filter((l) => Math.abs(l.gastou + l.gemas * 0.1 - l.pontos) > 1);
 conferir(fora.length === 0, "comprou + gemas x 0,1 = pontos em todas as linhas", fora.map((l) => l.handle).join(", "));
+
+// ---------- identificar a live pelo endereço ----------
+// Cada live tem a sua contagem. Se duas caírem no mesmo id, uma apaga a outra.
+
+const caminhos = [
+  ["/live/dedevieira1/5gqNkh1zTPMP7SlS6hsu", "5gqNkh1zTPMP7SlS6hsu", false],
+  ["/live/israelbrito/abc123XYZ", "abc123XYZ", false],
+  ["/seller/dashboard/lives/2P5LgSdtPTmHDSMdXGKV", "2P5LgSdtPTmHDSMdXGKV", true],
+  ["/seller/dashboard/lives/obs", "obs", true],
+  ["/seller/dashboard/lives", null, false],
+  ["/explore", null, false],
+  ["/", null, false],
+];
+for (const [caminho, id, dela] of caminhos) {
+  conferir(idDaLive(caminho) === id, `id da live em ${caminho}`, String(idDaLive(caminho)));
+  conferir(ehPainelDoVendedor(caminho) === dela, `é o painel dela? ${caminho}`, String(ehPainelDoVendedor(caminho)));
+}
+
+// Duas lives do mesmo vendedor não podem dar o mesmo id -- era o erro de pegar
+// o nome do vendedor em vez do identificador da live.
+conferir(
+  idDaLive("/live/israelbrito/aaa") !== idDaLive("/live/israelbrito/bbb"),
+  "duas lives do mesmo vendedor têm ids diferentes",
+);
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

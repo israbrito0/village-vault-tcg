@@ -12,7 +12,14 @@
   function contexto() {
     const m = location.pathname.match(/\/(?:live|lives|l)\/([\w-]+)/i);
     return {
+      // liveId é o que o ranking do site sempre usou para agrupar as vendas.
+      // Mexer nele mudaria o agrupamento de dado que já está lá, então fica.
       liveId: m ? m[1] : location.pathname.replace(/\W+/g, "-").slice(0, 60) || "sem-live",
+      // showId é o identificador de verdade da live (o liveId acima pega o
+      // nome do vendedor quando a página é /live/<vendedor>/<id>). Só o painel
+      // de gemas usa, para cada live ter a sua própria contagem.
+      showId: idDaLive(location.pathname),
+      doPainel: ehPainelDoVendedor(location.pathname),
       titulo: document.title.replace(/\s*\|\s*Jamble.*$/i, "").trim().slice(0, 80),
       url: location.href,
     };

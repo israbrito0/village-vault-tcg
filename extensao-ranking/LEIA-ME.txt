@@ -108,6 +108,26 @@ leitura de cada live não enche o feed: ela é o ponto de partida. Gemas que já
 estavam lá antes de você abrir o painel entram no total, mas não no feed,
 porque não dá para saber a que horas foram enviadas.
 
+Mais de uma live aberta
+-----------------------
+Durante a sua live voce costuma abrir a live de outra pessoa para ver o
+ranking mensal -- e aquela live TAMBEM manda participacao. Cada live tem o seu
+proprio balde: a de outro vendedor nao mexe na sua. Quando existe mais de uma,
+aparece um seletor embaixo do titulo; a sua vem marcada com uma estrela e e a
+escolhida sozinha. A extensao guarda as 4 lives mexidas mais recentemente.
+
+Sorteio e contagem sao de UMA live: trocar de live nao leva os ganhadores nem
+o feed junto.
+
+Dois botoes no fim da pagina
+----------------------------
+  Salvar relatorio em PDF       imprime a pagina sem os botoes
+  Zerar o "ao vivo" desta live  limpa a lista GEMAS AO VIVO e o contador dos
+                                ultimos 5 min, SEM mexer nos totais nem nos
+                                sorteios ja feitos. Serve para rodar um
+                                segundo sorteio contando so o que vier dali
+                                em diante (a segunda hora da live).
+
 Sobre "carpas"
 --------------
 Uma carpa (Carpa Zika, magikarp_shiny) custa 500 gemas. A Jamble entrega
