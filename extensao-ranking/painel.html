@@ -59,6 +59,36 @@
         .painel, .cartao { border-color: #ccc; background: #fff; }
         .nao-imprimir { display: none; }
       }
+
+      /* Modo transmissão: a aba vira um painel para pegar no OBS com
+         "Captura de janela". Some tudo que é botão e crescem os números. */
+      #sairTransmissao { display: none; }
+      body.transmissao .controles,
+      body.transmissao #qualLive,
+      body.transmissao #ordem,
+      body.transmissao .rodape,
+      body.transmissao #aviso { display: none; }
+      body.transmissao #sairTransmissao {
+        display: block; position: fixed; bottom: 8px; right: 8px; z-index: 9;
+        opacity: .12; background: transparent; color: var(--fraco); border: 1px solid var(--borda);
+      }
+      body.transmissao #sairTransmissao:hover { opacity: 1; }
+      /* Os tamanhos acompanham a largura da janela: na captura do OBS ela pode
+         ser bem maior ou bem menor do que aqui, e número cortado não serve. */
+      body.transmissao h1 { font-size: clamp(18px, 3.4vw, 30px); }
+      body.transmissao .cartao .valor { font-size: clamp(22px, 4.4vw, 40px); }
+      body.transmissao .cartao.gema.grande .valor { font-size: clamp(30px, 6.4vw, 62px); }
+      body.transmissao .cartao.dinheiro .valor { font-size: clamp(18px, 3vw, 30px); }
+      body.transmissao .cartao .rotulo { font-size: clamp(11px, 1.2vw, 14px); }
+      body.transmissao table { font-size: clamp(13px, 1.5vw, 18px); }
+      body.transmissao th { font-size: clamp(11px, 1.1vw, 14px); }
+      body.transmissao .fraco { font-size: clamp(11px, 1.2vw, 15px); }
+      body.transmissao .ganhador { font-size: clamp(26px, 5vw, 48px); }
+      body.transmissao #detalheSorteio { font-size: clamp(12px, 1.5vw, 17px); }
+      body.transmissao .painel h2 { font-size: clamp(13px, 1.5vw, 17px); }
+      body.transmissao .lista { max-height: none; }
+      /* Número não pode vazar do cartão em largura nenhuma. */
+      .cartao .valor, .ganhador { overflow-wrap: anywhere; }
     </style>
   </head>
   <body>
@@ -100,6 +130,7 @@
       <div id="ganhador" class="ganhador"></div>
       <div id="detalheSorteio" class="sub" style="margin-bottom:0"></div>
       <div id="aviso" class="aviso"></div>
+      <div id="avisoVelho" class="aviso"></div>
     </div>
 
     <div class="grade">
@@ -139,9 +170,11 @@
     </div>
 
     <div class="controles nao-imprimir" style="margin-top: 4px">
+      <button class="secundario" id="transmitir">Modo transmissão</button>
       <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
       <button class="secundario" id="zerarAoVivo">Zerar o "ao vivo" desta live</button>
     </div>
+    <button id="sairTransmissao">sair do modo transmissão (Esc)</button>
     <div class="rodape" id="rodape"></div>
 
     <script src="gemas.js"></script>

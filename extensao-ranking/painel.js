@@ -142,6 +142,16 @@ async function pintar() {
     3,
   );
 
+  // Número velho enganando é pior do que número nenhum: se a leitura parou de
+  // chegar enquanto o "atualizar sozinho" está ligado, avisa em vez de deixar
+  // a tela parecer viva.
+  const parado = p && Number($("#intervalo").value) > 0 ? Date.now() - p.quando : 0;
+  $("#avisoVelho").textContent =
+    parado > 150000
+      ? `Estes números são de ${hora(p.quando)} e não chegou leitura nova desde então. ` +
+        `Confira se a aba da Jamble com a participação continua aberta.`
+      : "";
+
   const quantos = Object.keys(tabela).length;
   $("#rodape").textContent = p
     ? `A Jamble entrega quantas gemas cada pessoa enviou no total, mas não diz qual ícone foi. ` +
@@ -270,6 +280,27 @@ $("#zerarAoVivo").addEventListener("click", async () => {
 });
 
 $("#imprimir").addEventListener("click", () => window.print());
+
+// ---------- modo transmissão ----------
+// Deixa a aba só com os números, para pegar no OBS com "Captura de janela".
+// O sorteio continua funcionando: o ganhador aparece grande na tela.
+
+function transmissao(ligado) {
+  document.body.classList.toggle("transmissao", ligado);
+  localStorage.setItem("transmissao", ligado ? "1" : "");
+}
+
+$("#transmitir").addEventListener("click", () => transmissao(true));
+$("#sairTransmissao").addEventListener("click", () => transmissao(false));
+addEventListener("keydown", (e) => {
+  if (e.key === "Escape") transmissao(false);
+  // Com a tela limpa não dá para clicar em Sortear: a barra de espaço sorteia.
+  else if (e.key === " " && document.body.classList.contains("transmissao")) {
+    e.preventDefault();
+    sortear();
+  }
+});
+if (localStorage.getItem("transmissao")) transmissao(true);
 
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
 ligarRelogio();

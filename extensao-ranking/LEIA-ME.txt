@@ -9,8 +9,12 @@ NA HORA DA LIVE, EM 3 PASSOS
 2. Clique no icone da extensao -> "Painel da live (gemas e sorteio)".
 3. No painel, deixe "atualizar sozinho: a cada 30s". Pronto.
 
-O contador de gemas comeca a subir sozinho. Para mostrar na transmissao, pegue
-essa aba no OBS com "Captura de janela".
+O contador de gemas comeca a subir sozinho.
+
+Para mostrar na transmissao: clique em "Modo transmissao" no fim da pagina --
+a tela fica so com os numeros, em fonte grande -- e pegue essa aba no OBS com
+"Captura de janela". Esc sai do modo; a BARRA DE ESPACO sorteia sem precisar
+clicar em nada.
 
 Se ficar tudo zerado: e porque nenhuma aba da Jamble com a participacao esta
 aberta -- o painel avisa isso na tela, em amarelo.
@@ -135,6 +139,9 @@ o feed junto.
 
 Dois botoes no fim da pagina
 ----------------------------
+  Modo transmissao            esconde os botoes e aumenta os numeros, para
+                              pegar a aba no OBS. Esc sai, barra de espaco
+                              sorteia. Ele lembra se ficou ligado.
   Salvar relatorio em PDF       imprime a pagina sem os botoes
   Zerar o "ao vivo" desta live  limpa a lista GEMAS AO VIVO e o contador dos
                                 ultimos 5 min, SEM mexer nos totais nem nos
