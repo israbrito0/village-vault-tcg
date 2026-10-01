@@ -64,3 +64,35 @@ Privacidade
 -----------
 A extensão só roda em páginas do jamble.com e só envia: @ do comprador,
 valor e identificador do pedido. Nada de endereço, telefone ou pagamento.
+
+Painel da live (carpas e sorteio)
+---------------------------------
+Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
+própria e mostra, enquanto a live estiver aberta em outra aba:
+
+  - contador de CARPAS (a emotion magikarp_shiny), emotions, pontos e pessoas
+  - ranking de carpas por pessoa
+  - emotions por ícone, com os pontos de cada uma
+  - feed ao vivo de quem mandou o quê e a que horas
+  - sorteio entre quem enviou, com três opções:
+      só quem mandou carpa (ou qualquer emotion)
+      mais carpa = mais chance (ou chance igual para todos)
+      não repetir quem já ganhou
+  - "Salvar relatório em PDF": usa a impressão do navegador, já sem os botões
+
+Tabela de pontos por ícone (veio do relatório da live de 30/09):
+  magikarp_shiny 500 (a carpa) | masterball 250 | squirtle_sax 80
+  joystick 80 | magikarp 70 | charmander 60 | bulbasaur 60
+  finish_flag 50 | snorlax 20 | pokeball 20 | pixel_heart 10
+
+Ícone novo que a Jamble lançar aparece na contagem de emotions, mas sem pontos,
+e o rodapé do painel avisa o nome dele para alguém acrescentar na tabela
+(a lista fica em inject.js, em PONTOS_ICONE).
+
+A contagem é por live: ao trocar de live, começa do zero. Nada disso vai para o
+site -- fica só neste computador.
+
+ATENÇÃO: a captura das emotions ainda não foi testada numa live de verdade.
+O caminho é o mesmo que já funciona para as vendas (WebSocket, fetch e XHR da
+página), mas o formato do evento de emotion é suposição até a primeira live.
+Se o contador ficar zerado, abra "Baixar depuração" e me mande o arquivo.

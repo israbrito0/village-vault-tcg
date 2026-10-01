@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Painel da live</title>
+    <style>
+      :root {
+        --fundo: #16122b;
+        --caixa: #1e1940;
+        --borda: #2f2760;
+        --texto: #ece9ff;
+        --fraco: #9a92c7;
+        --destaque: #ffc83d;
+        --carpa: #ff9f43;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        padding: 16px;
+        background: var(--fundo);
+        color: var(--texto);
+        font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+      }
+      h1 { font-size: 18px; margin: 0 0 2px; }
+      .sub { color: var(--fraco); font-size: 12px; margin-bottom: 16px; }
+      .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 16px; }
+      .cartao { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; }
+      .cartao .rotulo { color: var(--fraco); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
+      .cartao .valor { font-size: 28px; font-weight: 700; margin-top: 2px; }
+      .cartao.carpa .valor { color: var(--carpa); }
+      .grade { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      @media (max-width: 760px) { .grade { grid-template-columns: 1fr; } }
+      .painel { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+      .painel h2 { font-size: 13px; margin: 0 0 8px; color: var(--destaque); text-transform: uppercase; letter-spacing: .04em; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { text-align: left; color: var(--fraco); font-weight: 500; font-size: 11px; text-transform: uppercase; padding-bottom: 4px; }
+      td { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.05); }
+      td.n, th.n { text-align: right; }
+      .lista { max-height: 320px; overflow: auto; }
+      .vazio { color: var(--fraco); font-style: italic; }
+      button { background: var(--destaque); color: #2a2000; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px; }
+      button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borda); font-weight: 500; }
+      label { font-size: 12px; color: var(--fraco); display: inline-flex; align-items: center; gap: 5px; margin-right: 14px; }
+      .ganhador { font-size: 24px; font-weight: 800; color: var(--carpa); margin: 10px 0 4px; }
+      .controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+      .rodape { color: var(--fraco); font-size: 11px; margin-top: 14px; }
+      @media print {
+        body { background: #fff; color: #000; }
+        .painel, .cartao { border-color: #ccc; background: #fff; }
+        .nao-imprimir { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <h1 id="titulo">Painel da live</h1>
+    <div class="sub" id="periodo">esperando a primeira emotion…</div>
+
+    <div class="cartoes">
+      <div class="cartao carpa"><div class="rotulo">Carpas</div><div class="valor" id="c-carpas">0</div></div>
+      <div class="cartao"><div class="rotulo">Emotions</div><div class="valor" id="c-emotions">0</div></div>
+      <div class="cartao"><div class="rotulo">Pontos</div><div class="valor" id="c-pontos">0</div></div>
+      <div class="cartao"><div class="rotulo">Pessoas</div><div class="valor" id="c-pessoas">0</div></div>
+    </div>
+
+    <div class="painel nao-imprimir">
+      <h2>Sorteio entre quem enviou</h2>
+      <div class="controles">
+        <label><input type="radio" name="quem" value="carpa" checked /> só quem mandou carpa</label>
+        <label><input type="radio" name="quem" value="todos" /> qualquer emotion</label>
+        <label><input type="checkbox" id="peso" /> mais carpa, mais chance</label>
+        <label><input type="checkbox" id="semRepetir" checked /> não repetir ganhador</label>
+        <button id="sortear">Sortear</button>
+        <button class="secundario" id="limparSorteios">Limpar</button>
+      </div>
+      <div id="ganhador" class="ganhador"></div>
+      <div id="detalheSorteio" class="sub"></div>
+    </div>
+
+    <div class="grade">
+      <div>
+        <div class="painel">
+          <h2>Ranking de carpas</h2>
+          <div class="lista"><table id="t-ranking"><thead><tr><th>#</th><th>Pessoa</th><th class="n">Carpas</th><th class="n">Pontos</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="painel">
+          <h2>Emotions por ícone</h2>
+          <table id="t-icones"><thead><tr><th>Ícone</th><th class="n">Qtd</th><th class="n">Pontos</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+      <div>
+        <div class="painel">
+          <h2>Ao vivo</h2>
+          <div class="lista"><table id="t-feed"><thead><tr><th>Hora</th><th>Pessoa</th><th>Ícone</th><th class="n">Pontos</th></tr></thead><tbody></tbody></table></div>
+        </div>
+        <div class="painel">
+          <h2>Sorteios realizados</h2>
+          <table id="t-sorteios"><thead><tr><th>Hora</th><th>Ganhador</th><th>Entre</th></tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="controles nao-imprimir" style="margin-top: 4px">
+      <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
+      <button class="secundario" id="zerar">Zerar contagem desta live</button>
+    </div>
+    <div class="rodape" id="rodape"></div>
+
+    <script src="painel.js"></script>
+  </body>
+</html>

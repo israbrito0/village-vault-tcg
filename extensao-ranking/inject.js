@@ -112,6 +112,66 @@
     }
   });
 
+  // ---------- emotions (carpas e companhia) ----------
+
+  // Quanto cada ícone custa em gemas. Veio do relatório da live de 30/09:
+  // quantidade x pontos de cada um bate exatamente com esta tabela. Ícone que
+  // não estiver aqui ainda é contado, só fica sem valor até alguém mapear.
+  const PONTOS_ICONE = {
+    magikarp_shiny: 500, // a carpa
+    masterball: 250,
+    squirtle_sax: 80,
+    joystick: 80,
+    magikarp: 70,
+    charmander: 60,
+    bulbasaur: 60,
+    finish_flag: 50,
+    snorlax: 20,
+    pokeball: 20,
+    pixel_heart: 10,
+  };
+
+  const CHAVES_ICONE = /^(emoji|icon|icone|pattern|emotion|reaction|sticker|gift|nome|name|slug|type)$/i;
+  const CHAVES_PONTOS = /^(points|pontos|gems|gemas|amount|quantity|qty|value)$/i;
+
+  function pareceIcone(v) {
+    return typeof v === "string" && /^[a-z][a-z0-9_]{2,30}$/.test(v) && (v in PONTOS_ICONE || /magikarp|pokeball|heart|ball|flag|sax|joystick|snorlax|charmander|bulbasaur/i.test(v));
+  }
+
+  // Procura objetos que tenham um ícone de emotion e, de preferência, quem mandou.
+  function varrerEmocoes(valor, caminho, saida, profundidade = 0) {
+    if (!valor || typeof valor !== "object" || profundidade > 8) return;
+    if (Array.isArray(valor)) {
+      valor.forEach((v, i) => varrerEmocoes(v, `${caminho}[${i}]`, saida, profundidade + 1));
+      return;
+    }
+    let icone = null;
+    for (const [k, v] of Object.entries(valor)) {
+      if (CHAVES_ICONE.test(k) && pareceIcone(v)) { icone = v; break; }
+    }
+    if (icone) {
+      const usuario = acharUsuario(valor);
+      let qtd = 1;
+      for (const [k, v] of Object.entries(valor)) {
+        if (CHAVES_PONTOS.test(k) && typeof v === "number" && v > 0 && v < 10000) { qtd = v; break; }
+      }
+      const pontosUnidade = PONTOS_ICONE[icone] ?? 0;
+      saida.push({
+        id: `emo:${usuario ?? "anon"}:${icone}:${Date.now()}:${Math.random().toString(36).slice(2, 7)}`,
+        handle: usuario ? String(usuario).replace(/^@/, "") : "",
+        icone,
+        quantidade: qtd,
+        pontos: pontosUnidade * qtd,
+        conhecido: pontosUnidade > 0,
+        ts: Date.now(),
+        _caminho: caminho,
+      });
+    }
+    for (const [k, v] of Object.entries(valor)) {
+      varrerEmocoes(v, `${caminho}.${k}`, saida, profundidade + 1);
+    }
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -120,6 +180,10 @@
     } catch {
       return;
     }
+    const emocoes = [];
+    varrerEmocoes(dados, origem, emocoes);
+    for (const e of emocoes) avisar("emocao", { ...e, origem });
+
     const vendas = [];
     const candidatos = [];
     varrer(dados, origem, vendas, candidatos, modoValor);

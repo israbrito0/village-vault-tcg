@@ -226,3 +226,8 @@ $("depurar").onclick = async () => {
 
 pintar();
 setInterval(pintar, 3000);
+
+// Abre o painel da live numa aba própria.
+$("abrirPainel").addEventListener("click", () => {
+  chrome.tabs.create({ url: chrome.runtime.getURL("painel.html") });
+});

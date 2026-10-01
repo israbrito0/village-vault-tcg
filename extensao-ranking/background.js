@@ -82,6 +82,29 @@ async function guardarVenda(evento, ctx) {
   if (!agendado) agendado = setTimeout(enviar, ESPERA_MS);
 }
 
+// As emotions ficam só aqui no computador, para o painel da live. Não vão para
+// o site: o ranking de lá é de compradores, e isso aqui é outra coisa.
+// Se a live mudar, começa do zero -- cada live tem a sua contagem.
+async function guardarEmocao(evento, ctx) {
+  const g = await ler(["emocoes", "emocoesLive"]);
+  const liveId = ctx?.liveId ?? "sem-live";
+  const mesmaLive = g.emocoesLive === liveId;
+  const lista = mesmaLive ? g.emocoes ?? [] : [];
+  lista.push({
+    handle: String(evento.handle ?? "").replace(/^@/, ""),
+    icone: String(evento.icone ?? ""),
+    quantidade: Number(evento.quantidade) || 1,
+    pontos: Number(evento.pontos) || 0,
+    conhecido: !!evento.conhecido,
+    ts: evento.ts ?? Date.now(),
+  });
+  await chrome.storage.local.set({
+    emocoes: lista.slice(-20000),
+    emocoesLive: liveId,
+    emocoesTitulo: ctx?.titulo ?? "",
+  });
+}
+
 async function enviar() {
   agendado = null;
   const cfg = await config();
@@ -123,6 +146,11 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   (async () => {
     if (msg?.tipo === "venda") {
       await guardarVenda(msg.dados, msg.contexto);
+      responder({ ok: true });
+      return;
+    }
+    if (msg?.tipo === "emocao") {
+      await guardarEmocao(msg.dados, msg.contexto);
       responder({ ok: true });
       return;
     }
