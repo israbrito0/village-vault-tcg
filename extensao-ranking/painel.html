@@ -55,6 +55,12 @@
       .ganhador { font-size: 24px; font-weight: 800; color: var(--destaque); margin: 10px 0 4px; }
       .controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
       .aviso { color: var(--destaque); font-size: 12px; }
+      .barra { height: 14px; border-radius: 999px; background: #120f24; border: 1px solid var(--borda); overflow: hidden; }
+      .barraDentro { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--gema), var(--destaque)); transition: width .6s ease; }
+      #meta { width: 90px; padding: 3px 7px; font-size: 12px; text-align: right; }
+      /* Quando chega carpa, o cartao pisca uma vez -- da para ver de longe. */
+      @keyframes vvPulso { 0% { transform: scale(1); } 40% { transform: scale(1.06); } 100% { transform: scale(1); } }
+      .cartao.pulsa { animation: vvPulso .5s ease; box-shadow: 0 0 0 2px var(--gema); }
       .falta { color: var(--fraco); font-size: 11px; line-height: 1.5; margin-top: 6px; }
       .rodape { color: var(--fraco); font-size: 11px; margin-top: 14px; }
       @media print {
@@ -131,6 +137,15 @@
       <div class="cartao"><div class="rotulo">Compradores</div><div class="valor" id="c-compradores">—</div></div>
       <div class="cartao gema"><div class="rotulo">Gemas · últimos 5 min</div><div class="valor" id="c-recentes">0</div></div>
       <div class="cartao"><div class="rotulo">Espectadores</div><div class="valor" id="c-espectadores">—</div></div>
+    </div>
+
+    <div class="painel" id="caixaMeta">
+      <h2>
+        <span>Meta de carpas</span>
+        <span class="nao-imprimir"><input id="meta" type="number" min="0" step="1" placeholder="0" /></span>
+      </h2>
+      <div class="barra"><div class="barraDentro" id="barraMeta"></div></div>
+      <div class="sub" id="textoMeta" style="margin:6px 0 0"></div>
     </div>
 
     <div class="painel nao-imprimir">

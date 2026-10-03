@@ -106,6 +106,10 @@ própria e mostra, da live que estiver aberta numa aba da Jamble:
   - quantas pessoas enviaram gemas, de quantas estão na live
   - ranking pessoa a pessoa, podendo ordenar por gemas, por pontos ou por
     quanto cada um comprou
+  - META DE CARPAS: escreva quantas voce quer e a barra mostra quanto falta,
+    em carpas e em gemas. O cartao das carpas pisca quando chega uma nova
+  - "Baixar planilha (CSV)": os envios um a um, o total por pessoa com os
+    icones, o ranking da Jamble e os sorteios -- abre no Excel
   - sorteio, escolhendo entre quem entra:
       QUEM MANDOU CARPA (ou qualquer outro ícone que tenha aparecido)
       quem mandou qualquer emotion

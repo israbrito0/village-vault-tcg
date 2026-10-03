@@ -26,7 +26,9 @@ const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit",
 
 let sorteios = [];
 let ordem = "gemas";
-let liveEscolhida = null; // null = deixa o painel escolher sozinho
+let liveEscolhida = null;
+let sorteioEscolhido = null; // so guarda o que ELA escolheu, nao o padrao
+let ultimasCarpas = -1; // para saber quando chegou carpa nova // null = deixa o painel escolher sozinho
 
 // Quando o painel esta encostado numa live, o overlay diz qual e: ai o certo
 // e mostrar A LIVE DA TELA, e nao a mais recente ou a dela. Era confuso abrir
@@ -156,6 +158,35 @@ async function pintar() {
   $("#c-carpas").textContent = num(gemasTotal / porCarpa);
   // As emotions sabem a hora exata de cada envio; a participação só sabe
   // quando foi lida. Quando houver emotion, ela manda.
+  // Meta de carpas: voce pensa a live em carpas, entao a barra mostra quanto
+  // falta sem precisar fazer conta de cabeca.
+  const carpasAgora = gemasTotal / porCarpa;
+  const meta = Number(localStorage.getItem("meta")) || 0;
+  // A caixa fica sempre, senao nao haveria onde digitar a meta. O que some
+  // quando nao ha meta e a barra.
+  $("#barraMeta").parentElement.style.display = meta > 0 ? "" : "none";
+  if (meta > 0) {
+    const pct = Math.min(100, (carpasAgora / meta) * 100);
+    $("#barraMeta").style.width = pct.toFixed(1) + "%";
+    const faltam = Math.max(0, meta - carpasAgora);
+    $("#textoMeta").textContent =
+      faltam <= 0
+        ? `Meta batida: ${num(carpasAgora)} de ${num(meta)} carpas.`
+        : `${num(carpasAgora)} de ${num(meta)} carpas (${pct.toFixed(0)}%) · ` +
+          `faltam ${num(faltam * porCarpa)} gemas, cerca de ${num(faltam)} carpas.`;
+  } else {
+    $("#textoMeta").textContent = "Escreva quantas carpas voce quer nesta live e a barra aparece.";
+  }
+
+  // Chegou carpa? o cartao pisca uma vez.
+  if (carpasAgora > ultimasCarpas && ultimasCarpas >= 0) {
+    const c = $("#c-carpas").closest(".cartao");
+    c.classList.remove("pulsa");
+    void c.offsetWidth; // reinicia a animacao
+    c.classList.add("pulsa");
+  }
+  ultimasCarpas = carpasAgora;
+
   const fonteRecente = emocoes.length ? emocoes : eventos;
   $("#c-recentes").textContent = num(gemasRecentes(fonteRecente, 5 * 60 * 1000));
 
@@ -228,9 +259,13 @@ async function pintar() {
       `<option value="todos">todo mundo da live</option>`,
     ].join("");
     if (cxSorteio.innerHTML !== opcoes) {
-      const antes = cxSorteio.value;
       cxSorteio.innerHTML = opcoes;
-      if (antes && [...cxSorteio.options].some((o) => o.value === antes)) cxSorteio.value = antes;
+      // So devolve a escolha se foi ELA que escolheu. Antes o painel guardava
+      // o padrao de quando ainda nao havia emotion nenhuma, e por isso nunca
+      // caia sozinho em "quem mandou carpa" quando a carpa aparecia.
+      if (sorteioEscolhido && [...cxSorteio.options].some((o) => o.value === sorteioEscolhido)) {
+        cxSorteio.value = sorteioEscolhido;
+      }
     }
   }
 
@@ -320,6 +355,13 @@ $("#intervalo").addEventListener("change", () => {
 $("#ordem").addEventListener("change", () => {
   ordem = $("#ordem").value;
   pintar();
+});
+
+// Guarda a escolha dela para o painel não desfazer no próximo desenho. Só a
+// escolha dela: sem isso, o painel guardava o padrão de quando ainda não havia
+// emotion nenhuma e nunca caía sozinho em "quem mandou carpa".
+$("#quemSorteia").addEventListener("change", () => {
+  sorteioEscolhido = $("#quemSorteia").value;
 });
 
 $("#qualLive").addEventListener("change", () => {
@@ -416,6 +458,11 @@ $("#zerarAoVivo").addEventListener("click", async () => {
   pintar();
 });
 
+$("#meta").addEventListener("change", () => {
+  localStorage.setItem("meta", String(Math.max(0, Number($("#meta").value) || 0)));
+  pintar();
+});
+
 $("#imprimir").addEventListener("click", () => window.print());
 
 // Planilha da live, para abrir no Excel. Tudo que o painel sabe: os envios um
@@ -458,6 +505,7 @@ if (localStorage.getItem("transmissao")) transmissao(true);
 // Carregado dentro da pagina da live (overlay.js): layout de faixa estreita.
 if (new URLSearchParams(location.search).has("embutido")) document.body.classList.add("embutido");
 
+$("#meta").value = localStorage.getItem("meta") || "";
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
 ligarRelogio();
 pintar();
