@@ -108,7 +108,7 @@ const PORORDEM = {
   gastou: (a, b) => b.gastou - a.gastou,
 };
 
-async function pintar() {
+async function desenhar() {
   const { lives, p, titulo, eventos, emocoes, tabela, nomes, eu } = await ler();
   const em = resumirEmocoes(emocoes);
   const linhasP = p?.linhas ?? [];
@@ -311,6 +311,28 @@ async function pintar() {
         ? ""
         : ` O "ao vivo" começa a encher na segunda leitura: a primeira serve de ponto de partida.`)
     : "";
+}
+
+// Se uma conta estourar no meio do desenho, a tela inteira parava de
+// atualizar sem dizer nada -- foi o que aconteceu quando um campo de metrica
+// veio faltando. Agora o erro aparece na tela e o painel continua de pe.
+let ultimoErro = "";
+async function pintar() {
+  try {
+    await desenhar();
+    if (ultimoErro) {
+      ultimoErro = "";
+      $("#aviso").textContent = "";
+    }
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg !== ultimoErro) {
+      ultimoErro = msg;
+      console.error("painel:", e);
+    }
+    $("#aviso").textContent =
+      "Alguma coisa quebrou ao desenhar o painel: " + msg + ". Os numeros podem estar velhos.";
+  }
 }
 
 // ---------- atualizar ----------
