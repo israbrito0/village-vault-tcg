@@ -1369,6 +1369,30 @@ $("#planilha").addEventListener("click", async () => {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 });
 
+// ---------- tema ----------
+// A escolha fica guardada e vale para o painel na live e na aba separada.
+// Mudou num, o outro acompanha.
+const TEMAS = ["vidro", "neon", "jamble", "claro"];
+function aplicarTema(tema) {
+  const certo = TEMAS.includes(tema) ? tema : "";
+  for (const t of TEMAS) document.body.classList.toggle("tema-" + t, t === certo);
+  const cx = $("#tema");
+  if (cx.value !== certo) cx.value = certo;
+  return certo;
+}
+$("#tema").addEventListener("change", () => {
+  const tema = aplicarTema($("#tema").value);
+  try {
+    localStorage.setItem("tema", tema);
+  } catch {}
+});
+addEventListener("storage", (e) => {
+  if (e.key === "tema") aplicarTema(e.newValue);
+});
+try {
+  aplicarTema(localStorage.getItem("tema"));
+} catch {}
+
 // Carregado dentro da pagina da live (overlay.js): layout de faixa estreita.
 const EMBUTIDO = new URLSearchParams(location.search).has("embutido");
 if (EMBUTIDO) document.body.classList.add("embutido");

@@ -135,6 +135,20 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
     conferir(!p.body.classList.contains("transmissao") && p.armazenado.get("transmissao") === "", "e o Esc sai dele");
   }
 
+  // ---------- tema ----------
+  {
+    const p = abrirPainel({ busca: '?embutido=1&live=X', guardado: { tema: 'neon' } });
+    await p.espera();
+    conferir(p.body.classList.contains('tema-neon') && p.el('#tema').value === 'neon', 'abre no tema guardado');
+    p.el('#tema').value = 'claro';
+    for (const fn of p.el('#tema').ouvintes.change) fn({});
+    conferir(p.body.classList.contains('tema-claro') && !p.body.classList.contains('tema-neon'), 'trocar o tema troca o visual na hora');
+    conferir(p.armazenado.get('tema') === 'claro', 'e fica guardado para a próxima vez');
+    const q = abrirPainel({ guardado: { tema: 'inventado\" onload=x' } });
+    await q.espera();
+    conferir(!q.body.classList.lista().some((c) => c.startsWith('tema-')), 'tema que não existe: fica o padrão (Roxo)');
+  }
+
   // ---------- cada aba desenha sem quebrar, com dado de verdade ----------
   // demo-abas.json: frames reais da live do @pokerusbr (03/10/2026) passados
   // pelo inject.js e pelo background.js.

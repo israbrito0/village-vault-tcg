@@ -181,6 +181,11 @@ No modo transmissao a BARRA DE ESPACO sorteia, sem precisar clicar.
 
 Botoes do fim
 -------------
+  Tema                   o visual do painel: Roxo (o de sempre), Vidro
+                         (roxo e azul translucido), Neon (preto com rosa e
+                         ciano acesos, bom para a live), Jamble (preto e
+                         branco, como o site) ou Claro (de dia). Vale na hora
+                         e fica guardado, no painel da live e na aba separada
   Modo transmissao       esconde os botoes e aumenta os numeros, para pegar a
                          aba no OBS com "Captura de janela". Esc sai, barra de
                          espaco sorteia. Ele lembra se ficou ligado

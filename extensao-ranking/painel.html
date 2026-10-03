@@ -13,6 +13,11 @@
         --destaque: #ffc83d;
         --gema: #5ac8fa;
         --vivo: #4ade80;
+        --linha: rgba(255,255,255,.06);   /* separador das linhas */
+        --trilho: #120f24;                /* fundo das barras */
+        --botao-texto: #2a2000;           /* texto do botão de destaque */
+        --pilula: rgba(255,255,255,.05);  /* fundo das pílulas */
+        --raio: 12px;                     /* canto dos cartões e caixas */
       }
       * { box-sizing: border-box; }
       body {
@@ -26,7 +31,7 @@
       .sub { color: var(--fraco); font-size: 12px; margin-bottom: 16px; }
       .sub.vivo { color: var(--vivo); }
       .cartoes { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-bottom: 16px; }
-      .cartao { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; }
+      .cartao { background: var(--caixa); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; }
       .cartao .rotulo { color: var(--fraco); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; }
       .cartao .valor { font-size: 26px; font-weight: 700; margin-top: 2px; }
       .cartao.gema .valor { color: var(--gema); }
@@ -36,11 +41,11 @@
       #t-metricas td:first-child { color: var(--fraco); }
       .grade { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
       @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
-      .painel { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
+      .painel { background: var(--caixa); border: 1px solid var(--borda); border-radius: var(--raio); padding: 12px 14px; margin-bottom: 12px; }
       .painel h2 { font-size: 13px; margin: 0 0 8px; color: var(--destaque); text-transform: uppercase; letter-spacing: .04em; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
       table { width: 100%; border-collapse: collapse; font-size: 13px; }
       th { text-align: left; color: var(--fraco); font-weight: 500; font-size: 11px; text-transform: uppercase; padding-bottom: 4px; }
-      td { padding: 3px 0; border-top: 1px solid rgba(255,255,255,.05); }
+      td { padding: 3px 0; border-top: 1px solid var(--linha); }
       td.n, th.n { text-align: right; }
       td.gema { color: var(--gema); }
       td.forte { font-weight: 700; }
@@ -51,7 +56,7 @@
       .fraco { color: var(--fraco); font-size: 11px; font-weight: 400; }
       .lista { max-height: 430px; overflow: auto; }
       .vazio { color: var(--fraco); font-style: italic; }
-      button { background: var(--destaque); color: #2a2000; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px; }
+      button { background: var(--destaque); color: var(--botao-texto); border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 700; cursor: pointer; font-size: 13px; }
       button:disabled { opacity: .5; cursor: default; }
       button.secundario { background: transparent; color: var(--texto); border: 1px solid var(--borda); font-weight: 500; }
       select { background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); border-radius: 7px; padding: 5px 7px; font: inherit; font-size: 12px; }
@@ -59,7 +64,7 @@
       .ganhador { font-size: 24px; font-weight: 800; color: var(--destaque); margin: 10px 0 4px; }
       .controles { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
       .aviso { color: var(--destaque); font-size: 12px; }
-      .barra { height: 14px; border-radius: 999px; background: #120f24; border: 1px solid var(--borda); overflow: hidden; }
+      .barra { height: 14px; border-radius: 999px; background: var(--trilho); border: 1px solid var(--borda); overflow: hidden; }
       .barraDentro { height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, var(--gema), var(--destaque)); transition: width .6s ease; }
       #meta { width: 90px; padding: 3px 7px; font-size: 12px; text-align: right; }
       /* Quando chega carpa, o cartao pisca uma vez -- da para ver de longe. */
@@ -129,16 +134,16 @@
       .pilulas { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 12px; }
       .pilulas button.pilula {
         display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px;
-        border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--borda);
+        border-radius: 999px; background: var(--pilula); border: 1px solid var(--borda);
         color: var(--texto); font: 600 12px/1.3 ui-monospace, "Cascadia Mono", Consolas, monospace; cursor: pointer;
       }
       .pilulas button.pilula img { width: 20px; height: 20px; object-fit: contain; }
       .pilulas button.pilula b { font-weight: 800; }
-      .pilulas button.pilula.ativa { border-color: var(--destaque); background: rgba(255,200,61,.15); box-shadow: inset 0 0 0 1px var(--destaque); }
+      .pilulas button.pilula.ativa { border-color: var(--destaque); background: color-mix(in srgb, var(--destaque) 16%, transparent); box-shadow: inset 0 0 0 1px var(--destaque); }
       .feed { max-height: 340px; overflow: auto; border-top: 1px solid var(--borda); }
       .linha-feed {
         display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
-        padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.06);
+        padding: 7px 4px; border-bottom: 1px solid var(--linha);
       }
       .linha-feed.chat { grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; }
       .avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px rgba(255,200,61,.35); }
@@ -160,7 +165,7 @@
       .vagas .vaga { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; margin-bottom: 5px; }
       .vagas button.coroa { padding: 5px 9px; font-size: 12px; white-space: nowrap; }
       .vagas .vaga .num { color: var(--destaque); font-weight: 800; text-align: center; }
-      .vagas .vaga.ganhou { background: rgba(255,200,61,.12); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--destaque); }
+      .vagas .vaga.ganhou { background: color-mix(in srgb, var(--destaque) 13%, transparent); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--destaque); }
       .vagas .vaga .quem { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .vagas .vaga .quem .avatar { width: 22px; height: 22px; }
       .campo, .vagas input {
@@ -218,12 +223,71 @@
       .time.vermelho .pts { color: #fca5a5; }
       .time.azul .pts { color: #93c5fd; }
       .time.lider { box-shadow: 0 0 0 2px var(--destaque); }
-      .barraBatalha { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 10px 0 4px; background: #120f24; }
+      .barraBatalha { display: flex; height: 10px; border-radius: 99px; overflow: hidden; margin: 10px 0 4px; background: var(--trilho); }
       .barraBatalha .v { background: #f87171; }
       .barraBatalha .a { background: #60a5fa; }
       .busca { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
       .busca input { flex: 1; min-width: 120px; background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); border-radius: 7px; padding: 5px 8px; font: inherit; font-size: 12px; }
       tr.eu td { color: var(--destaque); font-weight: 700; }
+
+      /* ---------- temas (seletor "Tema" no rodapé do painel) ---------- */
+
+      /* Vidro: roxo e azul translúcido, cantos bem redondos. */
+      body.tema-vidro {
+        --fundo: rgba(20,12,50,.55); --caixa: rgba(255,255,255,.09); --borda: rgba(255,255,255,.18);
+        --texto: #ffffff; --fraco: #d3c9f5; --destaque: #ffd166; --gema: #9ff3ff; --vivo: #7ef0c1;
+        --linha: rgba(255,255,255,.10); --trilho: rgba(0,0,0,.30); --pilula: rgba(255,255,255,.12); --raio: 18px;
+        background: linear-gradient(160deg, #5b21b6 0%, #3730a3 38%, #1e40af 62%, #6d28d9 100%) fixed;
+      }
+      /* O degradê é do corpo; o fundo da janela, por trás dele, acompanha. */
+      html:has(body.tema-vidro) { background: #3b2a9e; }
+      html:has(body.tema-claro) { background: #f4f2fa; }
+      body.tema-vidro .painel, body.tema-vidro .cartao {
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 8px 28px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.10);
+      }
+      body.tema-vidro .pilulas button.pilula { backdrop-filter: blur(6px); }
+
+      /* Neon: preto com rosa e ciano acesos -- bom para a live. */
+      body.tema-neon {
+        --fundo: #05010d; --caixa: #0c0619; --borda: #3a0e6e; --texto: #f4eeff; --fraco: #a78bfa;
+        --destaque: #ff4fd8; --gema: #22e3ff; --vivo: #39ff88;
+        --linha: rgba(167,139,250,.13); --trilho: #000; --botao-texto: #1a0016; --pilula: rgba(255,79,216,.07);
+      }
+      body.tema-neon .painel, body.tema-neon .cartao { box-shadow: 0 0 0 1px rgba(168,85,247,.25), 0 0 22px rgba(168,85,247,.18); }
+      body.tema-neon .painel h2 { text-shadow: 0 0 10px rgba(255,79,216,.7); }
+      body.tema-neon .cartao.gema .valor, body.tema-neon td.gema, body.tema-neon .linha-feed .oque { text-shadow: 0 0 12px rgba(34,227,255,.8); }
+      body.tema-neon .cartao.dinheiro.grande .valor { text-shadow: 0 0 12px rgba(57,255,136,.6); }
+      body.tema-neon button:not(.secundario):not(.pilula):not([data-aba]) { box-shadow: 0 0 14px rgba(255,79,216,.5); }
+      body.tema-neon .avatar { box-shadow: 0 0 0 2px rgba(34,227,255,.6), 0 0 10px rgba(34,227,255,.4); }
+
+      /* Jamble: preto e branco, botões redondos, como o site. */
+      body.tema-jamble {
+        --fundo: #000; --caixa: #121214; --borda: #26262b; --texto: #fafafa; --fraco: #9b9ba4;
+        --destaque: #ffffff; --gema: #7cc8ff; --vivo: #3ddc84;
+        --linha: rgba(255,255,255,.07); --trilho: #1e1e22; --botao-texto: #000; --pilula: #1c1c20; --raio: 16px;
+      }
+      body.tema-jamble .painel h2 { color: var(--texto); text-transform: none; letter-spacing: 0; font-size: 14px; }
+      body.tema-jamble button { border-radius: 999px; }
+      body.tema-jamble .abas { border-bottom: 0; gap: 6px; }
+      body.tema-jamble .abas button { border-radius: 999px; border-bottom: 0; background: #1c1c20; color: var(--fraco); }
+      body.tema-jamble .abas button.ativa { background: #fff; color: #000; }
+      body.tema-jamble .podio td:first-child { color: #ffd60a; }
+      body.tema-jamble .avatar { box-shadow: 0 0 0 2px #26262b; }
+
+      /* Claro: fundo branco e roxo, para usar de dia. */
+      body.tema-claro {
+        --fundo: #f4f2fa; --caixa: #ffffff; --borda: #e2ddf0; --texto: #1c1530; --fraco: #6e6787;
+        --destaque: #7c3aed; --gema: #0284c7; --vivo: #15803d;
+        --linha: rgba(28,21,48,.08); --trilho: #ece8f6; --botao-texto: #fff; --pilula: #f4f1fc;
+      }
+      body.tema-claro .painel, body.tema-claro .cartao { box-shadow: 0 1px 3px rgba(28,21,48,.08); }
+      body.tema-claro .time.vermelho .pts { color: #dc2626; }
+      body.tema-claro .time.azul .pts { color: #2563eb; }
+      body.tema-claro .avatar { box-shadow: 0 0 0 2px rgba(124,58,237,.25); }
+      body.tema-claro .tag.vendido { color: #15803d; border-color: rgba(21,128,61,.35); }
+
+      #tema { margin-left: 4px; }
 
       /* Número não pode vazar do cartão em largura nenhuma. */
       .cartao .valor, .ganhador { overflow-wrap: anywhere; }
@@ -563,6 +627,15 @@
       <button class="secundario" id="planilha">Baixar planilha (CSV)</button>
       <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
       <button class="secundario" id="buscarHistorico">Buscar desde o começo</button>
+      <label>Tema
+        <select id="tema">
+          <option value="">Roxo</option>
+          <option value="vidro">Vidro</option>
+          <option value="neon">Neon</option>
+          <option value="jamble">Jamble</option>
+          <option value="claro">Claro</option>
+        </select>
+      </label>
       <button class="secundario" id="zerarAoVivo">Zerar o "ao vivo" desta live</button>
     </div>
     <button id="sairTransmissao">sair do modo transmissão (Esc)</button>
