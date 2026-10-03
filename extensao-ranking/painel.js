@@ -378,6 +378,9 @@ addEventListener("keydown", (e) => {
 });
 if (localStorage.getItem("transmissao")) transmissao(true);
 
+// Carregado dentro da pagina da live (overlay.js): layout de faixa estreita.
+if (new URLSearchParams(location.search).has("embutido")) document.body.classList.add("embutido");
+
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
 ligarRelogio();
 pintar();

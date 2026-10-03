@@ -60,6 +60,29 @@
         .nao-imprimir { display: none; }
       }
 
+      /* Embutido: o painel carregado dentro da pagina da live, numa faixa
+         estreita ao lado. Tudo em uma coluna e mais junto. */
+      body.embutido { padding: 10px 12px 14px; }
+      body.embutido h1 { font-size: 15px; }
+      body.embutido .sub { font-size: 11px; margin-bottom: 10px; }
+      body.embutido .cartoes { grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 10px; }
+      body.embutido .cartao { padding: 8px 10px; border-radius: 9px; }
+      body.embutido .cartao .valor { font-size: 20px; }
+      body.embutido .cartao.gema.grande .valor { font-size: 24px; }
+      body.embutido .cartao.dinheiro .valor { font-size: 15px; }
+      body.embutido .cartao .rotulo { font-size: 10px; }
+      body.embutido .grade { grid-template-columns: 1fr; gap: 8px; }
+      body.embutido .painel { padding: 9px 11px; margin-bottom: 8px; }
+      body.embutido .painel h2 { font-size: 11px; }
+      body.embutido table { font-size: 12px; }
+      body.embutido .lista { max-height: 230px; }
+      body.embutido label { margin-right: 8px; font-size: 11px; }
+      body.embutido button { padding: 6px 10px; font-size: 12px; }
+      body.embutido .ganhador { font-size: 20px; }
+      body.embutido .rodape { font-size: 10px; }
+      /* Dentro da live nao faz sentido imprimir nem virar modo transmissao. */
+      body.embutido #imprimir, body.embutido #transmitir { display: none; }
+
       /* Modo transmissão: a aba vira um painel para pegar no OBS com
          "Captura de janela". Some tudo que é botão e crescem os números. */
       #sairTransmissao { display: none; }

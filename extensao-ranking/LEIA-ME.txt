@@ -6,7 +6,11 @@ NA HORA DA LIVE, EM 3 PASSOS
 1. No Chrome, abra a sua live:
       Painel -> Lives -> a sua live -> aba Participacao
    (ou a propria pagina da live). Deixe essa aba aberta.
-2. Clique no icone da extensao -> "Painel da live (gemas e sorteio)".
+2. Na propria pagina da live, clique no botao "Painel" no canto de cima, a
+   direita. O painel abre ENCOSTADO NA LIVE, na mesma tela -- nao precisa
+   trocar de aba. Arraste a borda esquerda dele para mudar a largura; ele
+   lembra o tamanho e se estava aberto.
+   (Se preferir em aba separada: icone da extensao -> "Painel da live".)
 3. No painel, deixe "atualizar sozinho: a cada 30s". Pronto.
 
 Abra o painel JUNTO com a live, antes de comecar: o "quem mandou o que" so
