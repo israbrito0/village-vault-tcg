@@ -302,13 +302,16 @@ function descarregar() {
 // quem comprou cada vaga nos boosters (analises.js: batalhasPeloTitulo e
 // mudarBatalhaETB "sincronizar"). Roda a cada lote de vendas que chega.
 async function sincronizarETB(lives, ids, perfis) {
+  // Quantos boosters cada batalha tem (o painel deixa mudar; 9 numa ETB).
+  const { batalhasETB, etbBoosters } = await ler(["batalhasETB", "etbBoosters"]);
   const achadas = [];
   for (const id of ids) {
     if (!lives[id]) continue;
-    for (const b of batalhasPeloTitulo(resumirVendas(lives[id], perfis))) achadas.push({ liveId: id, ...b });
+    for (const b of batalhasPeloTitulo(resumirVendas(lives[id], perfis), { boosters: etbBoosters || 9 })) {
+      achadas.push({ liveId: id, ...b });
+    }
   }
   if (!achadas.length) return;
-  const { batalhasETB } = await ler(["batalhasETB"]);
   const todas = batalhasETB ?? {};
   let mudou = false;
   for (const b of achadas) {

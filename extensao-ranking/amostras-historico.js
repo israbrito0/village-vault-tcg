@@ -91,4 +91,19 @@ const VENDIDOS_EXCLUSIVE = {
   hasNextPage: false,
 };
 
-module.exports = { VENDIDOS_PAGINA_1, VENDIDOS_PAGINA_2, BATALHA_PARTICIPANTES, VENDIDOS_EXCLUSIVE };
+// Live do @drico3dlab (03/10/2026): a batalha vendida como "1 - INGRESSO -
+// BOOSTER BATALHA" (R$ 22 cada), 5 compras de 5 ingressos.
+const INGRESSO = "1 - INGRESSO - BOOSTER BATALHA";
+const VENDIDOS_DRICO = {
+  success: true,
+  items: [
+    vendido("jY6uZnmPPtE7Xrr7aLOk", INGRESSO, "BUY_IT_NOW", 22, "uf998jI34qex8Gek0Sde", "exclusive", "LyUN", 22, 5, 110, 1791059889.685),
+    vendido("ibh4lVlZCNzCFwg9dWnR", INGRESSO, "BUY_IT_NOW", 22, "MyVgQelKobkzXybPtoF0", "israelbrito", "8wzV", 22, 5, 110, 1791059555.881),
+    vendido("GttAOTO1M6q19gRXtPol", INGRESSO, "BUY_IT_NOW", 22, "e7DJ0W6d0FBauKJlSZY7", "israelbrito", "8wzV", 22, 5, 110, 1791059511.489),
+    vendido("05HOFRWccG6xe8LFcFVU", INGRESSO, "BUY_IT_NOW", 22, "DGE8kqGy1owUrlz8vK5M", "israelbrito", "8wzV", 22, 5, 110, 1791059469.81),
+    vendido("bTQACfOauMQEkcTwHrFO", INGRESSO, "BUY_IT_NOW", 22, "V9pOembqH4xRDsXwTPTU", "israelbrito", "8wzV", 22, 5, 110, 1791059424.395),
+  ],
+  hasNextPage: false,
+};
+
+module.exports = { VENDIDOS_PAGINA_1, VENDIDOS_PAGINA_2, BATALHA_PARTICIPANTES, VENDIDOS_EXCLUSIVE, VENDIDOS_DRICO };

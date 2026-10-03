@@ -125,27 +125,74 @@
   // O overlay.js (mesmo mundo isolado) chama ao abrir o painel e no ↻.
   self.vvCarregarHistorico = carregarHistorico;
 
-  // ---------- vaga de Batalha ETB vendida ----------
-  // Produto "Batalha 1 ETB" vendido ao vivo como compra direta: o WebSocket só
-  // diz que saiu mais uma unidade, não quem comprou. Então, uns segundos
-  // depois, a lista "Vendidos" é lida de novo (só a primeira página) e o
-  // painel preenche o booster. No máximo uma leitura a cada 15 segundos.
-  const tituloDaVenda = new Map();
-  const vendidasDaVenda = new Map();
+  // ---------- alguém comprou ----------
+  // Cada frame da venda na tela diz quantas unidades já saíram (compra
+  // direta) ou se o leilão fechou vendido. Quando isso muda:
+  //   - toca o "plim" (o som que ela escolheu no painel);
+  //   - se for vaga de batalha, relê a lista "Vendidos" uns segundos depois
+  //     (só a primeira página): a compra direta ao vivo não diz QUEM comprou,
+  //     e é assim que o booster é preenchido. No máximo a cada 15 segundos.
+  const vendaVista = new Map(); // id da venda -> { titulo, vendidas, vendido }
   let agendadoVendidos = null;
   let ultimaReleitura = 0;
+  let vendedorDaLive = null;
+  let euHandle = null;
+
+  // O som: "todas" as vendas, só na "minha" live, só vagas de "batalha", ou
+  // "desligado". A escolha fica no painel.
+  let somVenda = "todas";
+  try {
+    chrome.storage.local.get("somVenda").then((g) => {
+      if (g?.somVenda) somVenda = g.somVenda;
+    });
+    chrome.storage.onChanged.addListener((mudou) => {
+      if (mudou.somVenda) somVenda = mudou.somVenda.newValue || "todas";
+    });
+  } catch {
+    // Extensão recarregada com a página aberta: fica o padrão.
+  }
+
+  let audio = null;
+  function plim(batalha) {
+    if (somVenda === "desligado") return;
+    if (somVenda === "batalha" && !batalha) return;
+    if (somVenda === "minha" && !(euHandle && vendedorDaLive === euHandle)) return;
+    try {
+      audio = audio || new AudioContext();
+      // O navegador só deixa tocar depois de um clique na página; se ainda
+      // não houve, toca no próximo clique.
+      if (audio.state === "suspended") {
+        audio.resume();
+        document.addEventListener("pointerdown", () => audio.resume(), { once: true, capture: true });
+      }
+      tocarSom(audio, batalha ? "batalha" : "venda");
+    } catch {
+      // Sem som disponível: segue sem.
+    }
+  }
 
   function olharQuadro(q) {
     const d = q?.data;
+    if (typeof d?.seller?.username === "string") vendedorDaLive = d.seller.username.replace(/^@/, "");
     const id = d?.sale?.id || q?.leilaoAtual;
     if (!id) return;
-    if (typeof d?.sale_product?.title === "string") tituloDaVenda.set(id, d.sale_product.title);
-    if (!numeroDaBatalhaETB(tituloDaVenda.get(id))) return;
+    const visto = vendaVista.get(id) || {};
+    if (typeof d?.sale_product?.title === "string") visto.titulo = d.sale_product.title;
+    const batalha = ehVagaDeBatalha(visto.titulo);
     const vendidas = Number(d?.sale?.sold_count);
-    if (!Number.isFinite(vendidas)) return;
-    const antes = vendidasDaVenda.get(id);
-    vendidasDaVenda.set(id, vendidas);
-    if (antes === undefined || vendidas <= antes) return;
+    const vendido = d?.sale?.is_sold === true;
+    const antes = { ...visto };
+    if (Number.isFinite(vendidas)) visto.vendidas = vendidas;
+    if (d?.sale) visto.vendido = vendido;
+    vendaVista.set(id, visto);
+    // Primeira vez que vê a venda: só anota (pode ter vendido antes de abrir).
+    if (antes.vendidas === undefined && antes.vendido === undefined) return;
+    const saiuMais = Number.isFinite(vendidas) && antes.vendidas !== undefined && vendidas > antes.vendidas;
+    const fechou = vendido && antes.vendido === false;
+    if (!saiuMais && !fechou) return;
+
+    plim(batalha);
+    if (!batalha || !saiuMais) return;
     clearTimeout(agendadoVendidos);
     const esperar = Math.max(4000, 15000 - (Date.now() - ultimaReleitura));
     agendadoVendidos = setTimeout(async () => {
@@ -164,6 +211,7 @@
     if (e.source !== window || e.data?.marca !== MARCA) return;
     if (TIPOS.has(e.data.tipo)) mandar(e.data.tipo, e.data.dados);
     if (e.data.tipo === "quadro") olharQuadro(e.data.dados);
+    if (e.data.tipo === "eu" && typeof e.data.dados?.handle === "string") euHandle = e.data.dados.handle;
   });
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {

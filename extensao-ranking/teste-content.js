@@ -34,6 +34,8 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
 
   const botoes = [];
   const teclas = [];
+  const notas = [];
+  const mudancasStorage = [];
   let dialogo = null;
   const janela = {
     location: { pathname: caminho, href: "https://www.jamble.com" + caminho },
@@ -71,8 +73,28 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
         sendMessage: (m) => enviadas.push(m),
         onMessage: { addListener: (fn) => (ouvinteDaExtensao = fn) },
       },
+      storage: {
+        local: { get: async () => ({}) },
+        onChanged: { addListener: (fn) => mudancasStorage.push(fn) },
+      },
     },
     console,
+    AudioContext: class {
+      constructor() {
+        this.state = "running";
+        this.currentTime = 0;
+        this.destination = {};
+        notas.push("abriu");
+      }
+      resume() {}
+      createOscillator() {
+        const o = { type: "", frequency: { value: 0 }, connect() {}, start() { notas.push(o.frequency.value); }, stop() {} };
+        return o;
+      }
+      createGain() {
+        return { gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} };
+      }
+    },
     // O content.js espera entre um clique e outro nas abas da Jamble; aqui
     // a espera vira quase nada, para o teste não demorar.
     setTimeout: (fn, ms) => setTimeout(fn, Math.min(ms, 5)),
@@ -102,7 +124,7 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       if (r !== true) resolve(undefined);
     });
 
-  return { enviadas, daPagina, daExtensao, botoes, teclas, abrirDialogo: () => (dialogo = {}) };
+  return { enviadas, daPagina, daExtensao, botoes, teclas, notas, mudancasStorage, abrirDialogo: () => (dialogo = {}) };
 }
 
 const botaoFalso = (texto, rotulo = null, { role = null, selecionado = false, classe = "", aoClicar = null, log = null } = {}) => {
@@ -352,6 +374,44 @@ const botaoFalso = (texto, rotulo = null, { role = null, selecionado = false, cl
     p.daPagina("quadro", { leilaoAtual: "S2", data: { sale: { id: "S2", sold_count: 2 }, sale_product: { title: "Pack 151" } } });
     await new Promise((r) => setTimeout(r, 60));
     conferir(log.length === 0, "produto que não é batalha: não relê nada");
+  }
+  {
+    // 🔔 Alguém comprou: toca o plim. Vaga de batalha tem som próprio.
+    const p = abrirPagina("/live/drico3dlab/ab9b8RjP92XQHc04AWlF");
+    const venda = (id, titulo, vendidas, extra = {}) => ({ leilaoAtual: id, data: { seller: { username: "drico3dlab" }, sale: { id, sold_count: vendidas, ...extra }, sale_product: { title: titulo } } });
+    p.daPagina("quadro", venda("A", "Pack 151", 0));
+    conferir(p.notas.length === 0, "abrir a página não toca nada (o que já tinha vendido não conta)");
+    p.daPagina("quadro", venda("A", "Pack 151", 1));
+    conferir(p.notas.join() === "abriu,988,1319", "vendeu: plim de duas notas", p.notas.join());
+    p.notas.length = 0;
+    p.daPagina("quadro", venda("B", "1 - INGRESSO - BOOSTER BATALHA", 3));
+    p.daPagina("quadro", venda("B", "1 - INGRESSO - BOOSTER BATALHA", 8));
+    conferir(p.notas.join() === "784,988,1319", "vaga de batalha: som de três notas", p.notas.join());
+    p.notas.length = 0;
+    p.daPagina("quadro", venda("C", "Charizard leilão", 0, { is_sold: false, status: "STARTED" }));
+    p.daPagina("quadro", venda("C", "Charizard leilão", 1, { is_sold: true, status: "FINISHED" }));
+    conferir(p.notas.length === 2, "leilão fechou vendido: plim", p.notas.join());
+  }
+  {
+    // As escolhas do som.
+    const p = abrirPagina("/live/drico3dlab/x");
+    const venda = (id, titulo, vendidas) => ({ leilaoAtual: id, data: { seller: { username: "drico3dlab" }, sale: { id, sold_count: vendidas }, sale_product: { title: titulo } } });
+    p.daPagina("eu", { handle: "israelbrito" });
+    // A escolha vem do chrome.storage: aqui, o content.js lê pelo evento.
+    for (const fn of p.mudancasStorage) fn({ somVenda: { newValue: "minha" } });
+    p.daPagina("quadro", venda("D", "Pack", 0));
+    p.daPagina("quadro", venda("D", "Pack", 1));
+    conferir(p.notas.length === 0, "'só na minha live': na live de outro vendedor, silêncio");
+    for (const fn of p.mudancasStorage) fn({ somVenda: { newValue: "batalha" } });
+    p.daPagina("quadro", venda("D", "Pack", 2));
+    conferir(p.notas.length === 0, "'só vaga de batalha': venda comum, silêncio");
+    p.daPagina("quadro", venda("E", "BATALHA DO BEM", 0));
+    p.daPagina("quadro", venda("E", "BATALHA DO BEM", 1));
+    conferir(p.notas.length === 4, "'só vaga de batalha': vaga vendida toca", p.notas.join());
+    for (const fn of p.mudancasStorage) fn({ somVenda: { newValue: "desligado" } });
+    p.notas.length = 0;
+    p.daPagina("quadro", venda("E", "BATALHA DO BEM", 2));
+    conferir(p.notas.length === 0, "desligado: silêncio");
   }
   {
     // Fora da página da live, não mexe em nada.

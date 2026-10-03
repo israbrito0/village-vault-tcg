@@ -659,22 +659,52 @@
   // ("Batalha 1 ETB" -> nº 1): para cada número, quem pegou cada vaga (uma por
   // unidade, na ordem da compra) e quantas unidades já saíram sem o @ ainda
   // (compra direta ao vivo não diz quem comprou -- vem com a lista Vendidos).
-  function batalhasPeloTitulo(vendas) {
-    const m = new Map();
+  //
+  // Dois jeitos de o vendedor nomear, os dois vistos em lives reais:
+  //   - com o número: "Batalha 1 ETB" -> vai direto para a batalha nº 1;
+  //   - sem o número: "1 - INGRESSO - BOOSTER BATALHA", "DUPLO 30y - BATALHA
+  //     DO MAL" -> as vagas enchem as batalhas daquele produto em ordem de
+  //     compra, de N em N (N = boosters por batalha, 9 numa ETB).
+  // "50 - INGRESSOS" vale 50 vagas por compra (ingressosPorUnidade).
+  function batalhasPeloTitulo(vendas, { boosters = 9 } = {}) {
+    const porBatalha = Math.min(36, Math.max(1, Math.round(n(boosters)) || 9));
+    const comNumero = new Map();
+    const emFila = new Map();
     const linhas = (vendas?.lista || []).slice().sort((a, b) => n(a.inicio) - n(b.inicio));
     for (const v of linhas) {
-      const numero = doGemas?.numeroDaBatalhaETB?.(v.titulo);
-      if (!numero) continue;
+      if (!doGemas?.ehVagaDeBatalha?.(v.titulo)) continue;
       const direta = v.tipo === "compra direta";
       // Leilão rolando: quem está na frente ainda não comprou nada.
       if (v.situacao !== "vendido" && !(direta && v.situacao === "rolando")) continue;
-      const b = m.get(numero) || { numero, titulo: v.titulo, vagas: [], semDono: 0 };
-      const unidades = n(v.vendidas) || (v.situacao === "vendido" ? 1 : 0);
-      if (v.vencedor) for (let i = 0; i < unidades; i++) b.vagas.push(v.vencedor);
-      else b.semDono += unidades;
-      m.set(numero, b);
+      const unidades = (n(v.vendidas) || (v.situacao === "vendido" ? 1 : 0)) * doGemas.ingressosPorUnidade(v.titulo);
+      const numero = doGemas.numeroDaBatalhaETB(v.titulo);
+      const chave = numero ? "n:" + numero : "t:" + limpo(v.titulo, 80).toLowerCase();
+      const grupos = numero ? comNumero : emFila;
+      const g = grupos.get(chave) || { chave, numero, titulo: v.titulo, vagas: [], semDono: 0 };
+      if (v.vencedor) for (let i = 0; i < unidades; i++) g.vagas.push(v.vencedor);
+      else g.semDono += unidades;
+      grupos.set(chave, g);
     }
-    return [...m.values()].sort((a, b) => a.numero - b.numero);
+    const saida = [...comNumero.values()].sort((a, b) => a.numero - b.numero);
+    for (const g of emFila.values()) {
+      // A fila daquele produto: quem tem nome, na ordem; as vendidas ainda sem
+      // nome são as mais recentes, no fim.
+      const total = g.vagas.length + g.semDono;
+      const blocos = Math.max(1, Math.ceil(total / porBatalha));
+      for (let k = 0; k < blocos; k++) {
+        const ini = k * porBatalha;
+        const fim = ini + porBatalha;
+        saida.push({
+          chave: g.chave + ":" + (k + 1),
+          numero: null,
+          titulo: blocos > 1 ? `${g.titulo} · ${k + 1}` : g.titulo,
+          boosters: porBatalha,
+          vagas: g.vagas.slice(ini, fim),
+          semDono: Math.max(0, Math.min(fim, total) - Math.max(ini, g.vagas.length)),
+        });
+      }
+    }
+    return saida;
   }
 
   // O número da próxima batalha na live (Batalha ETB nº 1, 2, 3...).
@@ -745,21 +775,30 @@
     // nunca numa batalha já encerrada.
     if (msg?.acao === "sincronizar") {
       const liveId = limpo(msg.liveId, 80);
-      const numero = Math.round(n(msg.numero));
-      if (!liveId || numero < 1) return { ok: false };
+      const numeroDoNome = Math.round(n(msg.numero));
+      // Cada batalha automática tem uma chave: "n:3" (o nome diz o número) ou
+      // "t:<produto>:<bloco>" (vagas em fila).
+      const chave = limpo(msg.chave, 120) || (numeroDoNome > 0 ? "n:" + numeroDoNome : "");
+      if (!liveId || !chave) return { ok: false };
       const vagas = (Array.isArray(msg.vagas) ? msg.vagas : []).map(arroba).filter(Boolean).slice(0, 36);
       const semDono = Math.max(0, Math.round(n(msg.semDono)));
-      let atual = Object.values(todas).find((x) => x.liveId === liveId && x.numero === numero);
+      let atual = Object.values(todas).find(
+        (x) => x.liveId === liveId && (x.chave === chave || (!x.chave && numeroDoNome > 0 && x.numero === numeroDoNome)),
+      );
       if (!atual) {
+        const numero = numeroDoNome > 0 ? numeroDoNome : proximoNumeroETB(todas, liveId);
+        const boosters = Math.min(36, Math.max(n(msg.boosters) || 9, vagas.length));
         atual = novaBatalha(
           todas,
-          { liveId, numero, titulo: limpo(msg.titulo, 80) || `Batalha ${numero} ETB`, boosters: Math.min(36, Math.max(9, vagas.length)), vagas, auto: true },
+          { liveId, numero, titulo: limpo(msg.titulo, 80) || `Batalha ${numero} ETB`, boosters, vagas, auto: true },
           agora,
         );
         atual.automatica = true;
+        atual.chave = chave;
         atual.semDono = semDono;
         return { ok: true, id: atual.id, mudou: true };
       }
+      if (!atual.chave) atual.chave = chave;
       if (atual.situacao !== "rodando") return { ok: true, id: atual.id, mudou: false };
       let mudou = false;
       if (vagas.length > atual.boosters) {

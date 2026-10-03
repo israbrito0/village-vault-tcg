@@ -181,6 +181,12 @@ No modo transmissao a BARRA DE ESPACO sorteia, sem precisar clicar.
 
 Botoes do fim
 -------------
+  Som de venda           um "plim" toda vez que alguem compra (vaga de batalha
+                         tem som proprio, de 3 notas): toda venda, so na sua
+                         live, so vaga de batalha, ou desligado. Toca na
+                         pagina da live, mesmo com o painel fechado -- o
+                         navegador so libera o som depois de um clique na
+                         pagina. "testar som" toca os dois
   Tema                   o visual do painel: Roxo (o de sempre), Vidro
                          (roxo e azul translucido), Neon (preto com rosa e
                          ciano acesos, bom para a live), Jamble (preto e
@@ -246,10 +252,15 @@ Batalha ETB (a da loja, nao a da Jamble)
 Abre-se uma ETB, cada booster vai para uma pessoa, e quem tirar o maior hit
 leva. Na aba "Batalha ETB":
 
-AUTOMATICO: produto com "Batalha 1 ETB" no nome (vale tambem "BATALHA 1 -
-ETB", "Batalha ETB #1", "Batalha no 1 ETB") vira a Batalha ETB no 1 da live
-sozinho, e cada vaga vendida vai para um booster com o @ de quem comprou, na
-ordem da compra (quem comprou 3 fica com 3 boosters). Na compra direta a
+AUTOMATICO: todo produto com "batalha" no nome vira batalha sozinho, com quem
+comprou cada vaga nos boosters, na ordem da compra. Cada vendedor escreve de um
+jeito, e todos valem:
+  "1 - INGRESSO - BOOSTER BATALHA"  os ingressos enchem as batalhas de 9 em 9
+                                    (9 primeiros: no 1; proximos 9: no 2...)
+  "50 - INGRESSOS BATALHA"          cada compra vale 50 vagas
+  "DUPLO 30y - BATALHA DO MAL"      cada produto de batalha tem as suas
+  "Batalha 1 ETB" / "Batalha #1"    vai direto para a batalha daquele numero
+O 9 muda em "boosters por batalha", na aba Batalha ETB. Na compra direta a
 Jamble nao diz ao vivo quem comprou: quando sai uma vaga, a extensao rele a
 lista "Vendidos" uns segundos depois (a coluna dos produtos pisca) e o
 booster e preenchido. Ate la, o painel avisa "N vagas vendidas esperando o

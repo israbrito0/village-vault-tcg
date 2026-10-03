@@ -543,6 +543,28 @@ const live = (id, doPainel = true) => ({
     conferir(Object.values(guardado.batalhasETB)[0].slots[3].handle === "caio" && Object.keys(guardado.batalhasETB).length === 1, "quem compra depois entra na mesma batalha");
   }
 
+  // ---------- "1 - INGRESSO - BOOSTER BATALHA": as batalhas enchem sozinhas ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("DRICO", false);
+    const H = require("./amostras-historico.js");
+    const itens = H.VENDIDOS_DRICO.items.map((i) => ({
+      saleId: i.sold.saleId, titulo: i.title, tipo: i.saleType, unidades: i.soldCount, preco: i.sold.soldPrice,
+      total: i.sold.totalSoldPrice, comprador: i.sold.buyerUsername, cancelado: false, quando: Math.round(i.sold.createdAt * 1000),
+    }));
+    await mandar({ tipo: "vendidos", dados: { quando: 1791060000000, itens }, contexto: ctx });
+    await esperar(1800);
+    const bs = Object.values(guardado.batalhasETB ?? {}).sort((a, b) => a.numero - b.numero);
+    conferir(bs.length === 3 && bs.every((b) => b.automatica && b.boosters === 9), "25 ingressos: Batalhas ETB nº 1, 2 e 3 sozinhas", bs.map((b) => b.numero + ":" + b.slots.filter((s) => s.handle).length).join(" "));
+    conferir(bs[2] && bs[2].slots.filter((s) => s.handle === "exclusive").length === 5, "o @exclusive na nº 3");
+
+    // Ela muda para 5 boosters por batalha: a próxima leitura já usa.
+    guardado.etbBoosters = 5;
+    await mandar({ tipo: "vendidos", dados: { quando: 1791060100000, itens }, contexto: ctx });
+    await esperar(1800);
+    conferir(Object.keys(guardado.batalhasETB).length === 5, "com 5 boosters por batalha, as vagas viram 5 batalhas", String(Object.keys(guardado.batalhasETB).length));
+  }
+
   // ---------- ranking mensal e amostras ----------
   {
     const { guardado, mandar } = montar();

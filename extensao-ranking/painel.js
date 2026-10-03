@@ -1369,6 +1369,47 @@ $("#planilha").addEventListener("click", async () => {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 });
 
+// ---------- configurações guardadas (som de venda, boosters por batalha) ----------
+// Ficam no chrome.storage, onde a página da live (o som) e o background (a
+// batalha automática) também leem.
+async function lerConfig(chave, padrao) {
+  try {
+    if (temStorage) return (await chrome.storage.local.get(chave))[chave] ?? padrao;
+    return localStorage.getItem(chave) ?? padrao;
+  } catch {
+    return padrao;
+  }
+}
+async function gravarConfig(chave, valor) {
+  try {
+    if (temStorage) await chrome.storage.local.set({ [chave]: valor });
+    else localStorage.setItem(chave, valor);
+  } catch {}
+}
+
+// 🔔 O "plim" quando alguém compra toca na página da live (content.js), até
+// com o painel fechado. Aqui só se escolhe quando, e dá para testar.
+lerConfig("somVenda", "todas").then((v) => ($("#somVenda").value = v));
+$("#somVenda").addEventListener("change", () => gravarConfig("somVenda", $("#somVenda").value));
+let audioDoPainel = null;
+$("#testarSom").addEventListener("click", () => {
+  try {
+    audioDoPainel = audioDoPainel || new AudioContext();
+    audioDoPainel.resume?.();
+    tocarSom(audioDoPainel, "venda");
+    setTimeout(() => tocarSom(audioDoPainel, "batalha"), 800);
+  } catch {
+    $("#aviso").textContent = "Este navegador não deixou tocar o som.";
+  }
+});
+
+lerConfig("etbBoosters", 9).then((v) => ($("#etbPorBatalha").value = String(v)));
+$("#etbPorBatalha").addEventListener("change", () => {
+  const n = Math.min(36, Math.max(1, Math.round(Number($("#etbPorBatalha").value)) || 9));
+  $("#etbPorBatalha").value = String(n);
+  gravarConfig("etbBoosters", n);
+});
+
 // ---------- tema ----------
 // A escolha fica guardada e vale para o painel na live e na aba separada.
 // Mudou num, o outro acompanha.

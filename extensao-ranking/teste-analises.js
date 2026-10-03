@@ -478,6 +478,63 @@ conferir(quemDisputou({ a: rolandoAinda }, perfis).length === 0, "leilão roland
   conferir(!mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 0 }).ok, "sem número, nada");
 }
 
+// ---------- batalha em fila: produto com "batalha" no nome, sem número ----------
+{
+  const H = require("./amostras-historico.js");
+  const G = require("./gemas.js");
+  conferir(G.ehVagaDeBatalha("1 - INGRESSO - BOOSTER BATALHA") && G.ehVagaDeBatalha("🎟️ DUPLO 30y - BATALHA DO MAL"), "produtos de batalha com outros nomes são reconhecidos");
+  conferir(!G.ehVagaDeBatalha("FRETE") && !G.ehVagaDeBatalha("ETB Fogo Fantasma"), "frete e ETB sem 'batalha' não");
+  conferir(G.ingressosPorUnidade("50 - INGRESSOS BATALHA") === 50 && G.ingressosPorUnidade("1 - INGRESSO - BOOSTER BATALHA") === 1, "'50 - INGRESSOS' vale 50 vagas por compra");
+  conferir(G.numeroDaBatalhaETB("Batalha 30 anos EUA") === null && G.numeroDaBatalhaETB("Batalha #5") === 5, "'30 anos' não é número de batalha; '#5' é");
+
+  const comoBackground = (resposta) => {
+    const live = { vendidos: {}, vendidosEm: 1 };
+    for (const i of resposta.items) {
+      live.vendidos[i.sold.saleId] = {
+        saleId: i.sold.saleId, titulo: i.title, tipo: i.saleType, inicial: i.startingPrice, unidades: i.soldCount,
+        preco: i.sold.soldPrice, total: i.sold.totalSoldPrice, comprador: i.sold.buyerUsername, cancelado: false,
+        quando: Math.round(i.sold.createdAt * 1000),
+      };
+    }
+    return live;
+  };
+  // A live do @drico3dlab: 25 ingressos, 9 por batalha.
+  const drico = batalhasPeloTitulo(resumirVendas(comoBackground(H.VENDIDOS_DRICO), {}), { boosters: 9 });
+  conferir(drico.length === 3, "25 ingressos em batalhas de 9: 3 batalhas", String(drico.length));
+  conferir(drico[0].vagas.join() === Array(9).fill("israelbrito").join(), "nº 1: os 9 primeiros (israelbrito)");
+  conferir(drico[2].vagas.join() === "israelbrito,israelbrito,exclusive,exclusive,exclusive,exclusive,exclusive", "nº 3: 2 da israelbrito + 5 do exclusive, na ordem da compra", drico[2].vagas.join());
+  conferir(drico.every((b) => b.boosters === 9 && b.numero === null && /^t:/.test(b.chave)), "cada uma com 9 boosters e chave da fila");
+  conferir(batalhasPeloTitulo(resumirVendas(comoBackground(H.VENDIDOS_DRICO), {}), { boosters: 5 }).length === 5, "com 5 boosters por batalha, viram 5 batalhas");
+
+  // A live do @exclusive: dois produtos de batalha, cada um com a sua.
+  const exc = batalhasPeloTitulo(resumirVendas(comoBackground(H.VENDIDOS_EXCLUSIVE), {}));
+  const mal = exc.find((b) => /DO MAL/.test(b.titulo));
+  const bem = exc.find((b) => /DO BEM/.test(b.titulo));
+  conferir(exc.length === 2 && mal.vagas.length === 7 && bem.vagas.length === 5, "Batalha do Mal (7 vagas) e do Bem (5) separadas");
+  conferir(bem.vagas.join() === "bombomzinho,drico3dlab,israelbrito,israelbrito,israelbrito", "do Bem: na ordem da compra");
+
+  // Pacote de 50 ingressos ocupa 50 vagas.
+  const pacote = batalhasPeloTitulo({ lista: [{ titulo: "50 - INGRESSOS BATALHA", tipo: "compra direta", vencedor: "ana", vendidas: 1, inicio: 1, situacao: "vendido" }] });
+  conferir(pacote.length === 6 && pacote[5].vagas.length === 5, "1 pacote de 50 ingressos: 5 batalhas cheias + 5 vagas na 6ª");
+
+  // Vendidas ao vivo ainda sem o @: no fim da fila.
+  const espera = batalhasPeloTitulo({
+    lista: [
+      { titulo: "BATALHA X", tipo: "compra direta", vencedor: "ana", vendidas: 8, inicio: 1, situacao: "vendido" },
+      { titulo: "BATALHA X", tipo: "compra direta", vencedor: null, vendidas: 3, inicio: 2, situacao: "rolando" },
+    ],
+  });
+  conferir(espera[0].vagas.length === 8 && espera[0].semDono === 1 && espera[1].semDono === 2, "vagas sem @ ainda contam no fim da fila", JSON.stringify(espera.map((b) => [b.vagas.length, b.semDono])));
+
+  // Sincronizar as batalhas da fila: numeradas na ordem, cada uma pela chave.
+  const todas = {};
+  for (const b of drico) mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "D", ...b });
+  const lista = Object.values(todas).sort((a, b) => a.numero - b.numero);
+  conferir(lista.map((b) => b.numero).join() === "1,2,3" && lista[2].slots[6].handle === "exclusive", "viram as Batalhas ETB nº 1, 2 e 3 da live");
+  const deNovo = mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "D", ...drico[2] });
+  conferir(!deNovo.mudou && Object.keys(todas).length === 3, "sincronizar de novo não duplica nada");
+}
+
 // ---------- batalha ----------
 
 const b = batalhaDoFrame(batalhaReal);

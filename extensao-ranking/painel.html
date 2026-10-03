@@ -593,7 +593,12 @@
 
       <div class="painel nao-imprimir">
         <h2><span>Nova batalha</span><span class="fraco" id="etbNovoNumero"></span></h2>
-        <div class="falta" style="margin:-2px 0 8px">Produto com <b>"Batalha 1 ETB"</b> no nome vira a Batalha ETB nº 1 sozinho, com quem comprou cada vaga nos boosters. Aqui é para começar uma na mão.</div>
+        <div class="falta" style="margin:-2px 0 8px">
+          <b>Automático:</b> todo produto com "batalha" no nome (ex.: "1 - INGRESSO - BOOSTER BATALHA", "Batalha 1 ETB")
+          enche as batalhas sozinho, em ordem de compra, com quem comprou em cada booster.
+          <label style="margin:6px 0 0">boosters por batalha <input id="etbPorBatalha" class="campo curto" type="number" min="1" max="36" value="9" /></label>
+          <br />Aqui embaixo é para começar uma na mão.
+        </div>
         <div class="controles">
           <input id="etbNovoTitulo" class="campo" placeholder="nome (ex.: ETB 30 anos)" />
           <label>boosters <input id="etbNovoBoosters" class="campo curto" type="number" min="1" max="36" value="9" /></label>
@@ -627,6 +632,15 @@
       <button class="secundario" id="planilha">Baixar planilha (CSV)</button>
       <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
       <button class="secundario" id="buscarHistorico">Buscar desde o começo</button>
+      <label>🔔 Som de venda
+        <select id="somVenda">
+          <option value="todas">toda venda</option>
+          <option value="minha">só na minha live</option>
+          <option value="batalha">só vaga de batalha</option>
+          <option value="desligado">desligado</option>
+        </select>
+      </label>
+      <button class="secundario" id="testarSom" type="button">▶ testar som</button>
       <label>Tema
         <select id="tema">
           <option value="">Roxo</option>

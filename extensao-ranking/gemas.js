@@ -283,28 +283,71 @@
     return /^https:\/\/[\w.-]+\.(b-cdn\.net|jamble\.com)\/[\w./%=-]+$/.test(u) ? u : null;
   }
 
-  // Produto que é vaga de Batalha ETB: o nome tem "batalha", "etb" e o número
-  // da batalha -- "Batalha 1 ETB", "BATALHA 2 - ETB", "Batalha ETB #3",
-  // "Batalha nº 4 ETB". Devolve o número, ou null se não for vaga de batalha.
-  // ("Batalha 30 anos EUA", sem "etb", não é.)
-  function numeroDaBatalhaETB(titulo) {
-    const t = String(titulo ?? "")
+  // Tira acento e caixa: "BATALHA Nº 1" e "batalha no 1" viram a mesma coisa.
+  const normalizar = (texto) =>
+    String(texto ?? "")
       .normalize("NFD")
-      .replace(/[̀-ͯ]/g, "")
+      .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase();
-    if (!/\bbatalha\b/.test(t) || !/\betb\b/.test(t)) return null;
-    const m =
-      t.match(/#\s*(\d{1,3})\b/) ||
-      t.match(/\bbatalha\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/) ||
-      t.match(/\betb\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/);
+
+  // Produto que é vaga de batalha (a da loja, não a da Jamble): tem "batalha"
+  // no nome. Cada vendedor escreve de um jeito -- visto em lives reais:
+  // "Batalha 30 anos EUA", "DUPLO 30y - BATALHA DO MAL", "1 - INGRESSO -
+  // BOOSTER BATALHA", "Batalha 1 ETB".
+  function ehVagaDeBatalha(titulo) {
+    return /\b(batalha|battle)\b/.test(normalizar(titulo));
+  }
+
+  // Quantas vagas cada unidade comprada vale: "50 - INGRESSOS BATALHA" são 50,
+  // "1 - INGRESSO - BOOSTER BATALHA" é 1. Sem número de ingressos no nome, 1.
+  function ingressosPorUnidade(titulo) {
+    const m = normalizar(titulo).match(/^\D{0,4}(\d{1,3})\s*[-–x×]?\s*ingressos?\b/);
+    return m ? Math.max(1, Number(m[1])) : 1;
+  }
+
+  // O número da batalha, quando o nome diz: "Batalha 1 ETB", "BATALHA 2 -
+  // ETB", "Batalha ETB #3", "Batalha nº 4 ETB", "Batalha #5". Sem isso
+  // ("Batalha 30 anos EUA" -- 30 é dos anos, não da batalha), null: as vagas
+  // enchem as batalhas em ordem.
+  function numeroDaBatalhaETB(titulo) {
+    const t = normalizar(titulo);
+    if (!/\bbatalha\b/.test(t)) return null;
+    const hash = t.match(/#\s*(\d{1,3})\b/);
+    if (hash) return Number(hash[1]) || null;
+    if (!/\betb\b/.test(t)) return null;
+    const m = t.match(/\bbatalha\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/) || t.match(/\betb\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/);
     const numero = m ? Number(m[1]) : 0;
     return numero > 0 ? numero : null;
+  }
+
+  // O "plim" de quando alguém compra, feito na hora (sem arquivo de som).
+  // Venda: duas notas subindo. Vaga de batalha: três.
+  function tocarSom(contexto, tipo) {
+    if (!contexto) return;
+    const notas = tipo === "batalha" ? [784, 988, 1319] : [988, 1319];
+    notas.forEach((freq, i) => {
+      const osc = contexto.createOscillator();
+      const vol = contexto.createGain();
+      const t0 = contexto.currentTime + i * 0.13;
+      osc.type = "triangle";
+      osc.frequency.value = freq;
+      vol.gain.setValueAtTime(0.0001, t0);
+      vol.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
+      vol.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.38);
+      osc.connect(vol);
+      vol.connect(contexto.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.42);
+    });
   }
 
   const api = {
     GEMAS_POR_CARPA,
     urlDeImagem,
     numeroDaBatalhaETB,
+    ehVagaDeBatalha,
+    ingressosPorUnidade,
+    tocarSom,
     porPessoa,
     diffGemas,
     resumirGemas,
