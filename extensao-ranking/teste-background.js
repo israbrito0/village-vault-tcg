@@ -261,6 +261,28 @@ const live = (id, doPainel = true) => ({
     conferir(r?.ok === false, "mexer em live que não existe responde que não deu");
   }
 
+  // ---------- live de outro vendedor: o "no ar" vem das metricas ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("ALHEIA", false);
+    await mandar({
+      tipo: "metricas",
+      dados: { quando: t0, de: "ao-vivo", valores: { faturamento: 3731, vendas: 35, acabou: false } },
+      contexto: ctx,
+    });
+    conferir(guardado.lives.ALHEIA.aoVivo === true, "live de outro vendedor aparece como no ar");
+    conferir(guardado.lives.ALHEIA.quando === t0, "e a hora da leitura vem das metricas", String(guardado.lives.ALHEIA.quando));
+
+    await mandar({
+      tipo: "metricas",
+      dados: { quando: t0 + 60000, de: "ao-vivo", valores: { faturamento: 4000, acabou: true } },
+      contexto: ctx,
+    });
+    conferir(guardado.lives.ALHEIA.aoVivo === false, "e passa a encerrada quando a live acaba");
+    conferir(guardado.lives.ALHEIA.metricas.faturamento === 4000, "com o ultimo faturamento");
+    conferir(guardado.lives.ALHEIA.metricas.vendas === 35, "sem perder o que a leitura anterior trouxe");
+  }
+
   // ---------- tabela de preços ----------
   {
     const { guardado, mandar } = montar();

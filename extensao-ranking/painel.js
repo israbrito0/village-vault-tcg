@@ -42,7 +42,10 @@ function escolherLive(lives) {
   const todas = Object.values(lives ?? {});
   if (!todas.length) return null;
   if (liveEscolhida && lives[liveEscolhida]) return lives[liveEscolhida];
-  if (LIVE_DA_PAGINA && lives[LIVE_DA_PAGINA]) return lives[LIVE_DA_PAGINA];
+  // Encostado numa live, so aquela live vale. Nos primeiros segundos ainda nao
+  // chegou dado dela -- e mostrar os numeros de OUTRA live nesse vao seria pior
+  // do que mostrar nada, porque voce leria aquilo como sendo desta aqui.
+  if (LIVE_DA_PAGINA) return lives[LIVE_DA_PAGINA] ?? null;
   return todas.sort((a, b) => (b.doPainel ? 1 : 0) - (a.doPainel ? 1 : 0) || b.quando - a.quando)[0];
 }
 
@@ -138,7 +141,9 @@ async function desenhar() {
   $("#periodo").textContent = p
     ? `${p.aoVivo ? "● ao vivo" : "encerrada"} · lido às ${hora(p.quando)}` +
       (p.doPainel ? "" : " · live de outra pessoa")
-    : "abra a sua live no painel da Jamble, na aba Participação";
+    : LIVE_DA_PAGINA
+      ? "esperando os primeiros dados desta live…"
+      : "abra a sua live no painel da Jamble, na aba Participação";
   $("#periodo").classList.toggle("vivo", !!p?.aoVivo);
 
   // Os numeros que a Jamble calcula para a live inteira. So aparecem depois
@@ -272,7 +277,12 @@ async function desenhar() {
   // Cada numero vem de um lugar, e nem todo lugar esta aberto. Em vez de
   // mostrar tracinho calado, o painel diz o que falta e onde abrir.
   const faltando = [];
-  if (p && !p.doPainel) {
+  if (!p && LIVE_DA_PAGINA) {
+    faltando.push(
+      "Ainda nao chegou nada desta live. Os numeros aparecem nos primeiros segundos; " +
+        "se demorar, recarregue a pagina da live.",
+    );
+  } else if (p && !p.doPainel) {
     faltando.push(
       "Live de outro vendedor: faturamento, vendas, audiencia e quem mandou qual " +
         "emotion vem normal. O que nao vem e gemas por pessoa e espectadores unicos " +

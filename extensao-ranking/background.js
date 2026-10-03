@@ -166,6 +166,11 @@ async function guardarMetricas(dados, ctx) {
     emocoes: [],
   };
   live.metricas = { ...(live.metricas ?? {}), ...valores, quando: dados.quando ?? Date.now() };
+  // Numa live de outro vendedor nao existe participacao, entao e daqui que sai
+  // o "esta no ar" e a hora da ultima leitura. Sem isso o painel dizia
+  // "encerrada" com a live rodando, e disparava o aviso de numero velho.
+  if (typeof valores.acabou === "boolean") live.aoVivo = !valores.acabou;
+  live.quando = dados.quando ?? Date.now();
   if (!live.titulo && ctx?.titulo) live.titulo = ctx.titulo;
   lives[id] = live;
   await chrome.storage.local.set({ lives });
