@@ -169,14 +169,19 @@ Dois botoes no fim da pagina
 
 Cada numero vem de um lugar
 ---------------------------
-  emotions (quem mandou qual icone)  -> QUALQUER live aberta, inclusive a de
-                                        outra pessoa
-  gemas por pessoa, faturamento,     -> SO a sua live, aberta no painel do
-  metricas, ticket, espectadores        vendedor (Painel -> Lives -> a live)
+De QUALQUER live, inclusive a de outro vendedor (serve para acompanhar
+amigos e concorrentes):
+  faturamento, vendas, ticket medio, assistindo agora, duracao, faturamento
+  por minuto, produtos no catalogo e a venda, likes, compartilhamentos
+  e QUEM MANDOU QUAL ICONE
 
-Entao na live de outro vendedor so enche o quadro de emotions -- e o painel
-diz isso na tela, em vez de mostrar tracinho. Para ter tudo na sua live,
-deixe abertas as duas: a pagina da live e o painel do vendedor dela.
+So da SUA live, aberta no painel do vendedor (Painel -> Lives -> a live):
+  gemas por pessoa, pos taxas, espectadores unicos, pico simultaneo, funil,
+  tempo medio assistido, publico que voltou, mensagens no chat, seguidores
+  novos, compradores novos
+
+O painel diz na tela o que esta faltando e onde abrir, em vez de mostrar
+tracinho calado.
 
 De onde vem o "quem mandou o quê"
 ----------------------------------

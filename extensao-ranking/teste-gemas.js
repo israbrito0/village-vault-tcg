@@ -7,6 +7,7 @@ const {
   gemasRecentes,
   resumirEmocoes,
   quemMandou,
+  listaDeMetricas,
   idDaLive,
   ehPainelDoVendedor,
   GEMAS_POR_CARPA,
@@ -182,6 +183,60 @@ conferir(quemMandou([], "magikarp_shiny").length === 0, "sem emotion nenhuma, li
 const vazio = resumirEmocoes([]);
 conferir(vazio.total === 0 && vazio.gemas === 0 && vazio.porIcone.length === 0, "sem emotions não quebra");
 conferir(resumirEmocoes(undefined).total === 0, "sem lista nenhuma não quebra");
+
+// ---------- a lista de métricas aguenta dado pela metade ----------
+// Um campo faltando derrubou a tela inteira uma vez: reais(undefined) estourava
+// dentro do pintar() e nada era desenhado. Aqui isso não passa de novo.
+
+const fmt = {
+  num: (n) => (Number.isFinite(Number(n)) ? Math.round(Number(n)).toLocaleString("pt-BR") : "—"),
+  reais: (n) => (Number.isFinite(Number(n)) ? "R$ " + Number(n).toFixed(2) : "—"),
+  tempo: (s) => (s >= 60 ? `${Math.floor(s / 60)}min` : `${Math.round(s)}s`),
+  pct: (v) => (v * 100).toFixed(0) + "%",
+};
+
+// 1) só o que vem de QUALQUER live (o objeto show do WebSocket)
+const soAoVivo = {
+  faturamento: 3731, vendas: 35, audienciaAgora: 29, likes: 15,
+  produtosVendidos: 0, produtosDisponiveis: 5, produtosTotal: 5,
+  compartilhamentos: 1, salvos: 0, comecouEm: Date.now() - 60 * 60 * 1000,
+};
+const L1 = listaDeMetricas(soAoVivo, fmt);
+const nomes1 = L1.map(([k]) => k);
+conferir(L1.length > 0, "live de outro vendedor já rende métricas", `${L1.length} linhas`);
+conferir(nomes1.includes("Assistindo agora"), "mostra quem está assistindo agora");
+conferir(nomes1.includes("Ticket médio"), "calcula o ticket médio a partir de faturamento e vendas");
+conferir(nomes1.includes("Duração da live"), "calcula a duração a partir da hora que começou");
+conferir(nomes1.includes("Faturamento por minuto"), "e o ritmo");
+conferir(!nomes1.includes("Pico simultâneo"), "não inventa o que só o vendedor vê");
+conferir(!L1.some(([, v]) => v === "—" || v == null), "nenhuma linha sai com valor vazio", JSON.stringify(L1.filter(([, v]) => v === "—")));
+const ticket1 = L1.find(([k]) => k === "Ticket médio")[1];
+conferir(ticket1 === "R$ " + (3731 / 35).toFixed(2), "ticket médio certo", ticket1);
+
+// 2) o pacote completo do painel do vendedor
+const completo = {
+  faturamento: 26827, vendas: 74, ticketMedio: 362.53, gastoPorComprador: 1117.79,
+  compradores: 24, ofertaram: 30, porMinuto: 62.83, segundosEntreVendas: 289.14,
+  frete: 1025.36, espectadores: 1486, pico: 45, mediaSimultanea: 24.56,
+  segundosAssistidos: 381.85, ficaramUmMinuto: 383, voltaram: 1195,
+  sessoesPorPessoa: 3.23, produtosMostrados: 916, produtosVendidos: 131,
+  escoamento: 0.14, mensagens: 2802, pessoasNoChat: 113, seguidoresNovos: 9,
+  minutos: 427, compradoresNovos: 12,
+};
+const L2 = listaDeMetricas(completo, fmt);
+const nomes2 = L2.map(([k]) => k);
+conferir(L2.length > nomes1.length, "com os dados do vendedor vem bem mais", `${L2.length} linhas`);
+conferir(nomes2.includes("Pico simultâneo") && nomes2.includes("Público que voltou"), "inclui o que só o vendedor vê");
+conferir(L2.find(([k]) => k === "Ticket médio")[1] === "R$ 362.53", "usa o ticket que a Jamble calcula, não o nosso");
+conferir(L2.find(([k]) => k === "Taxa de escoamento")[1] === "14%", "escoamento em porcentagem");
+conferir(!L2.some(([, v]) => v === "—"), "nada vazio no pacote completo");
+
+// 3) casos que não podem quebrar
+conferir(listaDeMetricas(null, fmt).length === 0, "sem métricas, lista vazia");
+conferir(listaDeMetricas({}, fmt).length === 0, "objeto vazio, lista vazia");
+conferir(listaDeMetricas({ faturamento: 0, vendas: 0 }, fmt).length === 0, "live que acabou de começar não mostra meia tela de zeros");
+const sujo = listaDeMetricas({ faturamento: "abc", vendas: null, likes: 7, pico: undefined, frete: NaN }, fmt);
+conferir(sujo.length === 1 && sujo[0][0] === "Likes na live", "campo torto é ignorado, o bom passa", JSON.stringify(sujo));
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

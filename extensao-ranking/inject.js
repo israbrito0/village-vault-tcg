@@ -251,6 +251,35 @@
     }
   }
 
+  // O objeto "show" do WebSocket vem de QUALQUER live, inclusive a de outro
+  // vendedor, e já traz faturamento, vendas e audiência. Não precisa ser dona
+  // da live para ter isso -- serve para acompanhar amigos também.
+  let ultimaFoto = "";
+  function guardarAoVivo(dados) {
+    const s = dados?.data?.show;
+    if (!s || typeof s !== "object" || !s.id) return;
+    const v = {
+      faturamento: Number(s.total_sale_product_price) || 0,
+      vendas: Number(s.sold_sale_count) || 0,
+      audienciaAgora: Number(s.audience_count) || 0,
+      likes: Number(s.like_count) || 0,
+      produtosVendidos: Number(s.sold_product_count) || 0,
+      produtosDisponiveis: Number(s.available_product_count) || 0,
+      produtosTotal: Number(s.total_product_count) || 0,
+      compartilhamentos: Number(s.share_count) || 0,
+      salvos: Number(s.bookmark_count) || 0,
+      comecouEm: s.started_at ? Math.round(Number(s.started_at) * 1000) : null,
+      acabou: s.is_over === true,
+      titulo: typeof s.title === "string" ? s.title : "",
+    };
+    // Esses frames chegam a cada poucos segundos: só avisa quando muda algo,
+    // para não ficar gravando a mesma coisa sem parar.
+    const foto = JSON.stringify(v);
+    if (foto === ultimaFoto) return;
+    ultimaFoto = foto;
+    avisar("metricas", { quando: Date.now(), de: "ao-vivo", valores: v });
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -260,6 +289,7 @@
       return;
     }
     guardarEventos(dados, origem);
+    guardarAoVivo(dados);
     if (/show-summary|show-dashboard/.test(origem)) guardarMetricas(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da

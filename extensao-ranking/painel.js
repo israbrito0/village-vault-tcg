@@ -19,8 +19,9 @@ const $ = (s) => document.querySelector(s);
 const ESCAPES = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ESCAPES[c]);
 
-const num = (n) => Math.round(n).toLocaleString("pt-BR");
-const reais = (n) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+const num = (n) => (Number.isFinite(Number(n)) ? Math.round(Number(n)).toLocaleString("pt-BR") : "—");
+const reais = (n) =>
+  Number.isFinite(Number(n)) ? Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—";
 const hora = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 let sorteios = [];
@@ -137,9 +138,12 @@ async function pintar() {
   $("#c-liquido").textContent = ouTraco(M?.liquido, reais);
   $("#c-vendas").textContent = ouTraco(M?.vendas, num);
   $("#c-compradores").textContent = ouTraco(M?.compradores, num);
-  $("#c-espectadores").textContent = ouTraco(M?.espectadores, num);
-  $("#c-gemas").textContent = num(r.gemas);
-  $("#c-carpas").textContent = num(r.gemas / porCarpa);
+  $("#c-espectadores").textContent = ouTraco(M?.espectadores ?? M?.audienciaAgora, num);
+  // Na live de outro vendedor nao existe participacao: ai o total de gemas e
+  // o que passou nas emotions com o painel aberto.
+  const gemasTotal = r.gemas || em.gemas;
+  $("#c-gemas").textContent = num(gemasTotal);
+  $("#c-carpas").textContent = num(gemasTotal / porCarpa);
   // As emotions sabem a hora exata de cada envio; a participação só sabe
   // quando foi lida. Quando houver emotion, ela manda.
   const fonteRecente = emocoes.length ? emocoes : eventos;
@@ -171,33 +175,11 @@ async function pintar() {
     4,
   );
 
-  // O resto das metricas da live, do jeito que a Jamble calcula.
+  // O resto das metricas da live. A lista e montada no gemas.js, que tem
+  // teste: campo faltando ja derrubou a tela inteira uma vez.
   const tempo = (seg) => (seg >= 60 ? `${Math.floor(seg / 60)}min ${Math.round(seg % 60)}s` : `${Math.round(seg)}s`);
-  const pc = (v) => (v * 100).toFixed(0) + "%";
-  const metricas = M
-    ? [
-        ["Ticket médio", reais(M.ticketMedio)],
-        ["Gasto por comprador", reais(M.gastoPorComprador)],
-        ["Frete arrecadado", reais(M.frete)],
-        ["Faturamento por minuto", reais(M.porMinuto)],
-        ["Intervalo entre vendas", tempo(M.segundosEntreVendas)],
-        ["Duração da live", `${num(M.minutos)} min`],
-        ["Fizeram oferta", num(M.ofertaram)],
-        ["Compradores novos", num(M.compradoresNovos)],
-        ["Pico simultâneo", num(M.pico)],
-        ["Média simultânea", num(M.mediaSimultanea)],
-        ["Ficaram mais de 1 min", num(M.ficaramUmMinuto)],
-        ["Tempo médio assistido", tempo(M.segundosAssistidos)],
-        ["Público que voltou", num(M.voltaram)],
-        ["Sessões por pessoa", (M.sessoesPorPessoa ?? 0).toFixed(1).replace(".", ",")],
-        ["Produtos mostrados", num(M.produtosMostrados)],
-        ["Produtos vendidos", num(M.produtosVendidos)],
-        ["Taxa de escoamento", pc(M.escoamento ?? 0)],
-        ["Mensagens no chat", num(M.mensagens)],
-        ["Pessoas no chat", num(M.pessoasNoChat)],
-        ["Seguidores novos", num(M.seguidoresNovos)],
-      ].filter(([, v]) => v != null && v !== "R$ 0,00" && v !== "0")
-    : [];
+  const pct = (v) => (v * 100).toFixed(0) + "%";
+  const metricas = listaDeMetricas(M, { num, reais, tempo, pct });
   $("#caixa-metricas").style.display = metricas.length ? "" : "none";
   linhas(
     $("#t-metricas tbody"),
@@ -247,12 +229,14 @@ async function pintar() {
   const faltando = [];
   if (p && !p.doPainel) {
     faltando.push(
-      "Esta e a live de outra pessoa: so da para contar as emotions. Faturamento, " +
-        "participacao e metricas sao dados de vendedor e so existem na sua live.",
+      "Live de outro vendedor: faturamento, vendas, audiencia e quem mandou qual " +
+        "emotion vem normal. O que nao vem e gemas por pessoa e espectadores unicos " +
+        "-- esses sao do painel do vendedor, so na sua live.",
     );
   } else if (p) {
-    if (!M) faltando.push("Faturamento e metricas: abra a sua live em Painel -> Lives -> a live, e toque em Desempenho (ou clique em Ler agora aqui).");
-    if (!linhasP.length) faltando.push("Gemas por pessoa: na mesma pagina, abra a aba Participacao.");
+    if (!M) faltando.push("Nenhum numero ainda: deixe a pagina da live aberta, ou abra a live em Painel -> Lives.");
+    if (M && !M.espectadores) faltando.push("Espectadores unicos, funil e pos-taxas: abra a aba Desempenho da sua live (ou clique em Ler agora).");
+    if (!linhasP.length) faltando.push("Gemas por pessoa: abra a aba Participacao da sua live.");
     if (!emocoes.length) faltando.push("Quem mandou qual icone: deixe a pagina da live aberta -- so chega o que passar com ela aberta.");
   }
   $("#falta").innerHTML = faltando.length
@@ -275,7 +259,7 @@ async function pintar() {
       `"Carpas" aqui é o total de gemas dividido por ${num(porCarpa)} (o preço da Carpa Zika), ` +
       `então é equivalência, não contagem carpa a carpa.` +
       (quantos ? ` Tabela de preços lida da Jamble: ${quantos} ícones.` : "") +
-      (eventos.length
+      (emocoes.length || eventos.length
         ? ""
         : ` O "ao vivo" começa a encher na segunda leitura: a primeira serve de ponto de partida.`)
     : "";

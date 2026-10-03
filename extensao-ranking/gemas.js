@@ -124,6 +124,64 @@
     return [...m.values()].sort((a, b) => b.qtd - a.qtd);
   }
 
+  // ---------- a lista de métricas da live ----------
+  // Monta os pares "nome: valor" do quadro de métricas. Fica aqui, e não no
+  // painel, porque é conta e precisa de teste: um campo faltando chegou a
+  // derrubar a tela inteira (reais(undefined) estourava).
+  //
+  // Os números chegam de duas fontes que se completam, e nem sempre as duas
+  // estão presentes:
+  //   do WebSocket da live (qualquer live)  -> faturamento, vendas, audiência
+  //   do painel do vendedor (só a sua live) -> espectadores únicos, funil
+  // Por isso cada linha é opcional: o que não veio simplesmente não aparece.
+  function listaDeMetricas(M, fmt) {
+    if (!M) return [];
+    const { num, reais, tempo, pct } = fmt;
+    const temNum = (v) => Number.isFinite(Number(v));
+
+    const minutos = M.minutos || (M.comecouEm ? Math.max(1, Math.round((Date.now() - M.comecouEm) / 60000)) : null);
+    const ticket = M.ticketMedio || (M.vendas ? (M.faturamento || 0) / M.vendas : null);
+    const porMin = M.porMinuto || (minutos ? (M.faturamento || 0) / minutos : null);
+    const escoa = temNum(M.escoamento)
+      ? M.escoamento
+      : M.produtosTotal
+        ? (M.produtosVendidos || 0) / M.produtosTotal
+        : null;
+
+    const linhas = [
+      ["Assistindo agora", M.audienciaAgora, num],
+      ["Ticket médio", ticket, reais],
+      ["Gasto por comprador", M.gastoPorComprador, reais],
+      ["Frete arrecadado", M.frete, reais],
+      ["Faturamento por minuto", porMin, reais],
+      ["Intervalo entre vendas", M.segundosEntreVendas, tempo],
+      ["Duração da live", minutos, (v) => num(v) + " min"],
+      ["Fizeram oferta", M.ofertaram, num],
+      ["Compradores novos", M.compradoresNovos, num],
+      ["Pico simultâneo", M.pico, num],
+      ["Média simultânea", M.mediaSimultanea, num],
+      ["Ficaram mais de 1 min", M.ficaramUmMinuto, num],
+      ["Tempo médio assistido", M.segundosAssistidos, tempo],
+      ["Público que voltou", M.voltaram, num],
+      ["Sessões por pessoa", M.sessoesPorPessoa, (v) => Number(v).toFixed(1).replace(".", ",")],
+      ["Produtos no catálogo", M.produtosTotal, num],
+      ["Produtos à venda agora", M.produtosDisponiveis, num],
+      ["Produtos mostrados", M.produtosMostrados, num],
+      ["Produtos vendidos", M.produtosVendidos, num],
+      ["Taxa de escoamento", escoa, pct],
+      ["Mensagens no chat", M.mensagens, num],
+      ["Pessoas no chat", M.pessoasNoChat, num],
+      ["Seguidores novos", M.seguidoresNovos, num],
+      ["Likes na live", M.likes, num],
+      ["Compartilhamentos", M.compartilhamentos, num],
+      ["Salvaram a live", M.salvos, num],
+    ];
+
+    // Sem o valor, a linha nem aparece. Zero também não: numa live que acabou
+    // de começar, meia tela de zeros não diz nada.
+    return linhas.filter(([, v]) => temNum(v) && Number(v) !== 0).map(([k, v, f]) => [k, f(v)]);
+  }
+
   // Identificador da live a partir do endereço. Importa acertar porque cada
   // live tem a sua contagem: se duas lives caírem no mesmo id, uma apaga a
   // outra. A página da live é /live/<vendedor>/<id> -- o id é o SEGUNDO
@@ -157,6 +215,7 @@
     gemasRecentes,
     resumirEmocoes,
     quemMandou,
+    listaDeMetricas,
     idDaLive,
     ehPainelDoVendedor,
     ehPaginaDeLive,
