@@ -9,6 +9,7 @@ const testes = [
   ["leitura da Jamble (vendas, participação, tabela)", "teste-leitura.js"],
   ["a ponte entre a página e a extensão", "teste-content.js"],
   ["o painel encostado na live (overlay)", "teste-overlay.js"],
+  ["o painel desenhando cada aba", "teste-painel.js"],
   ["contas de gemas", "teste-gemas.js"],
   ["contas de leilão, batalha, chat e clientes", "teste-analises.js"],
   ["o que o background guarda", "teste-background.js"],

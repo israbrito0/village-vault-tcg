@@ -27,6 +27,13 @@ mostra o top de compradores por valor gasto (na live e no acumulado).
 
 Como instalar (uma vez só)
 --------------------------
+(No Edge e igual, so que em edge://extensions.)
+
+Para ATUALIZAR depois de uma versao nova: em chrome://extensions (ou
+edge://extensions) clique em recarregar na extensao e DEPOIS de F5 na pagina
+da live. Sem o F5 a pagina fica com a versao antiga; o painel avisa. A versao
+carregada aparece no rodape do painel.
+
 1. Abra o Chrome em: chrome://extensions
 2. Ligue o "Modo do desenvolvedor" (canto superior direito).
 3. Clique em "Carregar sem compactação".
@@ -140,6 +147,8 @@ Botoes do fim
   Modo transmissao       esconde os botoes e aumenta os numeros, para pegar a
                          aba no OBS com "Captura de janela". Esc sai, barra de
                          espaco sorteia. Ele lembra se ficou ligado
+                         -- so na aba separada: dentro da live ele
+                         nunca liga (la ele escondia as abas e os botoes)
   Baixar planilha (CSV)  os envios um a um, o total por pessoa com os icones,
                          o ranking da Jamble e os sorteios. Abre no Excel
   Salvar relatorio em PDF    imprime a pagina sem os botoes
@@ -311,13 +320,16 @@ Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as nove suites, mais de 500 casos:
+Roda as dez suites, mais de 530 casos:
   manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada,
     funcao chamada que nao existe, aba sem secao)
   leitura dos payloads da Jamble (vendas, emotions, metricas, participacao,
     leilao, batalha, chat, ranking mensal, amostra sem dado pessoal)
   a ponte entre a pagina e a extensao (content.js, botao do ranking)
-  o painel encostado na live (overlay: botao, vazamento, largura)
+  o painel encostado na live (overlay: botao, vazamento, largura, aviso de
+    extensao atualizada)
+  o painel desenhando cada aba com dado de verdade, e o modo transmissao
+    que nao vale dentro da live
   contas de gemas, emotions por icone, metricas e planilha
   contas de leilao, batalha, chat, ranking mensal e clientes (com frames e a
     resposta do ranking de uma live de verdade, 03/10/2026)

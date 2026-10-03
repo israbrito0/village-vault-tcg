@@ -899,11 +899,22 @@ $("#planilha").addEventListener("click", async () => {
   setTimeout(() => URL.revokeObjectURL(url), 10000);
 });
 
+// Carregado dentro da pagina da live (overlay.js): layout de faixa estreita.
+const EMBUTIDO = new URLSearchParams(location.search).has("embutido");
+if (EMBUTIDO) document.body.classList.add("embutido");
+
 // ---------- modo transmissão ----------
 // Deixa a aba só com os números, para pegar no OBS com "Captura de janela".
 // O sorteio continua funcionando: o ganhador aparece grande na tela.
+//
+// É coisa da aba separada. A escolha fica guardada e as duas formas do painel
+// leem o mesmo lugar -- e dentro da live o modo escondia as abas, os botões e
+// o rodapé sem dar como sair (o botão de sair nem existe ali). Aconteceu em
+// 03/10: ela abriu o painel na live e não achou menu nenhum. Dentro da live,
+// então, ele não liga, e também não mexe na escolha guardada da aba separada.
 
 function transmissao(ligado) {
+  if (EMBUTIDO) return;
   document.body.classList.toggle("transmissao", ligado);
   localStorage.setItem("transmissao", ligado ? "1" : "");
 }
@@ -919,9 +930,6 @@ addEventListener("keydown", (e) => {
   }
 });
 if (localStorage.getItem("transmissao")) transmissao(true);
-
-// Carregado dentro da pagina da live (overlay.js): layout de faixa estreita.
-if (new URLSearchParams(location.search).has("embutido")) document.body.classList.add("embutido");
 
 $("#meta").value = localStorage.getItem("meta") || "";
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
