@@ -182,6 +182,72 @@
     return linhas.filter(([, v]) => temNum(v) && Number(v) !== 0).map(([k, v, f]) => [k, f(v)]);
   }
 
+  // ---------- planilha da live ----------
+  // CSV com ponto e virgula e virgula decimal, que e o que o Excel em
+  // portugues abre sem perguntar nada.
+  function paraCSV(linhas) {
+    const campo = (v) => {
+      const t = String(v == null ? "" : v);
+      // Ponto e virgula, aspas ou quebra de linha no meio do texto quebrariam
+      // a planilha: nesses casos o campo vai entre aspas, com as aspas de
+      // dentro dobradas, que e a regra do CSV.
+      const precisa = t.indexOf(";") >= 0 || t.indexOf(String.fromCharCode(34)) >= 0 || t.indexOf(String.fromCharCode(10)) >= 0 || t.indexOf(String.fromCharCode(13)) >= 0;
+      const aspas = String.fromCharCode(34);
+      return precisa ? aspas + t.split(aspas).join(aspas + aspas) + aspas : t;
+    };
+    const fim = String.fromCharCode(13) + String.fromCharCode(10);
+    return linhas.map((l) => l.map(campo).join(";")).join(fim);
+  }
+
+  const dataHora = (ts) => new Date(ts).toLocaleString("pt-BR");
+  const virgula = (n) => String(Number(n) || 0).replace(".", ",");
+
+  // Uma planilha por live, com tres partes: os envios um a um, o total por
+  // pessoa e o ranking de participacao.
+  function planilhaDaLive(live, nomes) {
+    const nome = (ic) => (nomes && nomes[ic]) || ic;
+    const out = [];
+    out.push(["Live", live?.titulo || live?.id || ""]);
+    out.push(["Gerado em", dataHora(Date.now())]);
+    out.push([]);
+
+    const em = live?.emocoes ?? [];
+    if (em.length) {
+      out.push(["ENVIOS, UM A UM"]);
+      out.push(["Hora", "Pessoa", "@", "Icone", "Gemas"]);
+      for (const e of em) out.push([dataHora(e.ts), e.nome, e.handle, nome(e.icone), e.gemas]);
+      out.push([]);
+
+      const porPessoa = resumirEmocoes(em).porPessoa;
+      out.push(["TOTAL POR PESSOA (so o que passou com o painel aberto)"]);
+      out.push(["Pessoa", "@", "Envios", "Gemas", "Icones"]);
+      for (const p of porPessoa) {
+        const detalhe = Object.entries(p.icones)
+          .map(([ic, q]) => q + "x " + nome(ic))
+          .join(", ");
+        out.push([p.nome, p.handle, p.qtd, p.gemas, detalhe]);
+      }
+      out.push([]);
+    }
+
+    const linhasP = live?.linhas ?? [];
+    if (linhasP.length) {
+      out.push(["RANKING DE PARTICIPACAO (a live inteira, calculado pela Jamble)"]);
+      out.push(["#", "Pessoa", "@", "Comprou", "Gemas", "Mensagens", "Pontos"]);
+      linhasP.forEach((l, i) => out.push([i + 1, l.nome, l.handle, virgula(l.gastou), l.gemas, l.mensagens, l.pontos]));
+      out.push([]);
+    }
+
+    const sort = live?.sorteios ?? [];
+    if (sort.length) {
+      out.push(["SORTEIOS"]);
+      out.push(["Hora", "Ganhador", "Entre", "Criterio"]);
+      for (const x of sort) out.push([dataHora(x.ts), x.ganhador, x.entre, x.fonte || ""]);
+    }
+
+    return paraCSV(out);
+  }
+
   // Identificador da live a partir do endereço. Importa acertar porque cada
   // live tem a sua contagem: se duas lives caírem no mesmo id, uma apaga a
   // outra. A página da live é /live/<vendedor>/<id> -- o id é o SEGUNDO
@@ -216,6 +282,8 @@
     resumirEmocoes,
     quemMandou,
     listaDeMetricas,
+    planilhaDaLive,
+    paraCSV,
     idDaLive,
     ehPainelDoVendedor,
     ehPaginaDeLive,

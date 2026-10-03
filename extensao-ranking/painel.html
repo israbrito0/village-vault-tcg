@@ -139,6 +139,7 @@
         <label>sortear entre <select id="quemSorteia"><option value="gemas">quem enviou gemas, a live toda</option><option value="todos">todo mundo da live</option></select></label>
         <label><input type="checkbox" id="peso" /> quem mandou mais, mais chance</label>
         <label><input type="checkbox" id="semRepetir" checked /> não repetir ganhador</label>
+        <label><input type="checkbox" id="semEu" checked /><span id="rotuloSemEu"> não me incluir</span></label>
         <button id="sortear">Sortear</button>
         <button class="secundario" id="limparSorteios">Limpar</button>
       </div>
@@ -210,6 +211,7 @@
 
     <div class="controles nao-imprimir" style="margin-top: 4px">
       <button class="secundario" id="transmitir">Modo transmissão</button>
+      <button class="secundario" id="planilha">Baixar planilha (CSV)</button>
       <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
       <button class="secundario" id="zerarAoVivo">Zerar o "ao vivo" desta live</button>
     </div>

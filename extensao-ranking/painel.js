@@ -28,15 +28,22 @@ let sorteios = [];
 let ordem = "gemas";
 let liveEscolhida = null; // null = deixa o painel escolher sozinho
 
-// Pode haver mais de uma live guardada (a dela e a que ela abriu para ver o
-// ranking). A boa é a do painel do vendedor; entre as do mesmo tipo, a mais
-// recente. O seletor em cima deixa trocar na mão.
+// Quando o painel esta encostado numa live, o overlay diz qual e: ai o certo
+// e mostrar A LIVE DA TELA, e nao a mais recente ou a dela. Era confuso abrir
+// o painel na live de alguem e ver os numeros de outra.
+const LIVE_DA_PAGINA = new URLSearchParams(location.search).get("live") || null;
+
+// Fora disso pode haver mais de uma live guardada (a dela e a que ela abriu
+// para ver o ranking). A boa e a do painel do vendedor; entre as do mesmo
+// tipo, a mais recente. O seletor em cima deixa trocar na mao.
 function escolherLive(lives) {
   const todas = Object.values(lives ?? {});
   if (!todas.length) return null;
   if (liveEscolhida && lives[liveEscolhida]) return lives[liveEscolhida];
+  if (LIVE_DA_PAGINA && lives[LIVE_DA_PAGINA]) return lives[LIVE_DA_PAGINA];
   return todas.sort((a, b) => (b.doPainel ? 1 : 0) - (a.doPainel ? 1 : 0) || b.quando - a.quando)[0];
 }
+
 
 // Fora da extensão (servindo a pasta só para conferir a tela) não existe
 // chrome.storage: aí usa o que estiver em window.__teste, se alguém pôs.
@@ -44,7 +51,7 @@ const temStorage = typeof chrome !== "undefined" && chrome.storage?.local;
 
 async function ler() {
   const g = temStorage
-    ? await chrome.storage.local.get(["lives", "tabelaEmocoes", "nomesEmocoes"])
+    ? await chrome.storage.local.get(["lives", "tabelaEmocoes", "nomesEmocoes", "eu"])
     : window.__teste ?? {};
   const lives = g.lives ?? {};
   const live = escolherLive(lives);
@@ -58,6 +65,7 @@ async function ler() {
     emocoes: live?.emocoes ?? [],
     tabela: g.tabelaEmocoes ?? {},
     nomes: g.nomesEmocoes ?? {},
+    eu: g.eu ?? null,
   };
 }
 
@@ -77,14 +85,16 @@ async function mexer(id, acao, extra = {}) {
   return true;
 }
 
+// Redesenhar a tabela inteira a cada 2s perdia a rolagem e piscava: no meio da
+// live, procurando um nome, a lista pulava para o topo sozinha. Agora so troca
+// o conteudo quando ele muda de verdade.
 function linhas(tbody, dados, montar, colunas) {
-  tbody.innerHTML = "";
-  if (!dados.length) {
-    tbody.innerHTML = `<tr><td colspan="${colunas}" class="vazio">nada ainda</td></tr>`;
-    return;
-  }
-  for (const d of dados) tbody.insertAdjacentHTML("beforeend", montar(d));
+  const html = dados.length
+    ? dados.map(montar).join("")
+    : `<tr><td colspan="${colunas}" class="vazio">nada ainda</td></tr>`;
+  if (tbody.innerHTML !== html) tbody.innerHTML = html;
 }
+
 
 // "magikarp_shiny" vira "Carpa Zika" quando a tabela da Jamble ja passou.
 const CARPA = "magikarp_shiny";
@@ -97,7 +107,7 @@ const PORORDEM = {
 };
 
 async function pintar() {
-  const { lives, p, titulo, eventos, emocoes, tabela, nomes } = await ler();
+  const { lives, p, titulo, eventos, emocoes, tabela, nomes, eu } = await ler();
   const em = resumirEmocoes(emocoes);
   const linhasP = p?.linhas ?? [];
   // O preço da carpa vem da tabela da própria Jamble quando ela já passou por
@@ -253,6 +263,9 @@ async function pintar() {
         `Confira se a aba da Jamble com a participação continua aberta.`
       : "";
 
+  const rotuloEu = $("#rotuloSemEu");
+  if (rotuloEu) rotuloEu.textContent = eu?.handle ? ` nao incluir @${eu.handle}` : " nao me incluir";
+
   const quantos = Object.keys(tabela).length;
   $("#rodape").textContent = p
     ? `A Jamble entrega quantas gemas cada pessoa enviou no total, mas não diz qual ícone foi. ` +
@@ -317,7 +330,7 @@ $("#qualLive").addEventListener("change", () => {
 // ---------- sorteio ----------
 
 async function sortear() {
-  const { p, emocoes, tabela, nomes } = await ler();
+  const { p, emocoes, tabela, nomes, eu } = await ler();
   const porCarpa = Number(tabela?.magikarp_shiny) || GEMAS_POR_CARPA;
   const escolha = $("#quemSorteia").value || "gemas";
   const comPeso = $("#peso").checked;
@@ -341,6 +354,11 @@ async function sortear() {
       .map((l) => ({ ...l, rotulo: `${num(l.gemas)} gemas` }));
     peso = (c) => Math.max(1, Math.round(c.gemas / porCarpa));
     descricaoFonte = soGemas ? "quem enviou gemas" : "todo mundo da live";
+  }
+
+  // Voce manda emotion para testar: sem isso, ganharia o proprio sorteio.
+  if ($("#semEu").checked && eu?.handle) {
+    candidatos = candidatos.filter((c) => c.handle !== eu.handle);
   }
 
   if (semRepetir) {
@@ -399,6 +417,22 @@ $("#zerarAoVivo").addEventListener("click", async () => {
 });
 
 $("#imprimir").addEventListener("click", () => window.print());
+
+// Planilha da live, para abrir no Excel. Tudo que o painel sabe: os envios um
+// a um, o total por pessoa, o ranking de participacao e os sorteios.
+$("#planilha").addEventListener("click", async () => {
+  const { p, nomes } = await ler();
+  if (!p) return;
+  const csv = planilhaDaLive(p, nomes);
+  // O BOM na frente faz o Excel entender os acentos.
+  const url = URL.createObjectURL(new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" }));
+  const a = document.createElement("a");
+  a.href = url;
+  const quando = new Date().toISOString().slice(0, 16).replace("T", " ").replace(":", "h");
+  a.download = `live ${(p.titulo || p.id).replace(/[\/:*?"<>|]/g, "-").slice(0, 50)} - ${quando}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+});
 
 // ---------- modo transmissão ----------
 // Deixa a aba só com os números, para pegar no OBS com "Captura de janela".

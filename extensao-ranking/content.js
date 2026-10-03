@@ -41,6 +41,7 @@
     else if (e.data.tipo === "emocao") mandar("emocao", e.data.dados);
     else if (e.data.tipo === "participacao") mandar("participacao", e.data.dados);
     else if (e.data.tipo === "metricas") mandar("metricas", e.data.dados);
+    else if (e.data.tipo === "eu") mandar("eu", e.data.dados);
     else if (e.data.tipo === "tabela-emocoes") mandar("tabela-emocoes", e.data.dados);
   });
 

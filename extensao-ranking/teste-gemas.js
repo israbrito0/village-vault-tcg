@@ -8,6 +8,8 @@ const {
   resumirEmocoes,
   quemMandou,
   listaDeMetricas,
+  planilhaDaLive,
+  paraCSV,
   idDaLive,
   ehPainelDoVendedor,
   GEMAS_POR_CARPA,
@@ -237,6 +239,54 @@ conferir(listaDeMetricas({}, fmt).length === 0, "objeto vazio, lista vazia");
 conferir(listaDeMetricas({ faturamento: 0, vendas: 0 }, fmt).length === 0, "live que acabou de começar não mostra meia tela de zeros");
 const sujo = listaDeMetricas({ faturamento: "abc", vendas: null, likes: 7, pico: undefined, frete: NaN }, fmt);
 conferir(sujo.length === 1 && sujo[0][0] === "Likes na live", "campo torto é ignorado, o bom passa", JSON.stringify(sujo));
+
+// ---------- planilha da live ----------
+// É o registro que sobra depois da live: tem que abrir no Excel sem estragar
+// acento, sem quebrar em nome com ponto e vírgula, e com decimal em vírgula.
+
+const liveCheia = {
+  id: "L9",
+  titulo: "Live de teste",
+  emocoes: [
+    { id: "1", handle: "jako", nome: "jako", icone: "magikarp_shiny", gemas: 500, ts: t0 },
+    { id: "2", handle: "ana", nome: 'ana; a "braba"', icone: "pixel_heart", gemas: 10, ts: t0 + 1000 },
+    { id: "3", handle: "jako", nome: "jako", icone: "magikarp_shiny", gemas: 500, ts: t0 + 2000 },
+  ],
+  linhas: [{ handle: "jako", nome: "jako", gastou: 1234.5, gemas: 1000, mensagens: 3, pontos: 1334 }],
+  sorteios: [{ ts: t0 + 3000, ganhador: "jako", entre: 2, fonte: "quem mandou Carpa Zika" }],
+};
+const nomesIc = { magikarp_shiny: "Carpa Zika", pixel_heart: "Coração Pixel" };
+const csv = planilhaDaLive(liveCheia, nomesIc);
+const ASPAS = String.fromCharCode(34);
+
+conferir(csv.includes("ENVIOS, UM A UM"), "a planilha tem os envios um a um");
+conferir(csv.includes("TOTAL POR PESSOA"), "e o total por pessoa");
+conferir(csv.includes("RANKING DE PARTICIPACAO"), "e o ranking da Jamble");
+conferir(csv.includes("SORTEIOS"), "e os sorteios");
+conferir(csv.includes("Carpa Zika"), "usa o nome bonito do ícone, não o id");
+conferir(csv.includes("2x Carpa Zika"), "soma os ícones de cada pessoa", csv.split("\r\n").find((l) => l.startsWith("jako;jako;2")));
+conferir(csv.includes("1234,5"), "decimal com vírgula, como o Excel em português espera");
+conferir(
+  csv.includes(ASPAS + "ana; a " + ASPAS + ASPAS + "braba" + ASPAS + ASPAS + ASPAS),
+  "nome com ponto e vírgula e aspas não quebra a planilha",
+);
+conferir(csv.split("\r\n").length > 10, "tem linha para tudo", String(csv.split("\r\n").length));
+conferir(csv.includes("\r\n"), "quebra de linha no padrão do Excel");
+
+// Uma live que só tem emotions (a de outro vendedor) também gera planilha.
+const soEmocoes = planilhaDaLive({ id: "X", titulo: "Live alheia", emocoes: liveCheia.emocoes }, nomesIc);
+conferir(soEmocoes.includes("ENVIOS, UM A UM"), "live de outro vendedor também vira planilha");
+conferir(!soEmocoes.includes("RANKING DE PARTICIPACAO"), "sem participação, a seção nem aparece");
+
+// Live vazia não quebra.
+const vazia = planilhaDaLive({ id: "Z" }, {});
+conferir(typeof vazia === "string" && vazia.includes("Gerado em"), "live vazia gera só o cabeçalho");
+conferir(planilhaDaLive(null, {}).includes("Gerado em"), "sem live nenhuma, não estoura");
+
+// O escape sozinho
+conferir(paraCSV([["a", "b"]]) === "a;b", "linha simples");
+conferir(paraCSV([["a;b"]]) === ASPAS + "a;b" + ASPAS, "ponto e vírgula vira campo entre aspas");
+conferir(paraCSV([[null, undefined]]) === ";", "vazio não vira 'null'");
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

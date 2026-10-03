@@ -249,6 +249,12 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok: true });
       return;
     }
+    if (msg?.tipo === "eu") {
+      // So o @ e o nome. Serve para o painel poder tirar voce do sorteio.
+      await chrome.storage.local.set({ eu: { handle: msg.dados?.handle ?? "", nome: msg.dados?.nome ?? "" } });
+      responder({ ok: true });
+      return;
+    }
     if (msg?.tipo === "tabela-emocoes") {
       await chrome.storage.local.set({
         tabelaEmocoes: msg.dados?.tabela ?? {},

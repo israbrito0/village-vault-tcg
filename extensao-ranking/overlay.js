@@ -118,7 +118,13 @@
       const jaTem = caixa.querySelector("iframe");
       if (aberto && !jaTem) {
         const quadro = document.createElement("iframe");
-        quadro.src = chrome.runtime.getURL("painel.html") + "?embutido=1";
+        // Diz ao painel qual live esta na tela, para ele mostrar essa e nao
+        // a mais recente que estiver guardada.
+        const daPagina = idDaLive(location.pathname);
+        quadro.src =
+          chrome.runtime.getURL("painel.html") +
+          "?embutido=1" +
+          (daPagina ? "&live=" + encodeURIComponent(daPagina) : "");
         quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
         caixa.appendChild(quadro);
       } else if (!aberto && jaTem) {

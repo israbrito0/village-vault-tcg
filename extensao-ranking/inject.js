@@ -280,6 +280,17 @@
     avisar("metricas", { quando: Date.now(), de: "ao-vivo", valores: v });
   }
 
+  // Quem está logado. O canal show_user manda o perfil inteiro, com CPF,
+  // telefone e e-mail -- daqui sai SÓ o @ e o nome, que é o que o painel
+  // precisa para poder tirar você do próprio sorteio. O resto nem é lido.
+  let euJaMandei = false;
+  function guardarEu(dados) {
+    const p = dados?.data?.my_profile;
+    if (!p || typeof p.username !== "string" || euJaMandei) return;
+    euJaMandei = true;
+    avisar("eu", { handle: p.username.replace(/^@/, ""), nome: p.display_name || p.username });
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -290,6 +301,7 @@
     }
     guardarEventos(dados, origem);
     guardarAoVivo(dados);
+    guardarEu(dados);
     if (/show-summary|show-dashboard/.test(origem)) guardarMetricas(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da
