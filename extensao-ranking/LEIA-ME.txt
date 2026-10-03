@@ -3,28 +3,21 @@ RANKING DA LIVE - EXTENSÃO DO CHROME
 
 NA HORA DA LIVE, EM 3 PASSOS
 ----------------------------
-1. No Chrome, abra a sua live:
-      Painel -> Lives -> a sua live -> aba Participacao
-   (ou a propria pagina da live). Deixe essa aba aberta.
-2. Na propria pagina da live, clique no botao "Painel" no canto de cima, a
-   direita. O painel abre ENCOSTADO NA LIVE, na mesma tela -- nao precisa
-   trocar de aba. Arraste a borda esquerda dele para mudar a largura; ele
-   lembra o tamanho e se estava aberto.
-   (Se preferir em aba separada: icone da extensao -> "Painel da live".)
+1. Abra a sua live no Chrome, em Painel -> Lives -> a live, aba Participacao.
+   Deixe essa aba aberta.
+2. Abra tambem a pagina da live e clique no botao "Painel" no canto de cima,
+   a direita. O painel encosta na live, na mesma tela.
 3. No painel, deixe "atualizar sozinho: a cada 30s". Pronto.
 
 Abra o painel JUNTO com a live, antes de comecar: o "quem mandou o que" so
 enxerga as emotions que passarem com a aba aberta.
 
-O contador de gemas comeca a subir sozinho.
+Para mostrar na transmissao, clique em "Modo transmissao" no fim do painel e
+pegue a aba no OBS com "Captura de janela". Esc sai; a barra de espaco
+sorteia.
 
-Para mostrar na transmissao: clique em "Modo transmissao" no fim da pagina --
-a tela fica so com os numeros, em fonte grande -- e pegue essa aba no OBS com
-"Captura de janela". Esc sai do modo; a BARRA DE ESPACO sorteia sem precisar
-clicar em nada.
-
-Se ficar tudo zerado: e porque nenhuma aba da Jamble com a participacao esta
-aberta -- o painel avisa isso na tela, em amarelo.
+O painel avisa na tela quando falta alguma fonte de dado. Detalhes de tudo
+isso no fim deste arquivo, em PAINEL DA LIVE.
 
 O que ela faz
 -------------
@@ -90,91 +83,69 @@ Privacidade
 A extensão só roda em páginas do jamble.com e só envia: @ do comprador,
 valor e identificador do pedido. Nada de endereço, telefone ou pagamento.
 
-Painel da live (gemas e sorteio)
---------------------------------
-Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
-própria e mostra, da live que estiver aberta numa aba da Jamble:
+PAINEL DA LIVE
+==============
 
-  - FATURAMENTO e PÓS TAXAS, vendas, compradores e espectadores
-  - MÉTRICAS DA LIVE: ticket médio, gasto por comprador, frete, faturamento
-    por minuto, intervalo entre vendas, pico simultâneo, tempo médio
-    assistido, público que voltou, taxa de escoamento, mensagens no chat,
-    seguidores novos -- do jeito que a Jamble calcula
-  - QUEM MANDOU O QUÊ, AO VIVO: hora, pessoa, ÍCONE e quanto valeu em gemas
-  - EMOTIONS POR ÍCONE: quantas carpas, quantos corações, quantas masterballs
-  - GEMAS ENVIADAS no total e quanto entrou nos ÚLTIMOS 5 MINUTOS
-  - quantas pessoas enviaram gemas, de quantas estão na live
-  - ranking pessoa a pessoa, podendo ordenar por gemas, por pontos ou por
-    quanto cada um comprou
-  - META DE CARPAS: escreva quantas voce quer e a barra mostra quanto falta,
-    em carpas e em gemas. O cartao das carpas pisca quando chega uma nova
-  - "Baixar planilha (CSV)": os envios um a um, o total por pessoa com os
-    icones, o ranking da Jamble e os sorteios -- abre no Excel
-  - sorteio, escolhendo entre quem entra:
-      QUEM MANDOU CARPA (ou qualquer outro ícone que tenha aparecido)
-      quem mandou qualquer emotion
-      quem enviou gemas, a live toda
-      todo mundo da live
-    e ainda: quem mandou mais tem mais chance, e não repetir quem já ganhou
-  - "Salvar relatório em PDF": usa a impressão do navegador, já sem os botões
+Como abrir
+----------
+Na propria pagina da live, clique no botao "Painel" no canto de cima, a
+direita. Ele abre encostado na direita, com a live rodando do lado -- nao
+precisa trocar de aba. Arraste a borda esquerda para mudar a largura; ele
+lembra o tamanho e se estava aberto.
 
-Como deixar ligado durante a live
----------------------------------
-Deixe a live aberta numa aba, em qualquer um destes dois lugares:
+Preferindo em aba separada: icone da extensao -> "Painel da live".
 
-  Painel -> Lives -> a sua live -> aba Participação
-  ou a própria página da live
+Abra o painel JUNTO com a live, antes de comecar. O "quem mandou o que" so
+enxerga as emotions que passarem com a aba aberta -- o que aconteceu antes
+nao da para recuperar.
 
-No painel, escolha "atualizar sozinho: a cada 30s". A cada intervalo ele manda
-aquela aba apertar o próprio botão "Atualizar" da Jamble, e pega a resposta
-nova. "Ler agora" faz na hora: ele passa pela aba Desempenho (métricas) e volta
-para Participação (gemas por pessoa), lendo as duas no caminho. Se não achar a aba, ele avisa na tela.
+O que ele mostra
+----------------
+  FATURAMENTO e POS TAXAS, vendas, compradores, espectadores
+  GEMAS ENVIADAS, CARPAS e quanto entrou nos ULTIMOS 5 MINUTOS
+  META DE CARPAS: escreva quantas voce quer e a barra mostra o que falta, em
+    gemas e em carpas. O cartao pisca quando chega carpa nova
+  QUEM MANDOU O QUE, AO VIVO: hora, pessoa, icone e quanto valeu em gemas
+  EMOTIONS POR ICONE: quantas carpas, quantos coracoes, quantas masterballs
+  RANKING pessoa a pessoa, ordenavel por gemas, pontos ou quanto comprou
+  METRICAS DA LIVE: ticket medio, gasto por comprador, frete, faturamento por
+    minuto, intervalo entre vendas, pico simultaneo, tempo medio assistido,
+    publico que voltou, escoamento, mensagens no chat, seguidores novos
 
-De onde vêm os números
-----------------------
-Da própria Jamble, de respostas que a página dela já pede sozinha. A extensão
-só lê o que passa; não inventa conta nem chama endereço nenhum por fora:
+Sorteio
+-------
+Escolha quem entra:
+  quem mandou CARPA (ou qualquer outro icone que tenha aparecido na live)
+  quem mandou qualquer emotion
+  quem enviou gemas, a live toda
+  todo mundo da live
 
-  /api/seller/show-participation  -> por pessoa: comprou, gemas, mensagens
-  /api/live/participation            e pontos (os dois dão a mesma coisa)
-  /api/live/emojis                -> quanto cada ícone custa em gemas (36 hoje)
-  /api/seller/show-summary        -> as métricas da live (aba Desempenho)
-  /api/seller/show-dashboard      -> o "pós taxas" do cabeçalho
+A opcao da carpa aparece sozinha assim que a primeira carpa chega, e o painel
+muda para ela. Se voce escolher outra, ela e respeitada.
 
-O "ao vivo" é conta nossa, e é simples: a Jamble não avisa "fulano acabou de
-enviar 500 gemas", ela só diz o total de cada um. Então guardamos a leitura
-anterior e comparamos com a nova -- quem subiu, enviou. Por isso a PRIMEIRA
-leitura de cada live não enche o feed: ela é o ponto de partida. Gemas que já
-estavam lá antes de você abrir o painel entram no total, mas não no feed,
-porque não dá para saber a que horas foram enviadas.
+Mais tres interruptores:
+  quem mandou mais, mais chance
+  nao repetir ganhador
+  nao incluir voce (voce manda emotion para testar e ganhava o proprio sorteio)
 
-Mais de uma live aberta
------------------------
-Durante a sua live voce costuma abrir a live de outra pessoa para ver o
-ranking mensal -- e aquela live TAMBEM manda participacao. Cada live tem o seu
-proprio balde: a de outro vendedor nao mexe na sua. Quando existe mais de uma,
-aparece um seletor embaixo do titulo; a sua vem marcada com uma estrela e e a
-escolhida sozinha. A extensao guarda as 4 lives mexidas mais recentemente.
+No modo transmissao a BARRA DE ESPACO sorteia, sem precisar clicar.
 
-Sorteio e contagem sao de UMA live: trocar de live nao leva os ganhadores nem
-o feed junto.
-
-Dois botoes no fim da pagina
-----------------------------
-  Modo transmissao            esconde os botoes e aumenta os numeros, para
-                              pegar a aba no OBS. Esc sai, barra de espaco
-                              sorteia. Ele lembra se ficou ligado.
-  Salvar relatorio em PDF       imprime a pagina sem os botoes
-  Zerar o "ao vivo" desta live  limpa a lista GEMAS AO VIVO e o contador dos
-                                ultimos 5 min, SEM mexer nos totais nem nos
-                                sorteios ja feitos. Serve para rodar um
-                                segundo sorteio contando so o que vier dali
-                                em diante (a segunda hora da live).
+Botoes do fim
+-------------
+  Modo transmissao       esconde os botoes e aumenta os numeros, para pegar a
+                         aba no OBS com "Captura de janela". Esc sai, barra de
+                         espaco sorteia. Ele lembra se ficou ligado
+  Baixar planilha (CSV)  os envios um a um, o total por pessoa com os icones,
+                         o ranking da Jamble e os sorteios. Abre no Excel
+  Salvar relatorio em PDF    imprime a pagina sem os botoes
+  Zerar o "ao vivo"      limpa o feed e os ultimos 5 min SEM mexer nos totais
+                         nem nos sorteios -- serve para rodar um segundo
+                         sorteio contando so dali em diante
 
 Cada numero vem de um lugar
 ---------------------------
-De QUALQUER live, inclusive a de outro vendedor (serve para acompanhar
-amigos e concorrentes):
+De QUALQUER live, inclusive a de outro vendedor (serve para acompanhar amigo
+e concorrente):
   faturamento, vendas, ticket medio, assistindo agora, duracao, faturamento
   por minuto, produtos no catalogo e a venda, likes, compartilhamentos
   e QUEM MANDOU QUAL ICONE
@@ -184,49 +155,89 @@ So da SUA live, aberta no painel do vendedor (Painel -> Lives -> a live):
   tempo medio assistido, publico que voltou, mensagens no chat, seguidores
   novos, compradores novos
 
-O painel diz na tela o que esta faltando e onde abrir, em vez de mostrar
-tracinho calado.
+O painel escreve na tela o que esta faltando e onde abrir, em vez de mostrar
+tracinho calado. Para ter tudo na sua live, deixe abertas as duas abas: a
+pagina da live e o painel do vendedor dela.
 
-De onde vem o "quem mandou o quê"
+De onde a extensao tira isso
+----------------------------
+Tudo de respostas que a propria pagina da Jamble ja pede. A extensao le o que
+passa; nao inventa conta nem chama endereco nenhum por fora.
+
+  WebSocket da live, canal "show"
+    data.show        -> faturamento, vendas, audiencia, likes, produtos
+    data.events[]    -> cada envio de emotion, com event_type LIKE:
+                        like_icon_id (qual icone)
+                        like_icon_battle_entry_count (quanto vale em gemas)
+                        liker_profile.username (quem mandou)
+                        created_at (a que horas)
+                        id (para nao contar duas vezes)
+  /api/seller/show-participation   gemas, compras, mensagens e pontos por
+  /api/live/participation          pessoa (os dois dao a mesma coisa)
+  /api/seller/show-summary         as metricas da aba Desempenho
+  /api/seller/show-dashboard       o "pos taxas" do cabecalho
+  /api/live/emojis                 o preco e o nome de cada icone (36 hoje)
+
+O preco da carpa nao fica escrito na unha: vem de /api/live/emojis. Se a
+Jamble mudar, o painel acompanha.
+
+Mantendo atualizado durante a live
 ----------------------------------
-Dos eventos LIKE que a Jamble manda no WebSocket da live (canal "show", em
-data.events[]). Cada envio vira um evento com:
+Deixe a live aberta no painel do vendedor (Painel -> Lives -> a live) e, no
+painel, escolha "atualizar sozinho: a cada 30s". A cada intervalo ele passa
+pela aba Desempenho (metricas) e volta para Participacao (gemas por pessoa),
+lendo as duas no caminho -- apertando os proprios botoes da Jamble, sem
+inventar requisicao.
 
-  like_icon_id                  qual ícone (magikarp_shiny, pixel_heart, ...)
-  like_icon_battle_entry_count  quanto vale em gemas
-  liker_profile.username        quem mandou
-  created_at                    a que horas
-  id                            para não contar o mesmo envio duas vezes
+"Ler agora" faz na hora.
 
-Confirmado numa live de verdade em 03/10/2026: 10 envios, 10 eventos, todos
-com nome e ícone certos.
+Se os numeros ficarem velhos (mais de 2min30 sem leitura nova com o automatico
+ligado), o painel avisa na tela de que horas sao os numeros. Numero velho
+parecendo vivo e pior do que numero nenhum.
 
-IMPORTANTE -- a diferença entre as duas fontes:
+Mais de uma live aberta
+-----------------------
+Durante a sua live voce costuma abrir a live de outra pessoa para ver o
+ranking mensal -- e aquela live tambem manda dados. Cada live tem o seu
+proprio balde: uma nao mexe na outra. Encostado numa live, o painel mostra
+A LIVE DA TELA. Quando ha mais de uma guardada, aparece um seletor embaixo do
+titulo, com a sua marcada por uma estrela. A extensao guarda as 4 lives
+mexidas mais recentemente.
 
-  Os eventos LIKE só chegam enquanto a aba da live está aberta. Se você abrir
-  o painel no meio da live, as emotions de antes NÃO aparecem no "quem mandou
-  o quê" nem no sorteio por ícone.
+Sorteio e contagem sao de UMA live: trocar de live nao leva os ganhadores nem
+o feed junto.
 
-  Os números grandes do topo (gemas, pontos, comprado) vêm da participação,
-  que a Jamble calcula para a live inteira -- esses não perdem nada.
+Sobre "carpas"
+--------------
+Uma carpa (Carpa Zika, magikarp_shiny) custa 500 gemas. O cartao CARPAS e o
+total de gemas dividido por 500 -- e equivalencia, nao contagem carpa a carpa.
+Quem enviar 500 gemas em coracaozinho aparece igual a quem enviou uma carpa.
 
-  Então: abra o painel JUNTO com a live, antes de começar.
+Para a contagem carpa a carpa, de verdade, veja QUEM MANDOU O QUE e EMOTIONS
+POR ICONE: esses sabem o icone. So nao cobrem o que passou antes de o painel
+estar aberto.
 
-Nada disso vai para o site -- fica só neste computador. E CPF, telefone e
-e-mail são escondidos antes de entrar no arquivo de depuração (o canal
-show_user da Jamble carrega esses campos).
+Privacidade do painel
+---------------------
+Nada do painel vai para o site: fica tudo neste computador.
+
+O canal show_user da Jamble carrega CPF, telefone e e-mail no mesmo payload.
+Dali sai so o @ e o nome de exibicao, que e o que o painel precisa para poder
+tirar voce do proprio sorteio. E o arquivo de depuracao esconde esses campos
+antes de gravar.
 
 Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as sete suítes, 201 casos:
-  manifest e ligações entre os arquivos (arquivo que falta, ordem errada)
-  leitura dos payloads da Jamble (vendas, participação, tabela de preços)
-  a ponte entre a página e a extensão (content.js)
-  contas de gemas (o "ao vivo", a janela de 5 min, o id da live)
-  o que o background guarda (troca de live, duas lives abertas, limites)
-  nome de fora não vira código (escape de HTML)
-  da resposta crua da Jamble até os números do painel (ponta a ponta, com as
+Roda as sete suites, 265 casos:
+  manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada)
+  leitura dos payloads da Jamble (vendas, emotions, metricas, participacao)
+  a ponte entre a pagina e a extensao (content.js)
+  contas de gemas, emotions por icone, metricas e planilha
+  o que o background guarda (troca de live, duas lives, lote, limites)
+  nome de fora nao vira codigo (escape de HTML)
+  da resposta crua da Jamble ate os numeros do painel (ponta a ponta, com as
     20 linhas reais de 30/09 conferidas contra o que a tela mostrava)
-Sai com código 1 se alguma falhar.
+
+Sai com codigo 1 se alguma falhar.
