@@ -238,6 +238,93 @@ async function pedir(url, corpo) {
     JSON.stringify(d2 && d2.dados && d2.dados.nomes),
   );
 
+  // ---------- metricas de qualquer live (o objeto show do WebSocket) ----------
+  // Campos exatos capturados da live do @coutotcg em 03/10/2026.
+  const frameShow = (mudanca = {}) =>
+    JSON.stringify({
+      data: {
+        show: {
+          id: "phjngIZUsKBBMKyY6XJ3",
+          created_at: 1790993006.914568,
+          seller_id: "AdIZ3sLnSdQnogtbRnsy9zZDGpr1",
+          title: "Batalha 30 Anos",
+          starting_at: 1790994600,
+          started_at: 1790994633.306017,
+          has_started: true,
+          is_over: false,
+          bookmark_count: 0,
+          audience_count: 29,
+          available_product_count: 5,
+          sold_product_count: 0,
+          total_product_count: 5,
+          share_count: 1,
+          like_count: 15,
+          sold_sale_count: 35,
+          total_sale_product_price: 3731,
+          currency: "BRL",
+          ...mudanca,
+        },
+      },
+    });
+
+  recebidos.length = 0;
+  aoAbrir.emitir(frameShow());
+  const met = recebidos.filter((m) => m.tipo === "metricas").map((m) => m.dados);
+  conferir(met.length === 1, "o objeto show vira métricas", JSON.stringify(met.length));
+  const v = met[0]?.valores ?? {};
+  conferir(met[0]?.de === "ao-vivo", "marcado como vindo da live");
+  conferir(v.faturamento === 3731, "faturamento de qualquer live", String(v.faturamento));
+  conferir(v.vendas === 35, "vendas", String(v.vendas));
+  conferir(v.audienciaAgora === 29, "quem está assistindo agora", String(v.audienciaAgora));
+  conferir(v.likes === 15, "likes");
+  conferir(v.produtosTotal === 5 && v.produtosDisponiveis === 5, "produtos do catálogo");
+  conferir(v.comecouEm === Math.round(1790994633.306017 * 1000), "a hora que a live começou, para calcular a duração");
+  conferir(v.acabou === false, "sabe que ainda está no ar");
+
+  // Frame igual não avisa de novo: senão gravaria a mesma coisa a cada 3s.
+  recebidos.length = 0;
+  aoAbrir.emitir(frameShow());
+  conferir(recebidos.filter((m) => m.tipo === "metricas").length === 0, "frame repetido não avisa de novo");
+
+  // Mudou alguma coisa, avisa.
+  recebidos.length = 0;
+  aoAbrir.emitir(frameShow({ total_sale_product_price: 4231, sold_sale_count: 36 }));
+  const novo = recebidos.filter((m) => m.tipo === "metricas").map((m) => m.dados)[0];
+  conferir(!!novo && novo.valores.faturamento === 4231, "venda nova faz o faturamento subir", String(novo?.valores?.faturamento));
+
+  // Live encerrada.
+  recebidos.length = 0;
+  aoAbrir.emitir(frameShow({ is_over: true }));
+  conferir(recebidos.find((m) => m.tipo === "metricas")?.dados?.valores?.acabou === true, "sabe quando a live acabou");
+
+  // E o @ de quem está logado -- só o @, nada do CPF/telefone que vêm no mesmo
+  // canal. Serve para o painel poder tirar você do próprio sorteio.
+  recebidos.length = 0;
+  aoAbrir.emitir(
+    JSON.stringify({
+      data: {
+        my_profile: {
+          id: "u1",
+          username: "israelbrito",
+          display_name: "israel brito",
+          email: "nao-pode-sair@daqui.com",
+          phone_number: "+5549999999999",
+          cpf: "00000000000",
+        },
+      },
+    }),
+  );
+  const eu = recebidos.find((m) => m.tipo === "eu")?.dados;
+  conferir(eu?.handle === "israelbrito", "pega o @ de quem está logado", eu?.handle);
+  conferir(eu?.nome === "israel brito", "e o nome");
+  conferir(
+    JSON.stringify(eu).indexOf("cpf") < 0 &&
+      JSON.stringify(eu).indexOf("@daqui") < 0 &&
+      JSON.stringify(eu).indexOf("5549") < 0,
+    "e NADA de CPF, e-mail ou telefone",
+    JSON.stringify(eu),
+  );
+
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);
 })();

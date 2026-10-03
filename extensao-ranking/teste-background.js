@@ -179,36 +179,86 @@ const live = (id, doPainel = true) => ({
   }
 
   // ---------- emotions: quem mandou qual ícone ----------
+  // Elas sao gravadas em lote (numa live movimentada chegam muitas seguidas),
+  // entao o teste espera o descarregamento antes de conferir.
   {
     const { guardado, mandar } = montar();
     const emo = (id, icone, gemas, handle) => ({ id, icone, gemas, handle, nome: handle, ts: 1700000000000 });
+    const assentar = () => new Promise((r) => setTimeout(r, 1100));
 
     await mandar({ tipo: "emocao", dados: emo("e1", "magikarp_shiny", 500, "jako"), contexto: live("A") });
     await mandar({ tipo: "emocao", dados: emo("e2", "pixel_heart", 10, "ana"), contexto: live("A") });
+    await assentar();
     conferir(guardado.lives.A.emocoes.length === 2, "guarda as emotions da live", String(guardado.lives.A.emocoes.length));
     conferir(guardado.lives.A.emocoes[0].icone === "magikarp_shiny", "com o ícone");
 
     // o mesmo evento chegando de novo não pode duplicar
     await mandar({ tipo: "emocao", dados: emo("e1", "magikarp_shiny", 500, "jako"), contexto: live("A") });
+    await assentar();
     conferir(guardado.lives.A.emocoes.length === 2, "evento repetido não duplica", String(guardado.lives.A.emocoes.length));
+
+    // duas emotions juntas, no mesmo lote, tambem nao duplicam
+    await mandar({ tipo: "emocao", dados: emo("e9", "pokeball", 20, "zz"), contexto: live("A") });
+    await mandar({ tipo: "emocao", dados: emo("e9", "pokeball", 20, "zz"), contexto: live("A") });
+    await assentar();
+    conferir(guardado.lives.A.emocoes.length === 3, "repetida dentro do mesmo lote também não duplica", String(guardado.lives.A.emocoes.length));
 
     // emotion de outra live vai para o balde dela
     await mandar({ tipo: "emocao", dados: emo("e3", "pokeball", 20, "zz"), contexto: live("B", false) });
-    conferir(guardado.lives.A.emocoes.length === 2 && guardado.lives.B.emocoes.length === 1, "cada live com as suas");
+    await assentar();
+    conferir(guardado.lives.A.emocoes.length === 3 && guardado.lives.B.emocoes.length === 1, "cada live com as suas");
 
     // a participação chegando depois NÃO pode apagar as emotions já guardadas
     await mandar({ tipo: "participacao", dados: participacao([linha("jako", 500)], t0), contexto: live("A") });
-    conferir(guardado.lives.A.emocoes.length === 2, "participação não apaga as emotions", String(guardado.lives.A.emocoes.length));
+    conferir(guardado.lives.A.emocoes.length === 3, "participação não apaga as emotions", String(guardado.lives.A.emocoes.length));
     conferir(guardado.lives.A.linhas.length === 1, "e a participação entra normalmente");
 
     // e emotion depois da participação continua somando
     await mandar({ tipo: "emocao", dados: emo("e4", "charmander", 60, "bruno"), contexto: live("A") });
-    conferir(guardado.lives.A.emocoes.length === 3, "emotion depois da participação soma");
+    await assentar();
+    conferir(guardado.lives.A.emocoes.length === 4, "emotion depois da participação soma");
     conferir(guardado.lives.A.linhas.length === 1, "sem mexer na participação");
 
     // sem id não entra
     await mandar({ tipo: "emocao", dados: { icone: "pokeball", gemas: 20, handle: "x" }, contexto: live("A") });
-    conferir(guardado.lives.A.emocoes.length === 3, "emotion sem id é ignorada");
+    await assentar();
+    conferir(guardado.lives.A.emocoes.length === 4, "emotion sem id é ignorada");
+
+    // enxurrada: 60 de uma vez nao podem se perder nem duplicar
+    for (let k = 0; k < 60; k++) {
+      await mandar({ tipo: "emocao", dados: emo("lote" + k, "pixel_heart", 10, "p" + k), contexto: live("A") });
+    }
+    await assentar();
+    conferir(guardado.lives.A.emocoes.length === 64, "enxurrada de 60 entra inteira", String(guardado.lives.A.emocoes.length));
+  }
+
+  // ---------- sorteio e "ao vivo" são de UMA live ----------
+  {
+    const { guardado, mandar } = montar();
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000)], t0), contexto: live("A") });
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1500)], t0 + 10000), contexto: live("A") });
+    await mandar({ tipo: "participacao", dados: participacao([linha("zz", 50)], t0 + 20000), contexto: live("B", false) });
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "sortear", sorteio: { ts: t0, ganhador: "jako", entre: 1 } });
+    conferir(guardado.lives.A.sorteios.length === 1, "o sorteio entra na live certa");
+    conferir((guardado.lives.B.sorteios ?? []).length === 0, "e não aparece na outra live");
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "zerar-ao-vivo" });
+    conferir(guardado.lives.A.eventos.length === 0, "zerar o ao vivo limpa o feed");
+    conferir(guardado.lives.A.linhas[0].gemas === 1500, "mas não mexe nos totais");
+    conferir(guardado.lives.A.anterior.jako === 1500, "e o ponto de partida fica onde está");
+    conferir(guardado.lives.A.sorteios.length === 1, "nem nos sorteios já feitos");
+
+    // E a contagem continua dali em diante.
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 2000)], t0 + 30000), contexto: live("A") });
+    conferir(guardado.lives.A.eventos.length === 1 && guardado.lives.A.eventos[0].gemas === 500, "depois de zerar, conta a partir dali");
+
+    await mandar({ tipo: "mexer-na-live", id: "A", acao: "limpar-sorteios" });
+    conferir(guardado.lives.A.sorteios.length === 0, "limpar sorteios limpa só os sorteios");
+    conferir(guardado.lives.A.eventos.length === 1, "e deixa o ao vivo em paz");
+
+    const r = await mandar({ tipo: "mexer-na-live", id: "NAO-EXISTE", acao: "zerar-ao-vivo" });
+    conferir(r?.ok === false, "mexer em live que não existe responde que não deu");
   }
 
   // ---------- tabela de preços ----------

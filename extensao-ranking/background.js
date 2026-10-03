@@ -89,37 +89,61 @@ async function guardarVenda(evento, ctx) {
 // total e chega de tempos em tempos), isto e evento: vem na hora, um por envio.
 // So cobre o tempo em que a aba da live ficou aberta -- por isso os totais
 // grandes continuam saindo da participacao, que e a Jamble quem calcula.
-async function guardarEmocao(evento, ctx) {
-  if (!evento?.id) return;
-  const id = ctx?.showId || ctx?.liveId || "sem-live";
+// Numa live movimentada chegam muitas emotions seguidas. Gravar uma por uma
+// significaria ler e reescrever o armazenamento inteiro a cada envio -- entao
+// elas se juntam por um instante e vao de uma vez so.
+const ESPERA_EMOCAO_MS = 800;
+const MAXIMO_NA_FILA = 40;
+let filaEmocoes = [];
+let agendadoEmocao = null;
+
+async function descarregarEmocoes() {
+  agendadoEmocao = null;
+  const lote = filaEmocoes;
+  filaEmocoes = [];
+  if (!lote.length) return;
+
   const g = await ler(["lives"]);
   const lives = g.lives ?? {};
-  const live = lives[id] ?? {
-    id,
-    titulo: ctx?.titulo ?? "",
-    doPainel: ctx?.doPainel ?? false,
-    quando: Date.now(),
-    linhas: [],
-    eventos: [],
-    sorteios: [],
-  };
-  const emocoes = live.emocoes ?? [];
 
-  // O mesmo evento chega repetido no WebSocket; o id da Jamble resolve.
-  if (emocoes.some((e) => e.id === String(evento.id))) return;
-  emocoes.push({
-    id: String(evento.id),
-    handle: String(evento.handle ?? "").replace(/^@/, ""),
-    nome: evento.nome || evento.handle || "",
-    icone: String(evento.icone ?? ""),
-    gemas: Number(evento.gemas) || 0,
-    ts: Number(evento.ts) || Date.now(),
-  });
+  for (const { evento, ctx } of lote) {
+    const id = ctx?.showId || ctx?.liveId || "sem-live";
+    const live = (lives[id] = lives[id] ?? {
+      id,
+      titulo: ctx?.titulo ?? "",
+      doPainel: ctx?.doPainel ?? false,
+      quando: Date.now(),
+      linhas: [],
+      eventos: [],
+      sorteios: [],
+    });
+    const emocoes = (live.emocoes = live.emocoes ?? []);
+    // O mesmo evento chega repetido no WebSocket; o id da Jamble resolve.
+    if (emocoes.some((e) => e.id === String(evento.id))) continue;
+    emocoes.push({
+      id: String(evento.id),
+      handle: String(evento.handle ?? "").replace(/^@/, ""),
+      nome: evento.nome || evento.handle || "",
+      icone: String(evento.icone ?? ""),
+      gemas: Number(evento.gemas) || 0,
+      ts: Number(evento.ts) || Date.now(),
+    });
+    if (emocoes.length > 5000) live.emocoes = emocoes.slice(-5000);
+    if (!live.titulo && ctx?.titulo) live.titulo = ctx.titulo;
+  }
 
-  live.emocoes = emocoes.slice(-5000);
-  if (!live.titulo && ctx?.titulo) live.titulo = ctx.titulo;
-  lives[id] = live;
   await chrome.storage.local.set({ lives });
+}
+
+function guardarEmocao(evento, ctx) {
+  if (!evento?.id) return;
+  filaEmocoes.push({ evento, ctx });
+  if (filaEmocoes.length >= MAXIMO_NA_FILA) {
+    if (agendadoEmocao) clearTimeout(agendadoEmocao);
+    descarregarEmocoes();
+    return;
+  }
+  if (!agendadoEmocao) agendadoEmocao = setTimeout(descarregarEmocoes, ESPERA_EMOCAO_MS);
 }
 
 // As metricas da live como a Jamble calcula. Vem de duas respostas que se
