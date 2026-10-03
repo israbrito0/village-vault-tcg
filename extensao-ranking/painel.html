@@ -44,6 +44,10 @@
       td.n, th.n { text-align: right; }
       td.gema { color: var(--gema); }
       td.forte { font-weight: 700; }
+      td.mandou { color: var(--fraco); font-size: 12px; line-height: 1.35; padding-left: 12px; }
+      #t-ranking-vivo td.n, #t-ranking-vivo th.n { padding-left: 8px; white-space: nowrap; }
+      #t-ranking-vivo th:last-child { padding-left: 12px; }
+      .podio td:first-child { color: var(--destaque); font-weight: 800; }
       .fraco { color: var(--fraco); font-size: 11px; font-weight: 400; }
       .lista { max-height: 430px; overflow: auto; }
       .vazio { color: var(--fraco); font-style: italic; }
@@ -139,6 +143,21 @@
       <div class="cartao"><div class="rotulo">Espectadores</div><div class="valor" id="c-espectadores">—</div></div>
     </div>
 
+    <div class="painel" id="caixa-ranking-vivo">
+      <h2>
+        <span>Ranking ao vivo · quem mandou o quê</span>
+        <span class="fraco" id="rankingVivoTotal"></span>
+      </h2>
+      <div class="lista">
+        <table id="t-ranking-vivo">
+          <thead>
+            <tr><th>#</th><th>Pessoa</th><th class="n">Gemas</th><th class="n">Envios</th><th>O que mandou</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
     <div class="painel" id="caixaMeta">
       <h2>
         <span>Meta de carpas</span>
@@ -178,9 +197,9 @@
     </div>
 
     <div class="grade">
-      <div class="painel">
+      <div class="painel" id="caixa-ranking">
         <h2>
-          <span>Ranking</span>
+          <span>Ranking da Jamble · live inteira</span>
           <select id="ordem" class="nao-imprimir">
             <option value="gemas">por gemas</option>
             <option value="pontos">por pontos</option>

@@ -9,9 +9,8 @@
   const CAPA = "vv-painel-capa";
   const PADRAO = 400;
   const MIN = 300;
-  // Nunca mais do que metade da janela: numa tela menor, um painel largo
-  // demais passaria a cobrir o vídeo da live. Medido na página da Jamble com
-  // 1400px: o vídeo vai até 903 e um painel de 400 começa em 1000.
+  // Nunca mais do que metade da janela: a página da live encolhe para dar
+  // lugar ao painel, e abaixo disso as três colunas dela ficam apertadas demais.
   const maximo = () => Math.max(MIN, Math.min(900, Math.round(window.innerWidth * 0.5)));
 
   const ehLive = () => /^\/(live|seller\/dashboard\/lives)\//.test(location.pathname);
@@ -30,6 +29,56 @@
       chrome.storage.local.set({ overlay: { aberto, largura } });
     } catch {
       // A extensão foi recarregada: a página precisa ser recarregada também.
+    }
+  }
+
+  // ---------- abrir espaço na página ----------
+  // A página da live é um bloco preso nas duas bordas da janela (position
+  // fixed, inset-x-0), com três colunas: produtos, vídeo e CHAT. Se o painel
+  // só encostasse por cima, cobriria o chat inteiro -- medido em 1280px, o
+  // chat vai de 913 a 1256. Então, com o painel aberto, a borda direita desse
+  // bloco recua a largura do painel e a própria Jamble reacomoda as três
+  // colunas no espaço que sobrou. Nada fica escondido.
+  const MARCA = "data-vv-recuado"; // guarda o "right" original para devolver
+  let ultimaVarredura = 0;
+
+  function ehDaPagina(el) {
+    if (el.id === ID || el.id === BOTAO || el.id === CAPA) return false;
+    if (getComputedStyle(el).position !== "fixed") return false;
+    const r = el.getBoundingClientRect();
+    // De ponta a ponta na largura (ou já recuado por nós).
+    return r.left <= 1 && r.width >= window.innerWidth - largura - 2;
+  }
+
+  function recuarPagina(px) {
+    const marcados = [...document.querySelectorAll(`[${MARCA}]`)];
+
+    if (!px) {
+      // Fechou: devolve tudo como era.
+      for (const el of marcados) {
+        el.style.right = el.getAttribute(MARCA);
+        el.removeAttribute(MARCA);
+      }
+      // E libera a próxima busca: o freio de 5s existe para a conferência de
+      // fundo, não para quando você reabre o painel. Sem isso, fechar e abrir
+      // em seguida deixava o painel em cima do chat por alguns segundos.
+      ultimaVarredura = 0;
+      return;
+    }
+
+    // Os que já recuamos: só acerta a medida (a largura pode ter mudado).
+    for (const el of marcados) el.style.right = px + "px";
+
+    // Procurar de novo custa caro (olha a página inteira), então só quando
+    // não sobrou nenhum -- a Jamble remonta a página ao trocar de live -- e no
+    // máximo a cada 5 segundos.
+    if (marcados.some((el) => el.isConnected)) return;
+    if (Date.now() - ultimaVarredura < 5000) return;
+    ultimaVarredura = Date.now();
+    for (const el of document.body.querySelectorAll("*")) {
+      if (el.hasAttribute(MARCA) || !ehDaPagina(el)) continue;
+      el.setAttribute(MARCA, el.style.right || "");
+      el.style.right = px + "px";
     }
   }
 
@@ -104,6 +153,9 @@
       if (!arrastando) return;
       largura = Math.min(maximo(), Math.max(MIN, window.innerWidth - e.clientX));
       caixa.style.width = largura + "px";
+      recuarPagina(largura);
+      const b = document.getElementById(BOTAO);
+      if (b) b.style.right = largura + "px";
     });
     const soltar = () => {
       if (!arrastando) return;
@@ -151,6 +203,7 @@
         jaTem.remove();
       }
     }
+    recuarPagina(aberto ? largura : 0);
     if (b) {
       b.textContent = aberto ? "Fechar" : "Painel";
       // Com o painel aberto o botao encosta na borda dele.
@@ -165,6 +218,7 @@
       document.getElementById(ID)?.remove();
       document.getElementById(BOTAO)?.remove();
       document.getElementById(CAPA)?.remove();
+      recuarPagina(0);
       return;
     }
     if (!document.body) return;

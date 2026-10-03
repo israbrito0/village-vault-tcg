@@ -89,8 +89,9 @@ PAINEL DA LIVE
 Como abrir
 ----------
 Na propria pagina da live, clique no botao "Painel" no canto de cima, a
-direita. Ele abre encostado na direita, com a live rodando do lado -- nao
-precisa trocar de aba. Arraste a borda esquerda para mudar a largura; ele
+direita. Ele abre na direita e a pagina da live ENCOLHE para dar lugar --
+produtos, video e chat continuam todos visiveis do lado. Nao precisa trocar
+de aba. Arraste a borda esquerda para mudar a largura; ele
 lembra o tamanho e se estava aberto.
 
 Preferindo em aba separada: icone da extensao -> "Painel da live".
@@ -101,13 +102,17 @@ nao da para recuperar.
 
 O que ele mostra
 ----------------
+  RANKING AO VIVO: quem mandou mais gemas, quantos envios e O QUE cada um
+    mandou ("5x Sono Pesado", "2x Carpa Zika, 3x Alma da Festa"). Funciona
+    em qualquer live, inclusive na de outro vendedor
   FATURAMENTO e POS TAXAS, vendas, compradores, espectadores
   GEMAS ENVIADAS, CARPAS e quanto entrou nos ULTIMOS 5 MINUTOS
   META DE CARPAS: escreva quantas voce quer e a barra mostra o que falta, em
     gemas e em carpas. O cartao pisca quando chega carpa nova
   QUEM MANDOU O QUE, AO VIVO: hora, pessoa, icone e quanto valeu em gemas
   EMOTIONS POR ICONE: quantas carpas, quantos coracoes, quantas masterballs
-  RANKING pessoa a pessoa, ordenavel por gemas, pontos ou quanto comprou
+  RANKING DA JAMBLE (so na sua live): pessoa a pessoa com o que comprou,
+    ordenavel por gemas, pontos ou quanto comprou
   METRICAS DA LIVE: ticket medio, gasto por comprador, frete, faturamento por
     minuto, intervalo entre vendas, pico simultaneo, tempo medio assistido,
     publico que voltou, escoamento, mensagens no chat, seguidores novos

@@ -240,6 +240,33 @@ async function desenhar() {
     2,
   );
 
+  // Ranking ao vivo pelas emotions: quem mandou mais gemas, quantos envios e
+  // O QUE cada um mandou. Funciona em qualquer live -- inclusive na de outro
+  // vendedor, onde o ranking da Jamble (participação) simplesmente não existe.
+  // Era por isso que snorlax "não contava": chegava, mas não tinha onde aparecer.
+  const oQueMandou = (icones) =>
+    Object.entries(icones)
+      .sort((a, b) => b[1] - a[1])
+      .map(([ic, q]) => `${q}x ${nomeIcone(ic, nomes)}`)
+      .join(", ");
+  $("#rankingVivoTotal").textContent = em.total
+    ? `${num(em.porPessoa.length)} pessoas · ${num(em.total)} envios · ${num(em.gemas)} gemas`
+    : "";
+  linhas(
+    $("#t-ranking-vivo tbody"),
+    em.porPessoa.map((x, i) => ({ i: i + 1, ...x })),
+    (d) =>
+      `<tr${d.i <= 3 ? ' class="podio"' : ""}><td>${d.i}</td>` +
+      `<td>${esc(d.nome)} <span class="fraco">@${esc(d.handle)}</span></td>` +
+      `<td class="n gema forte">${num(d.gemas)}</td><td class="n">${num(d.qtd)}</td>` +
+      `<td class="mandou">${esc(oQueMandou(d.icones))}</td></tr>`,
+    5,
+  );
+
+  // O ranking da Jamble só existe na sua live (painel do vendedor). Em live de
+  // outro vendedor ele ficaria vazio ocupando espaço -- então some.
+  $("#caixa-ranking").style.display = linhasP.length ? "" : "none";
+
   // Contagem por icone: quantos de cada um, e quanto deu em gemas.
   $("#caixa-icones").style.display = em.porIcone.length ? "" : "none";
   linhas(
