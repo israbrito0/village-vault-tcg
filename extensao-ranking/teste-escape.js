@@ -56,16 +56,21 @@ for (const arquivo of ["painel.js", "popup.js"]) {
 
 const DE_FORA = /\.(nome|handle|titulo|ganhador|icone|erro|message|displayName|username)\b/;
 
+// Funções que escapam por dentro e por isso valem como esc(). Cada uma é
+// conferida mais abaixo: precisa mesmo passar o que recebe pelo esc().
+const ESCAPAM = ["esc(", "quem("];
+
 // Tira os esc(...) com os argumentos, contando parênteses -- esc(String(x))
 // tem parêntese dentro e uma regex simples pararia no lugar errado.
 function semEscapados(texto) {
   let t = texto;
   for (let volta = 0; volta < 20; volta++) {
-    const i = t.indexOf("esc(");
-    if (i < 0) break;
+    const achados = ESCAPAM.map((f) => [t.indexOf(f), f]).filter(([i]) => i >= 0);
+    if (!achados.length) break;
+    const [i, f] = achados.sort((a, b) => a[0] - b[0])[0];
     let nivel = 0;
     let fim = -1;
-    for (let j = i + 3; j < t.length; j++) {
+    for (let j = i + f.length - 1; j < t.length; j++) {
       if (t[j] === "(") nivel++;
       else if (t[j] === ")" && --nivel === 0) {
         fim = j;
@@ -87,6 +92,20 @@ for (const arquivo of ["painel.js", "popup.js"]) {
     .filter((l) => /<\w|<\//.test(l) && l.includes("${") && cru(l))
     .map((l) => l.trim().slice(0, 70));
   conferir(suspeitas.length === 0, `${arquivo}: campo de fora só entra em HTML escapado`, suspeitas.join(" | "));
+}
+
+// quem() conta como escapado: então ela tem que escapar mesmo. Roda a função
+// de verdade, do jeito que está escrita no painel.js.
+{
+  const fonte = fs.readFileSync(path.join(__dirname, "painel.js"), "utf8");
+  const def = fonte.match(/const quem = [^\n]*\n/);
+  conferir(!!def, "painel.js define quem()");
+  if (def) {
+    const quem = new Function("esc", `${def[0]}; return quem;`)(escDe("painel.js"));
+    const saida = quem('<img src=x onerror="alert(1)">');
+    conferir(!/<img/.test(saida) && saida.startsWith("@"), "quem() escapa o @ que recebe", saida);
+    conferir(/anonimo/.test(quem(null)), "quem() sem @ mostra 'ainda sem nome'");
+  }
 }
 
 // O verificador só vale se reprovar de verdade.

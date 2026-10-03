@@ -33,16 +33,26 @@
     }
   }
 
+  // Só passam adiante os tipos conhecidos: a página pode mandar qualquer
+  // mensagem, e o background não é lugar de recebê-las às cegas.
+  const TIPOS = new Set([
+    "venda",
+    "candidato",
+    "ligado",
+    "emocao",
+    "participacao",
+    "metricas",
+    "eu",
+    "tabela-emocoes",
+    "quadro",
+    "perfis",
+    "ranking-mensal",
+    "amostra",
+  ]);
+
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.marca !== MARCA) return;
-    if (e.data.tipo === "venda") mandar("venda", e.data.dados);
-    else if (e.data.tipo === "candidato") mandar("candidato", e.data.dados);
-    else if (e.data.tipo === "ligado") mandar("ligado", e.data.dados);
-    else if (e.data.tipo === "emocao") mandar("emocao", e.data.dados);
-    else if (e.data.tipo === "participacao") mandar("participacao", e.data.dados);
-    else if (e.data.tipo === "metricas") mandar("metricas", e.data.dados);
-    else if (e.data.tipo === "eu") mandar("eu", e.data.dados);
-    else if (e.data.tipo === "tabela-emocoes") mandar("tabela-emocoes", e.data.dados);
+    if (TIPOS.has(e.data.tipo)) mandar(e.data.tipo, e.data.dados);
   });
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
@@ -50,6 +60,29 @@
       window.postMessage({ marca: MARCA, tipo: "modo", dados: msg.dados }, "*");
     }
     if (msg?.tipo === "contexto") responder(contexto());
+
+    // O painel pede o ranking mensal: aperta o botão "Ranking do vendedor: #N"
+    // da própria live, que busca a lista na Jamble -- o inject.js lê a resposta
+    // no caminho, como sempre. Se abrir uma janelinha por cima da live, fecha.
+    if (msg?.tipo === "atualizar-ranking-mensal") {
+      const botao = ehPaginaDeLive(location.pathname)
+        ? [...document.querySelectorAll("button")].find((b) =>
+            /^(ranking do vendedor|seller ranking)/i.test((b.getAttribute("aria-label") || "").trim()),
+          )
+        : null;
+      if (!botao) {
+        responder({ ok: false });
+        return true;
+      }
+      botao.click();
+      setTimeout(() => {
+        if (document.querySelector('[role="dialog"]')) {
+          document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        }
+        responder({ ok: true });
+      }, 1500);
+      return true;
+    }
 
     // O painel pede para atualizar os numeros: aperta o proprio botao
     // "Atualizar" da pagina da Jamble, que refaz a chamada e o inject.js le a

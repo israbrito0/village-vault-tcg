@@ -264,7 +264,7 @@ function montarBackground() {
     const emos = recebidas.filter((m) => m.tipo === "emocao");
     conferir(emos.length === 3, "tres emotions reconhecidas", String(emos.length));
     for (const e of emos) await mandar({ tipo: "emocao", dados: e.dados, contexto: ctxAlheia });
-    await new Promise((r) => setTimeout(r, 1100)); // o lote descarrega
+    await new Promise((r) => setTimeout(r, 1800)); // o lote descarrega
 
     // 3) os numeros que o painel mostraria
     const { resumirEmocoes, listaDeMetricas, quemMandou } = require("./gemas.js");
@@ -299,6 +299,149 @@ function montarBackground() {
     // 4) o sorteio de carpa so pega quem mandou carpa
     const carpeiros = quemMandou(live.emocoes, "magikarp_shiny").map((c) => c.handle).sort();
     conferir(carpeiros.join(",") === "bruno,jako", "sorteio de carpa pega so quem mandou carpa", carpeiros.join(","));
+  }
+
+  // ---------- leilão, disputa, batalha e chat: do WebSocket até as abas ----------
+  // A sequência é a de um leilão de verdade da live do @pokerusbr (03/10/2026):
+  // começa em R$ 5, vai a R$ 550 com 49 lances e fecha em R$ 750.
+  {
+    const { guardado, mandar } = montarBackground();
+    const ctxLive = { liveId: "pokerusbr", showId: "SwdW", doPainel: false, titulo: "MEGA LIVE 30 ANOS" };
+    const GRUPO = "pPHuioR03kvou7qKTyYE";
+    new ctxPagina.WebSocket("wss://ws.jamble.com/websocket/show/RGUO/SwdW");
+    const show = aberto;
+    new ctxPagina.WebSocket("wss://ws.jamble.com/websocket/group_message/" + GRUPO);
+    const chat = aberto;
+
+    // Tudo que o inject.js mandar vai para o background, como o content.js faria.
+    const repassar = async () => {
+      const lote = recebidas.splice(0);
+      for (const m of lote) {
+        if (["quadro", "perfis", "metricas", "emocao"].includes(m.tipo)) {
+          await mandar({ tipo: m.tipo, dados: m.dados, contexto: ctxLive });
+        }
+      }
+    };
+    const sale = (mudanca) => ({
+      id: "VyNc5TTB4S9JDJKlllcU",
+      created_at: 1791048870.092078,
+      status: "STARTED",
+      is_sold: false,
+      is_over: false,
+      is_canceled: false,
+      settings: { type: "AUCTION", duration_in_secs: 15, starting_price: 5 },
+      sold_count: 0,
+      available_count: 15,
+      price: 5,
+      ...mudanca,
+    });
+    const frame = (data) => JSON.stringify({ data, event_type: "snapshot" });
+
+    recebidas.length = 0;
+    show.emitir(
+      frame({
+        seller: { id: "RGUO", username: "pokerusbr", display_name: "pokerus br" },
+        show: {
+          id: "SwdW",
+          title: "MEGA LIVE 30 ANOS",
+          group_message_id: GRUPO,
+          total_sale_product_price: 5168,
+          sold_sale_count: 32,
+          is_over: false,
+        },
+        sale: sale(),
+        sale_best_entry: null,
+        sale_entry_count: 0,
+        sale_entry_user_ids: [],
+        sale_product: { id: "p", title: "30 anos a R$ 5,00 💵", images: [{ original_url: "x" }] },
+        battle: {
+          id: "C1Dw",
+          status: "started",
+          is_over: false,
+          ending_at: 1791065426.7,
+          red_team_participant_count: 7,
+          red_team_participant_total_entry_count: 19000,
+          red_team_participant_top_user_ids: ["KFjL"],
+          blue_team_participant_count: 4,
+          blue_team_participant_total_entry_count: 14235,
+          blue_team_participant_top_user_ids: ["QGKb"],
+          tier: "tier_4",
+        },
+        giveaway: null,
+      }),
+    );
+    // Os lances: chegam como atualização, sem repetir o leilão inteiro.
+    show.emitir(
+      JSON.stringify({
+        data: {
+          sale_best_entry: {
+            price: 550,
+            buyer_id: "KFjL",
+            sale_id: "VyNc5TTB4S9JDJKlllcU",
+            buyer_profile: { id: "KFjL", username: "vbpracima" },
+          },
+          sale_entry_count: 49,
+          sale_entry_user_ids: ["KFjL", "QGKb", "igor"],
+        },
+        event_type: "update",
+      }),
+    );
+    // Gente falando no chat (é daí que o código de quem deu lance ganha nome).
+    const m = (id, quem, nome) => ({
+      id,
+      created_at: 1791049000,
+      group_message_id: GRUPO,
+      message_type: "STANDARD",
+      content: "oi",
+      sender_profile: { id: quem, username: nome },
+    });
+    chat.emitir(frame({ messages: [m("c1", "QGKb", "samantaavila"), m("c2", "QGKb", "samantaavila"), m("c3", "KFjL", "vbpracima")] }));
+    // Fechou.
+    show.emitir(
+      frame({
+        sale: sale({
+          status: "FINISHED",
+          is_sold: true,
+          is_over: true,
+          ended_at: 1791048966.17,
+          buyer_id: "KFjL",
+          sold_count: 1,
+          sold_price: 750,
+          total_sold_price: 750,
+        }),
+      }),
+    );
+    await repassar();
+    await new Promise((r) => setTimeout(r, 1800)); // o lote descarrega
+
+    const A = require("./analises.js");
+    const live = guardado.lives.SwdW;
+    conferir(!!live?.leiloes, "o leilão chegou ao background");
+    const r = A.resumirLeiloes(live?.leiloes, guardado.perfis);
+    const l = r.lista[0];
+    conferir(l && l.titulo === "30 anos a R$ 5,00 💵" && l.situacao === "vendido", "aba Leilões: item vendido", JSON.stringify(l));
+    conferir(l && l.final === 750 && l.vencedor === "vbpracima" && l.lances === 49, "por R$ 750, para @vbpracima, 49 lances");
+    conferir(l && Math.round(l.multiplicador) === 150, "150 vezes o lance inicial");
+    const d = A.quemDisputou(live?.leiloes, guardado.perfis);
+    const sam = d.find((x) => x.id === "QGKb");
+    conferir(sam && sam.handle === "samantaavila" && sam.perdeu === 1, "quem disputou e perdeu ganha nome pelo chat");
+    conferir(d.find((x) => x.id === "igor")?.handle === null, "quem nunca apareceu com @ fica sem nome");
+    const b = A.resumirBatalha(Object.values(live?.batalhas ?? {})[0], guardado.perfis);
+    conferir(
+      b && b.lider === "vermelho" && b.diferenca === 4765 && b.vermelho.topNomes[0] === "vbpracima",
+      "aba Batalha: placar e quem lidera",
+    );
+    const c = A.resumirChat(live?.chat, 1791049000 * 1000 + 60000);
+    conferir(c.total === 3 && c.top[0].handle === "samantaavila" && c.top[0].mensagens === 2, "aba Chat: quem mais fala");
+    conferir(!JSON.stringify(guardado).includes('"oi"'), "o texto das mensagens não foi guardado");
+    // A aba Clientes junta o histórico guardado com as lives abertas, na hora.
+    const cl = A.clientes(A.historicoComLives(guardado.historico, guardado.lives, guardado.perfis), "israelbrito");
+    const vb = cl.find((x) => x.handle === "vbpracima");
+    conferir(
+      vb && vb.ganhou === 1 && vb.gastou === 750 && vb.mensagens === 1,
+      "aba Clientes: vbpracima levou 1, gastou R$ 750",
+      JSON.stringify(vb),
+    );
   }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

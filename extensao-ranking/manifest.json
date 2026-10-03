@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Village & Vault - Assistente",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "Ranking das lives da Jamble e precos de cartas para o leilao do site.",
   "permissions": [
     "storage",
@@ -49,7 +49,8 @@
         "inject.js",
         "painel.html",
         "painel.js",
-        "gemas.js"
+        "gemas.js",
+        "analises.js"
       ],
       "matches": [
         "https://*.jamble.com/*"

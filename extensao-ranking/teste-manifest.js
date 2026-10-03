@@ -66,6 +66,49 @@ conferir(
   "painel.html carrega gemas.js antes de painel.js",
 );
 
+// As contas de leilão, batalha, chat e clientes ficam no analises.js. O
+// background e o painel chamam essas funções pelo nome: se uma sumir ou mudar
+// de nome lá, a chamada aqui quebra só na hora da live.
+const analises = require("./analises.js");
+conferir(bg.includes('importScripts("analises.js")'), "background carrega o analises.js");
+conferir(
+  painelHtml.indexOf('src="analises.js"') >= 0 &&
+    painelHtml.indexOf('src="analises.js"') < painelHtml.indexOf('src="painel.js"'),
+  "painel.html carrega analises.js antes de painel.js",
+);
+conferir(
+  m.web_accessible_resources.some((w) => w.resources.includes("analises.js")),
+  "analises.js pode ser carregado pelo painel dentro da live",
+);
+const painelJsTexto = fs.readFileSync(path.join(__dirname, "painel.js"), "utf8");
+const ESPERADAS = {
+  "background.js": [
+    bg,
+    ["leilaoDoFrame", "mesclarLeilao", "batalhaDoFrame", "mensagensDoFrame", "sorteioJambleDoFrame", "ofertaDoFrame", "resumoDaLive", "rankingDaResposta", "regrasDoRanking"],
+  ],
+  "painel.js": [
+    painelJsTexto,
+    ["resumirLeiloes", "quemDisputou", "resumirBatalha", "resumirChat", "resumirOfertas", "minhaPosicao", "pontosDaLive", "historicoComLives", "clientes"],
+  ],
+};
+for (const [arquivo, [texto, funcoes]] of Object.entries(ESPERADAS)) {
+  for (const fn of funcoes) {
+    conferir(
+      new RegExp(`\\b${fn}\\(`).test(texto) && typeof analises[fn] === "function",
+      `${arquivo} chama ${fn}, e o analises.js define`,
+    );
+  }
+}
+
+// Cada aba tem botão e seção, e o painel.js liga uma na outra pelo nome.
+const abasBotao = [...painelHtml.matchAll(/<button type="button" data-aba="(\w+)"/g)].map((x) => x[1]);
+const abasSecao = [...painelHtml.matchAll(/<section data-aba="(\w+)"/g)].map((x) => x[1]);
+conferir(
+  abasBotao.length >= 4 && abasBotao.join() === abasSecao.join(),
+  "cada aba do painel tem botão e seção",
+  `${abasBotao} | ${abasSecao}`,
+);
+
 // ---------- todo id que o painel.js procura existe no HTML ----------
 // $("#x") que não existe vira erro na hora de ligar o clique, e a página
 // inteira para de funcionar.

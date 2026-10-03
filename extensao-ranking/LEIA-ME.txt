@@ -147,13 +147,70 @@ Botoes do fim
                          nem nos sorteios -- serve para rodar um segundo
                          sorteio contando so dali em diante
 
+As abas
+-------
+O painel tem quatro abas em cima. Tudo acima e a aba AO VIVO. As outras:
+
+  LEILOES
+    Cada venda da live, a mais nova em cima: o item, quantos lances, por
+    quanto saiu, quem levou, quantos disputaram e quantas vezes o lance final
+    passou do inicial ("x150" = comecou em R$ 5 e saiu por R$ 750).
+    Os dois tipos da Jamble entram:
+      leilao          lances, quem levou e por quanto
+      compra direta   preco fixo e varias unidades; a Jamble so diz QUANTAS
+                      sairam, nao quem comprou
+    ROLANDO AGORA: o item na tela, o lance da frente e quem esta na frente.
+    A aba ganha uma bolinha verde quando tem venda rolando.
+    QUEM DISPUTOU E NAO LEVOU: quem deu lance e perdeu, e o que perdeu --
+    cliente quente para oferecer na proxima live.
+
+  BATALHA E CHAT
+    O placar vermelho x azul: pontos, quantas pessoas, os tres que mais
+    mandaram de cada time, quem esta na frente e por quanto, e quando termina.
+    O chat: total de mensagens, mensagens por minuto (ultimos 5 min), quantas
+    pessoas falando e quem mais fala.
+    Ofertas pelo chat e sorteios da propria Jamble aparecem aqui quando
+    acontecerem (ver "O que ainda nao vi acontecer", abaixo).
+
+  CLIENTES
+    RANKING MENSAL DE VENDEDORES: sua posicao, quanto falta para passar quem
+    esta logo acima, a folga sobre o 20o (top 20 ganha R$ 200 por indicacao) e
+    quantos pontos a live aberta rende -- pelas regras que a propria Jamble
+    manda junto (hoje: 3 pontos por real vendido, 2 por gema). O botao
+    Atualizar aperta o "Ranking do vendedor: #N" da live aberta. A Jamble
+    manda o top 20 e, a parte, o dono da live que esta aberta.
+    CLIENTES DE TODAS AS LIVES: cada pessoa que apareceu nas lives que voce
+    abriu (suas e de outros vendedores): em quantas lives, quanto comprou,
+    quantas gemas, quantas disputas levou, quantas mensagens e quando foi a
+    ultima vez. Cada um ganha um perfil: compra e manda gema, so compra, so
+    manda gema, disputa e nao leva, so conversa. Filtros: quem compra, quem so
+    manda gema, quem disputa e nao leva, quem SUMIU (veio em pelo menos duas
+    lives suas e nao apareceu em nenhuma das duas ultimas) e quem so conversa.
+    Guarda o resumo de ate 60 lives; comeca a encher a partir desta versao.
+
+Nomes que ainda nao apareceram
+------------------------------
+Em lance e batalha a Jamble manda so o CODIGO da pessoa, nao o @. O @ aparece
+quando a pessoa fala no chat, manda emotion ou ganha um leilao -- a extensao
+anota o par codigo -> @ e guarda entre lives. Quem nunca apareceu com o @
+fica como "ainda sem nome" (nunca com nome chutado). Quanto mais lives, mais
+gente ele reconhece.
+
+O que ainda nao vi acontecer
+----------------------------
+Ofertas feitas pelo chat e sorteios da propria Jamble: em todas as lives que
+acompanhei esses campos vieram vazios, entao a leitura foi escrita no escuro,
+pelo nome dos campos. Na primeira vez que um deles vier com dado, a extensao
+guarda uma amostra (sem dado pessoal) em "amostrasNovas", para conferir e
+acertar a leitura se precisar.
+
 Cada numero vem de um lugar
 ---------------------------
 De QUALQUER live, inclusive a de outro vendedor (serve para acompanhar amigo
 e concorrente):
   faturamento, vendas, ticket medio, assistindo agora, duracao, faturamento
-  por minuto, produtos no catalogo e a venda, likes, compartilhamentos
-  e QUEM MANDOU QUAL ICONE
+  por minuto, produtos no catalogo e a venda, likes, compartilhamentos,
+  QUEM MANDOU QUAL ICONE, cada leilao, quem disputou, a batalha e o chat
 
 So da SUA live, aberta no painel do vendedor (Painel -> Lives -> a live):
   gemas por pessoa, pos taxas, espectadores unicos, pico simultaneo, funil,
@@ -177,6 +234,19 @@ passa; nao inventa conta nem chama endereco nenhum por fora.
                         liker_profile.username (quem mandou)
                         created_at (a que horas)
                         id (para nao contar duas vezes)
+    data.sale        -> a venda na tela: tipo (AUCTION / BUY_IT_NOW), status,
+                        inicial, preco, sold_count, sold_price, buyer_id
+    data.sale_best_entry, sale_entry_count, sale_entry_user_ids
+                     -> o lance da frente, quantos lances, quem deu lance
+    data.sale_product.title -> o nome do item
+    data.battle      -> vermelho x azul: pessoas, pontos, top 3, fim
+    data.show.group_message_id -> qual e o chat DA LIVE
+  WebSocket do chat, canal "group_message"
+    data.messages[]  -> quem mandou e quando (o texto NAO e guardado). So
+                        conta o grupo que a live informa: conversa privada
+                        aberta durante a live fica de fora
+  /api/live/seller-ranking         o ranking mensal (top 20, o dono da live e
+                                   as regras de pontos)
   /api/seller/show-participation   gemas, compras, mensagens e pontos por
   /api/live/participation          pessoa (os dois dao a mesma coisa)
   /api/seller/show-summary         as metricas da aba Desempenho
@@ -231,20 +301,30 @@ Dali sai so o @ e o nome de exibicao, que e o que o painel precisa para poder
 tirar voce do proprio sorteio. E o arquivo de depuracao esconde esses campos
 antes de gravar.
 
+Do chat sai so quem mandou e a hora -- o texto das mensagens nao e lido para
+nada nem guardado. Mensagem de conversa privada (outro grupo) nao sai nem da
+pagina. O dicionario codigo -> @ guarda so isso: o codigo e o @ publico.
+
 Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as oito suites, 297 casos:
-  manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada)
-  leitura dos payloads da Jamble (vendas, emotions, metricas, participacao)
-  a ponte entre a pagina e a extensao (content.js)
+Roda as nove suites, mais de 500 casos:
+  manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada,
+    funcao chamada que nao existe, aba sem secao)
+  leitura dos payloads da Jamble (vendas, emotions, metricas, participacao,
+    leilao, batalha, chat, ranking mensal, amostra sem dado pessoal)
+  a ponte entre a pagina e a extensao (content.js, botao do ranking)
   o painel encostado na live (overlay: botao, vazamento, largura)
   contas de gemas, emotions por icone, metricas e planilha
-  o que o background guarda (troca de live, duas lives, lote, limites)
+  contas de leilao, batalha, chat, ranking mensal e clientes (com frames e a
+    resposta do ranking de uma live de verdade, 03/10/2026)
+  o que o background guarda (troca de live, duas lives, lote, limites, e
+    duas gravacoes ao mesmo tempo sem uma apagar a outra)
   nome de fora nao vira codigo (escape de HTML)
   da resposta crua da Jamble ate os numeros do painel (ponta a ponta, com as
-    20 linhas reais de 30/09 conferidas contra o que a tela mostrava, e a live
-    de outro vendedor saindo do WebSocket ate o numero do painel)
+    20 linhas reais de 30/09 conferidas contra o que a tela mostrava, a live
+    de outro vendedor saindo do WebSocket ate o numero do painel, e um leilao
+    inteiro ate as abas Leiloes, Batalha e Clientes)
 
 Sai com codigo 1 se alguma falhar.

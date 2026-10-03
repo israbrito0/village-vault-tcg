@@ -10,6 +10,7 @@ const testes = [
   ["a ponte entre a página e a extensão", "teste-content.js"],
   ["o painel encostado na live (overlay)", "teste-overlay.js"],
   ["contas de gemas", "teste-gemas.js"],
+  ["contas de leilão, batalha, chat e clientes", "teste-analises.js"],
   ["o que o background guarda", "teste-background.js"],
   ["nome de fora não vira código", "teste-escape.js"],
   ["da resposta crua da Jamble até os números do painel", "teste-ponta-a-ponta.js"],

@@ -184,7 +184,7 @@ const live = (id, doPainel = true) => ({
   {
     const { guardado, mandar } = montar();
     const emo = (id, icone, gemas, handle) => ({ id, icone, gemas, handle, nome: handle, ts: 1700000000000 });
-    const assentar = () => new Promise((r) => setTimeout(r, 1100));
+    const assentar = () => new Promise((r) => setTimeout(r, 1800));
 
     await mandar({ tipo: "emocao", dados: emo("e1", "magikarp_shiny", 500, "jako"), contexto: live("A") });
     await mandar({ tipo: "emocao", dados: emo("e2", "pixel_heart", 10, "ana"), contexto: live("A") });
@@ -295,6 +295,140 @@ const live = (id, doPainel = true) => ({
     const { guardado, mandar } = montar();
     await mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000, 2473)], t0), contexto: live("L1") });
     conferir(!guardado.fila || guardado.fila.length === 0, "participação não entra na fila de vendas do site");
+  }
+
+  const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+  const emocao = (id, handle = "jako", gemas = 500) => ({ id, handle, nome: handle, icone: "magikarp_shiny", gemas, ts: t0 });
+
+  // ---------- duas gravações ao mesmo tempo não se apagam ----------
+  // Numa live movimentada, emotion e métrica chegam juntas. Antes, cada uma lia
+  // a live, mexia e gravava de volta: a segunda escrevia por cima da primeira.
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("CORRIDA", false);
+    // 40 emotions de uma vez descarregam na hora, sem esperar o relógio.
+    const pedidos = [];
+    for (let i = 0; i < 40; i++) pedidos.push(mandar({ tipo: "emocao", dados: emocao("e" + i), contexto: ctx }));
+    pedidos.push(mandar({ tipo: "metricas", dados: { quando: t0, valores: { faturamento: 999, acabou: false } }, contexto: ctx }));
+    pedidos.push(mandar({ tipo: "participacao", dados: participacao([linha("jako", 1000)], t0), contexto: ctx }));
+    await Promise.all(pedidos);
+    await esperar(1800);
+    const l = guardado.lives.CORRIDA;
+    conferir(l.emocoes.length === 40, "as 40 emotions ficaram", String(l.emocoes.length));
+    conferir(l.metricas?.faturamento === 999, "a métrica que chegou junto ficou");
+    conferir(l.linhas.length === 1, "e a participação também");
+  }
+
+  // ---------- leilão, batalha e chat de uma live ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("SwdW", false);
+    const GRUPO = "pPHu";
+    const sale = (mudanca) => ({
+      id: "VyNc",
+      created_at: 1791048870.09,
+      status: "STARTED",
+      is_sold: false,
+      is_canceled: false,
+      settings: { type: "AUCTION", starting_price: 5 },
+      available_count: 15,
+      price: 5,
+      ...mudanca,
+    });
+    await mandar({
+      tipo: "quadro",
+      dados: {
+        leilaoAtual: "VyNc",
+        grupoDaLive: GRUPO,
+        data: {
+          seller: { username: "pokerusbr" },
+          sale: sale(),
+          sale_product: { title: "30 anos a R$ 5,00" },
+          sale_best_entry: { price: 550, buyer_id: "KFjL", sale_id: "VyNc", buyer_profile: { username: "vbpracima" } },
+          sale_entry_count: 49,
+        },
+      },
+      contexto: ctx,
+    });
+    await mandar({ tipo: "quadro", dados: { leilaoAtual: "VyNc", data: { sale_entry_user_ids: ["KFjL", "QGKb", "anon"], sale_entry_count: 51 } }, contexto: ctx });
+    await mandar({
+      tipo: "quadro",
+      dados: { leilaoAtual: "VyNc", data: { sale: sale({ status: "FINISHED", is_sold: true, buyer_id: "KFjL", sold_price: 750, total_sold_price: 750, sold_count: 1 }) } },
+      contexto: ctx,
+    });
+    await mandar({
+      tipo: "quadro",
+      dados: {
+        data: {
+          battle: {
+            id: "C1Dw",
+            status: "started",
+            red_team_participant_count: 7,
+            red_team_participant_total_entry_count: 19000,
+            red_team_participant_top_user_ids: ["KFjL"],
+            blue_team_participant_count: 4,
+            blue_team_participant_total_entry_count: 14235,
+            blue_team_participant_top_user_ids: ["QGKb"],
+          },
+        },
+      },
+      contexto: ctx,
+    });
+    const m = (id, quem) => ({ id, created_at: 1791049977, group_message_id: GRUPO, message_type: "STANDARD", sender_profile: { id: quem, username: quem } });
+    await mandar({ tipo: "quadro", dados: { grupoDaLive: GRUPO, data: { messages: [m("m1", "samantaavila"), m("m2", "vbpracima")] } }, contexto: ctx });
+    // A mesma mensagem pela outra aba aberta na mesma live: não conta de novo.
+    await mandar({ tipo: "quadro", dados: { grupoDaLive: GRUPO, data: { messages: [m("m2", "vbpracima"), m("m3", "samantaavila")] } }, contexto: ctx });
+    await mandar({ tipo: "perfis", dados: { KFjL: "vbpracima", QGKb: "samantaavila" }, contexto: ctx });
+    await esperar(1800);
+
+    const l = guardado.lives.SwdW;
+    const lei = l.leiloes?.VyNc;
+    conferir(!!lei && lei.titulo === "30 anos a R$ 5,00", "o leilão fica guardado, com o nome do item");
+    conferir(lei && lei.vendido === true && lei.vendidoPor === 750 && lei.vencedorId === "KFjL", "vendido por R$ 750 para KFjL");
+    conferir(lei && lei.disputantes.length === 3 && lei.lances === 51, "com quem disputou e os lances");
+    conferir(l.vendedor === "pokerusbr", "de quem é a live");
+    conferir(l.batalhas?.C1Dw?.vermelho?.pontos === 19000, "a batalha fica guardada");
+    conferir(l.chat?.total === 3, "3 mensagens, sem contar em dobro a que chegou pelas duas abas", String(l.chat?.total));
+    conferir(l.chat?.porPessoa?.samantaavila?.n === 2, "2 de samantaavila");
+    conferir(guardado.perfis?.KFjL === "vbpracima", "o dicionário guarda código → @");
+
+    // E o histórico de clientes já tem esta live.
+    const h = guardado.historico?.SwdW;
+    conferir(!!h && h.vendedor === "pokerusbr", "a live entra no histórico de clientes");
+    conferir(h && h.pessoas?.samantaavila?.mensagens === 2, "com as mensagens de cada um");
+  }
+
+  // ---------- a live que sai do balde continua no histórico ----------
+  {
+    const { guardado, mandar } = montar();
+    await mandar({
+      tipo: "participacao",
+      dados: participacao([{ handle: "fiel", nome: "fiel", gemas: 5000, gastou: 300, pontos: 0, mensagens: 3 }], t0),
+      contexto: live("VELHA"),
+    });
+    // Mais quatro lives depois: a VELHA sai das lives guardadas inteiras...
+    for (const id of ["N1", "N2", "N3", "N4"]) {
+      await esperar(5);
+      await mandar({ tipo: "participacao", dados: participacao([linha("x" + id, 10)], t0), contexto: live(id) });
+    }
+    conferir(!guardado.lives.VELHA, "a live mais antiga sai das lives guardadas inteiras", Object.keys(guardado.lives).join(","));
+    conferir(guardado.historico?.VELHA?.pessoas?.fiel?.gastou === 300, "mas o resumo dela fica no histórico de clientes");
+  }
+
+  // ---------- ranking mensal e amostras ----------
+  {
+    const { guardado, mandar } = montar();
+    const r = await mandar({
+      tipo: "ranking-mensal",
+      dados: { quando: t0, titulo: "Ranking Mensal de Vendedores", participants: [{ rank: 6, points: 294409, username: "israelbrito" }, { rank: 5, points: 300000, username: "quinto" }] },
+    });
+    conferir(r?.ok === true && guardado.rankingMensal?.lista?.[0]?.handle === "quinto", "guarda o ranking mensal em ordem");
+    const vazio = await mandar({ tipo: "ranking-mensal", dados: { participants: [] } });
+    conferir(vazio?.ok === false && guardado.rankingMensal.lista.length === 2, "resposta vazia não apaga o ranking que já tinha");
+
+    await mandar({ tipo: "amostra", dados: { chave: "offer", origem: "ws:x", texto: '{"id":"o1"}' } });
+    await mandar({ tipo: "amostra", dados: { chave: "offer", origem: "ws:x", texto: '{"id":"o2"}' } });
+    conferir(guardado.amostrasNovas?.offer?.texto === '{"id":"o1"}', "guarda a primeira amostra de cada campo novo, só ela");
   }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

@@ -324,6 +324,163 @@ async function pedir(url, corpo) {
     "e NADA de CPF, e-mail ou telefone",
     JSON.stringify(eu),
   );
+  // O mesmo frame também alimenta o dicionário código → @. Dali sai o par, e
+  // só o par.
+  const perfilEu = JSON.stringify(recebidos.filter((m) => m.tipo === "perfis").map((m) => m.dados));
+  conferir(perfilEu === JSON.stringify([{ u1: "israelbrito" }]), "do perfil logado, o dicionário leva só código e @", perfilEu);
+
+  // ---------- leilão, batalha, chat (live do @pokerusbr, 03/10/2026) ----------
+  const SHOW = "wss://ws.jamble.com/websocket/show/RGUOtT0eUWcEn8VWsUccbNr9ygh1/SwdWTbncIqpktVHipW81";
+  const GRUPO = "pPHuioR03kvou7qKTyYE";
+  const wsShow = new contexto.WebSocket(SHOW);
+  const wsChat = new contexto.WebSocket("wss://ws.jamble.com/websocket/group_message/" + GRUPO);
+  const wsPrivado = new contexto.WebSocket("wss://ws.jamble.com/websocket/group_message/CONVERSA_PRIVADA");
+  const de = (tipo) => recebidos.filter((m) => m.tipo === tipo).map((m) => m.dados);
+
+  const msg = (id, grupo, quem, nome) => ({
+    id,
+    created_at: 1791049977.77515,
+    group_message_id: grupo,
+    message_type: "STANDARD",
+    sender_id: quem,
+    content: "texto que não pode sair daqui",
+    sender_profile: { id: quem, username: nome, display_name: nome + ".x", rating: 5, follower_count: 37 },
+  });
+
+  // O chat pode chegar antes de a live dizer qual é o grupo dela: espera.
+  recebidos.length = 0;
+  wsChat.emitir(JSON.stringify({ data: { messages: [msg("m1", GRUPO, "QGKb", "samantaavila")] }, event_type: "update" }));
+  wsPrivado.emitir(JSON.stringify({ data: { messages: [msg("p1", "CONVERSA_PRIVADA", "zzz", "amigo")] } }));
+  conferir(de("quadro").length === 0, "chat antes de saber o grupo da live fica esperando");
+
+  const frameReal = (mudanca = {}) =>
+    JSON.stringify({
+      data: {
+        seller: { id: "RGUOtT0eUWcEn8VWsUccbNr9ygh1", username: "pokerusbr", display_name: "pokerus br", rating: 4.99 },
+        show: { id: "SwdWTbncIqpktVHipW81", title: "🚨MEGA LIVE 30 ANOS 🚨", group_message_id: GRUPO, sold_sale_count: 32, total_sale_product_price: 5168, is_over: false },
+        sale: {
+          id: "FOkQblciJnlebfPGJsdi",
+          created_at: 1791049297.084186,
+          status: "STARTED",
+          is_sold: false,
+          settings: { type: "BUY_IT_NOW", duration_in_secs: 60, starting_price: 149, currency: "BRL", target: "ALL" },
+          sold_count: 3,
+          available_count: 6,
+          price: 149,
+        },
+        sale_best_entry: null,
+        sale_next_bid_price: null,
+        sale_entry_count: null,
+        sale_entry_user_ids: null,
+        sale_product: {
+          id: "IVbRgYSskFvw3AyW4eLx",
+          title: "Batalha 30 anos EUA",
+          images: [{ original_url: "https://jamble.b-cdn.net/x.png" }],
+          attributes: [{ key: "category", value: { id: "POKEMON_CARDS" } }],
+        },
+        battle: {
+          id: "C1DwmXW5o5u6PkeWFj0M",
+          is_over: false,
+          status: "started",
+          ending_at: 1791065426.701752,
+          red_team_participant_count: 7,
+          red_team_participant_total_entry_count: 19000,
+          red_team_participant_top_user_ids: ["KFjL", "Jjzg", "vzcO"],
+          blue_team_participant_count: 4,
+          blue_team_participant_total_entry_count: 14235,
+          blue_team_participant_top_user_ids: ["uPGH", "8haE", "QGKb"],
+          tier: "tier_4",
+        },
+        giveaway: null,
+        giveaway_product: null,
+        next_giveaway_product: null,
+        ...mudanca,
+      },
+      version: 3089,
+      event_type: "snapshot",
+    });
+
+  recebidos.length = 0;
+  wsShow.emitir(frameReal());
+  const quadros = de("quadro");
+  const chatLiberado = quadros.find((q) => q.data.messages);
+  conferir(
+    chatLiberado && chatLiberado.data.messages.length === 1 && chatLiberado.data.messages[0].id === "m1",
+    "quando a live diz o grupo, o chat que esperava é liberado -- e só o da live",
+    JSON.stringify(chatLiberado),
+  );
+  conferir(chatLiberado && chatLiberado.grupoDaLive === GRUPO, "o grupo da live vai junto");
+  const texto = JSON.stringify(chatLiberado);
+  conferir(texto.indexOf("não pode sair") < 0 && texto.indexOf("rating") < 0, "o texto da mensagem e o resto do perfil não saem", texto);
+
+  const q = quadros.find((x) => x.data.sale);
+  conferir(!!q, "o frame da live vira um quadro");
+  conferir(q && q.leilaoAtual === "FOkQblciJnlebfPGJsdi", "sabe qual venda está rolando");
+  conferir(q && q.data.sale.sold_count === 3 && q.data.sale.settings.type === "BUY_IT_NOW", "a venda vai com tipo e quantas saíram");
+  conferir(q && q.data.sale_product.title === "Batalha 30 anos EUA" && !("images" in q.data.sale_product), "do produto, só o nome");
+  conferir(q && q.data.battle.red_team_participant_total_entry_count === 19000, "a batalha vai junto");
+  conferir(q && q.data.seller.username === "pokerusbr", "de quem é a live");
+  conferir(q && !("show" in q.data) && !("sale_best_entry" in q.data), "o objeto da live e campos vazios não vão no quadro");
+
+  recebidos.length = 0;
+  wsShow.emitir(frameReal());
+  conferir(de("quadro").length === 0, "o mesmo estado de novo não manda nada");
+
+  // Atualização parcial: lances sem dizer de qual leilão.
+  recebidos.length = 0;
+  wsShow.emitir(JSON.stringify({ data: { sale_entry_count: 7, sale_entry_user_ids: ["KFjL", "QGKb"] }, event_type: "update" }));
+  const parcial = de("quadro")[0];
+  conferir(parcial && parcial.leilaoAtual === "FOkQblciJnlebfPGJsdi" && parcial.data.sale_entry_count === 7, "lance sem leilão leva o leilão atual junto");
+
+  // Chat depois de saber o grupo: o da live passa, o privado não.
+  recebidos.length = 0;
+  wsChat.emitir(JSON.stringify({ data: { messages: [msg("m2", GRUPO, "KFjL", "vbpracima")] } }));
+  wsPrivado.emitir(JSON.stringify({ data: { messages: [msg("p2", "CONVERSA_PRIVADA", "zzz", "amigo")] } }));
+  wsChat.emitir(JSON.stringify({ data: { messages: [msg("m2", GRUPO, "KFjL", "vbpracima")] } }));
+  const ms = de("quadro").flatMap((x) => x.data.messages || []);
+  conferir(ms.length === 1 && ms[0].id === "m2", "chat da live passa uma vez; conversa privada não passa", JSON.stringify(ms.map((m) => m.id)));
+
+  // Dicionário de perfis: o par código → @ de quem apareceu, uma vez só.
+  const perfisVistos = Object.assign({}, ...recebidos.filter((m) => m.tipo === "perfis").map((m) => m.dados));
+  conferir(perfisVistos.KFjL === "vbpracima", "o @ de quem falou no chat entra no dicionário", JSON.stringify(perfisVistos));
+  recebidos.length = 0;
+  wsChat.emitir(JSON.stringify({ data: { messages: [msg("m3", GRUPO, "KFjL", "vbpracima")] } }));
+  conferir(de("perfis").length === 0, "quem já está no dicionário não é mandado de novo");
+
+  // Ranking mensal: posição, pontos e @, sem foto e sem código.
+  const rk = await pedir(
+    "https://www.jamble.com/api/live/seller-ranking?seller_id=x",
+    JSON.stringify({
+      success: true,
+      title: "Ranking Mensal de Vendedores",
+      participants: [{ id: "c", sellerId: "s3", rank: 6, points: 294409, username: "israelbrito", avatarUrl: "https://x/a.png" }],
+      seller: { id: "RGUO", sellerId: "RGUO", rank: 125, points: 18320, username: "pokerusbr", avatarUrl: "https://x/b.png" },
+      rules: [{ rule: "+3 pontos para cada R$1 gasto", description: null, icon: "shop", entryPoints: 3 }],
+    }),
+  );
+  const rm = rk.find((m) => m.tipo === "ranking-mensal")?.dados;
+  conferir(rm && rm.participants[0].points === 294409 && rm.participants[0].username === "israelbrito", "lê o ranking mensal");
+  conferir(rm && !JSON.stringify(rm).includes("avatar") && !JSON.stringify(rm).includes("sellerId"), "sem foto nem código no ranking");
+  conferir(rm && rm.seller?.username === "pokerusbr" && rm.seller.rank === 125, "traz o dono da live, mesmo fora do top 20");
+  conferir(rm && rm.rules?.[0]?.entryPoints === 3 && rm.rules[0].icon === "shop", "e as regras de pontos");
+
+  // Campo novo, nunca visto com dado: vai uma amostra, sem dado pessoal.
+  recebidos.length = 0;
+  wsShow.emitir(
+    frameReal({
+      giveaway: { id: "g1", status: "STARTED", participant_count: 12, email: "dono@x.com", phone_number: "+5549999", winner_profile: { username: "ana", email: "ana@x.com" } },
+    }),
+  );
+  const am = de("amostra");
+  conferir(am.length === 1 && am[0].chave === "giveaway", "sorteio da Jamble novo gera uma amostra");
+  conferir(am[0] && am[0].texto.indexOf("ana@x.com") < 0, "e a amostra não leva e-mail", am[0] && am[0].texto);
+  const qg = de("quadro").find((x) => x.data.giveaway);
+  conferir(qg && qg.data.giveaway.participant_count === 12 && qg.data.giveaway.winner_profile.username === "ana", "o sorteio vai no quadro");
+  conferir(qg && !JSON.stringify(qg).includes("ana@x.com"), "sem o e-mail do ganhador");
+  conferir(qg && !/dono@x|5549999/.test(JSON.stringify(qg)), "nem e-mail ou telefone soltos no objeto", JSON.stringify(qg && qg.data.giveaway));
+  recebidos.length = 0;
+  wsShow.emitir(frameReal({ giveaway: { id: "g1", status: "FINISHED", participant_count: 12 } }));
+  conferir(de("amostra").length === 0, "a amostra de cada campo vai uma vez só");
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);

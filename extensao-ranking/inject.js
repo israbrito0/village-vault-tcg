@@ -73,7 +73,7 @@
   // CPF, telefone e e-mail do dono da conta. Isso some antes de sair daqui: o
   // arquivo de depuracao nao pode virar um vazamento de dado pessoal.
   const SEGREDOS =
-    /"(cpf|cnpj|phone_number|phoneNumber|telefone|email|birth_?date|document|rg|pix_key|bank_account|postal_code|zip_?code|street|address_line\w*)"\s*:\s*("[^"]*"|-?\d+(\.\d+)?|null)/gi;
+    /"(cpf|cnpj|phone_number|phoneNumber|telefone|email|birth_?date|document|rg|pix_key|bank_account|postal_code|zip_?code|street|address_line\w*|full_name|first_name|last_name|recipient_name)"\s*:\s*("[^"]*"|-?\d+(\.\d+)?|null)/gi;
 
   function semSegredo(texto) {
     return texto.replace(SEGREDOS, (_, campo) => '"' + campo + '":"(escondido)"');
@@ -291,6 +291,172 @@
     avisar("eu", { handle: p.username.replace(/^@/, ""), nome: p.display_name || p.username });
   }
 
+  // ---------- o resto da live: leilão, batalha, chat, oferta, sorteio ----------
+  //
+  // Tudo isso chega pelo WebSocket. Daqui sai só o pedaço que interessa, já
+  // enxugado (nada de foto, descrição ou texto de mensagem); quem faz as contas
+  // é o analises.js, no background.
+
+  // A mesma lista de campos do semSegredo, para conferir nome de campo.
+  const CAMPO_SECRETO = new RegExp("^" + SEGREDOS.source.slice(1, SEGREDOS.source.indexOf(")") + 1) + "$", "i");
+
+  // Copia só os campos simples de um objeto (texto, número, sim/não), mais as
+  // configurações do leilão, listas de códigos e o @ de perfis.
+  function raso(o, profundidade = 0) {
+    if (!o || typeof o !== "object" || Array.isArray(o)) return null;
+    const r = {};
+    for (const [k, v] of Object.entries(o)) {
+      if (CAMPO_SECRETO.test(k)) continue;
+      if (v == null || typeof v !== "object") r[k] = v;
+      else if (/_profile$|^(winner|buyer|user)$/.test(k) && typeof v.username === "string")
+        r[k] = { id: v.id ?? null, username: v.username, display_name: v.display_name ?? null };
+      else if (k === "settings" && profundidade === 0) r[k] = raso(v, 1);
+      else if (Array.isArray(v) && v.every((x) => typeof x === "string")) r[k] = v.slice(0, 500);
+    }
+    return r;
+  }
+
+  // Quem é quem: a Jamble manda muita coisa só com o código do usuário (quem
+  // deu lance, quem está na batalha). Sempre que um código aparece junto com o
+  // @ -- no chat, num lance vencedor, numa emotion --, o par vai para o
+  // background, que monta um dicionário que vale para as próximas lives.
+  const perfisVistos = new Set();
+  function juntarPerfis(valor, saida, profundidade = 0) {
+    if (!valor || typeof valor !== "object" || profundidade > 8) return;
+    if (Array.isArray(valor)) {
+      for (const v of valor) juntarPerfis(v, saida, profundidade + 1);
+      return;
+    }
+    const id = typeof valor.id === "string" ? valor.id : typeof valor.userId === "string" ? valor.userId : null;
+    if (id && typeof valor.username === "string" && valor.username) saida[id] = valor.username.replace(/^@/, "");
+    for (const v of Object.values(valor)) juntarPerfis(v, saida, profundidade + 1);
+  }
+  function guardarPerfis(dados) {
+    const achados = {};
+    juntarPerfis(dados, achados);
+    const novos = {};
+    for (const [id, handle] of Object.entries(achados)) {
+      const chave = id + "=" + handle;
+      if (perfisVistos.has(chave)) continue;
+      perfisVistos.add(chave);
+      novos[id] = handle;
+    }
+    if (Object.keys(novos).length) avisar("perfis", novos);
+  }
+
+  // O leilão em andamento. Os lances e a lista de quem disputou às vezes chegam
+  // sem dizer de qual leilão são -- valem para o último que apareceu.
+  let leilaoAtual = null;
+  // O chat da live é o group_message que a própria live informa. Até ela
+  // informar, as mensagens esperam aqui em vez de serem contadas no escuro.
+  let grupoDaLive = null;
+  let chatEsperando = [];
+  let ultimoQuadro = "";
+  const amostrasVistas = new Set();
+  // Campos que eu ainda não vi com dado numa live de verdade. Na primeira vez
+  // que aparecerem, vai uma amostra (sem dado pessoal) para o arquivo de
+  // depuração, para a leitura poder ser conferida depois.
+  const NUNCA_VISTOS = [
+    "offer",
+    "giveaway",
+    "giveaway_product",
+    "giveaway_participant",
+    "giveaway_participants",
+    "transaction",
+    "purchase_intent",
+    "sale_max_bid",
+  ];
+
+  function mandarChat(mensagens) {
+    if (mensagens.length) avisar("quadro", { grupoDaLive, data: { messages: mensagens } });
+  }
+
+  function guardarQuadro(dados, origem) {
+    const d = dados?.data;
+    if (!d || typeof d !== "object" || Array.isArray(d)) return;
+
+    for (const k of NUNCA_VISTOS) {
+      if (d[k] == null || amostrasVistas.has(k)) continue;
+      amostrasVistas.add(k);
+      avisar("amostra", { chave: k, origem, texto: semSegredo(JSON.stringify(d[k])).slice(0, 1500) });
+    }
+
+    if (typeof d.show?.group_message_id === "string" && d.show.group_message_id !== grupoDaLive) {
+      grupoDaLive = d.show.group_message_id;
+      const fila = chatEsperando;
+      chatEsperando = [];
+      mandarChat(fila.filter((m) => m.group_message_id === grupoDaLive));
+    }
+
+    if (Array.isArray(d.messages)) {
+      const grupoDaUrl = (origem.match(/group_message\/([\w-]+)/) || [])[1] || null;
+      const novas = [];
+      for (const m of d.messages) {
+        if (!m?.id || jaVistos.has("msg:" + m.id)) continue;
+        jaVistos.add("msg:" + m.id);
+        novas.push({
+          id: String(m.id),
+          created_at: m.created_at ?? null,
+          message_type: m.message_type ?? null,
+          group_message_id: m.group_message_id || grupoDaUrl,
+          // Só quem mandou. O texto da mensagem não sai daqui.
+          sender_profile: m.sender_profile?.username
+            ? {
+                id: m.sender_profile.id ?? null,
+                username: m.sender_profile.username,
+                display_name: m.sender_profile.display_name ?? null,
+              }
+            : null,
+        });
+      }
+      // Conversa privada (outro grupo) não sai daqui.
+      if (grupoDaLive) mandarChat(novas.filter((m) => m.group_message_id === grupoDaLive));
+      else chatEsperando = chatEsperando.concat(novas).slice(-500);
+    }
+
+    if (d.sale?.id) leilaoAtual = String(d.sale.id);
+    const q = {};
+    for (const k of ["sale", "sale_best_entry", "battle", "giveaway", "offer"]) {
+      if (d[k] && typeof d[k] === "object") q[k] = raso(d[k]);
+    }
+    if (d.sale_entry_count != null) q.sale_entry_count = Number(d.sale_entry_count) || 0;
+    if (Array.isArray(d.sale_entry_user_ids)) {
+      q.sale_entry_user_ids = d.sale_entry_user_ids.filter((x) => typeof x === "string").slice(0, 500);
+    }
+    for (const k of ["sale_product", "giveaway_product", "product"]) {
+      if (typeof d[k]?.title === "string") q[k] = { title: d[k].title };
+    }
+    // De quem é a live: separa, no histórico de clientes, as lives dela das
+    // lives de outros vendedores que ela acompanha.
+    if (typeof d.seller?.username === "string") q.seller = { username: d.seller.username.replace(/^@/, "") };
+    if (!Object.keys(q).length) return;
+    // O frame da live chega a cada poucos segundos repetindo o mesmo estado:
+    // só vai adiante quando alguma coisa mudou.
+    const foto = JSON.stringify([leilaoAtual, q]);
+    if (foto === ultimoQuadro) return;
+    ultimoQuadro = foto;
+    avisar("quadro", { leilaoAtual, grupoDaLive, data: q });
+  }
+
+  // O ranking mensal de vendedores, quando a página pede (o botão "Ranking do
+  // vendedor: #N" da live). A resposta traz o top 20, o dono da live à parte
+  // (mesmo fora do top 20) e as regras de pontos da Jamble. Sai só posição,
+  // pontos e @ -- sem foto nem código.
+  function guardarRankingMensal(dados) {
+    if (!Array.isArray(dados?.participants)) return;
+    const resumo = (p) => ({ rank: p?.rank, points: p?.points, username: p?.username });
+    avisar("ranking-mensal", {
+      quando: Date.now(),
+      titulo: typeof dados.title === "string" ? dados.title : "",
+      participants: dados.participants.map(resumo),
+      seller: dados.seller ? resumo(dados.seller) : null,
+      // "+3 pontos para cada R$1 gasto", "+2 pontos para cada gema enviada".
+      rules: Array.isArray(dados.rules)
+        ? dados.rules.map((r) => ({ icon: r?.icon ?? null, entryPoints: r?.entryPoints ?? null, rule: r?.rule ?? "" }))
+        : [],
+    });
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -302,6 +468,9 @@
     guardarEventos(dados, origem);
     guardarAoVivo(dados);
     guardarEu(dados);
+    guardarPerfis(dados);
+    guardarQuadro(dados, origem);
+    if (origem.includes("/api/live/seller-ranking")) guardarRankingMensal(dados);
     if (/show-summary|show-dashboard/.test(origem)) guardarMetricas(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da
@@ -309,7 +478,6 @@
     if (origem.includes("show-participation") || origem.includes("/api/live/participation")) {
       guardarParticipacao(dados, origem);
     }
-
 
     const vendas = [];
     const candidatos = [];

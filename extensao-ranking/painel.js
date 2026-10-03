@@ -111,8 +111,8 @@ const PORORDEM = {
   gastou: (a, b) => b.gastou - a.gastou,
 };
 
-async function desenhar() {
-  const { lives, p, titulo, eventos, emocoes, tabela, nomes, eu } = await ler();
+async function desenhar(dados) {
+  const { lives, p, titulo, eventos, emocoes, tabela, nomes, eu } = dados;
   const em = resumirEmocoes(emocoes);
   const linhasP = p?.linhas ?? [];
   // O preço da carpa vem da tabela da própria Jamble quando ela já passou por
@@ -356,13 +356,359 @@ async function desenhar() {
     : "";
 }
 
+// ---------- as outras abas: leilões, batalha e chat, clientes ----------
+//
+// As contas ficam no analises.js (com teste); aqui é só desenhar.
+
+let aba = "vivo";
+try {
+  aba = localStorage.getItem("aba") || "vivo";
+} catch {}
+
+const ABAS = ["vivo", "leiloes", "batalha", "clientes"];
+
+function mostrarAba(nome) {
+  if (!ABAS.includes(nome)) nome = "vivo";
+  aba = nome;
+  for (const el of document.querySelectorAll("#abas button, section[data-aba]")) {
+    el.classList.toggle("ativa", el.dataset.aba === nome);
+  }
+  // O rodapé e o "Zerar o ao vivo" só aparecem na aba Ao vivo (ver o CSS).
+  document.body.dataset.aba = nome;
+  try {
+    localStorage.setItem("aba", nome);
+  } catch {}
+  extrasLidosEm = 0; // trocou de aba: lê o dicionário e o histórico agora
+  pintar();
+}
+
+for (const b of document.querySelectorAll("#abas button")) {
+  b.addEventListener("click", () => mostrarAba(b.dataset.aba));
+}
+
+// O dicionário de nomes e o histórico de clientes são grandes e mudam devagar:
+// ler a cada 2s, junto com o resto, seria esforço à toa. Vão a cada 10s, e só
+// quando uma aba que usa está aberta.
+let extras = { perfis: {}, historico: {}, rankingMensal: null };
+let extrasLidosEm = 0;
+async function lerExtras() {
+  if (aba === "vivo") return extras;
+  if (Date.now() - extrasLidosEm < 10000) return extras;
+  extrasLidosEm = Date.now();
+  const g = temStorage
+    ? await chrome.storage.local.get(["perfis", "historico", "rankingMensal"])
+    : window.__teste ?? {};
+  extras = { perfis: g.perfis ?? {}, historico: g.historico ?? {}, rankingMensal: g.rankingMensal ?? null };
+  return extras;
+}
+
+const plural = (q, um, varios) => `${num(q)} ${Number(q) === 1 ? um : varios}`;
+const horaCurta = (ts) => new Date(ts).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+const dia = (ts) => (ts ? new Date(ts).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "—");
+const quem = (handle) => (handle ? "@" + esc(handle) : `<span class="anonimo">ainda sem nome</span>`);
+const restante = (ms) => {
+  const min = Math.max(0, Math.round(ms / 60000));
+  return min >= 60 ? `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}` : `${min} min`;
+};
+const CLASSE_SITUACAO = { vendido: "vendido", rolando: "rolando", cancelado: "cancelado", "sem venda": "semvenda" };
+
+// A bolinha na aba Leilões avisa que tem venda rolando, mesmo com outra aba
+// aberta.
+function marcarAbaLeiloes(rolando) {
+  const b = document.querySelector('#abas button[data-aba="leiloes"]');
+  const html = "Leilões" + (rolando ? '<span class="bolinha"></span>' : "");
+  if (b && b.innerHTML !== html) b.innerHTML = html;
+}
+
+function desenharLeiloes(p, perfis) {
+  const r = resumirLeiloes(p?.leiloes, perfis);
+  const disputas = quemDisputou(p?.leiloes, perfis);
+  $("#l-faturado").textContent = r.lista.length ? reais(r.faturado) : "—";
+  $("#l-vendidos").textContent = num(r.unidades);
+  $("#l-mult").textContent = r.multiplicadorMedio ? "×" + r.multiplicadorMedio.toFixed(1) : "—";
+  $("#l-disputando").textContent = num(disputas.length);
+
+  const a = r.rolando;
+  $("#caixa-agora").style.display = a ? "" : "none";
+  if (a) {
+    const direta = a.tipo === "compra direta";
+    $("#agoraTipo").textContent = a.tipo;
+    $("#agoraItem").textContent = a.titulo;
+    $("#agoraLance").textContent = direta ? reais(a.final) : reais(a.final || a.inicial);
+    $("#agoraQuem").textContent = direta
+      ? `${num(a.vendidas)} vendidas` + (a.restam != null ? ` · restam ${num(a.restam)}` : "")
+      : a.vencedor
+        ? `na frente: @${a.vencedor}`
+        : "sem lance ainda";
+    $("#agoraLances").textContent = direta ? "cada" : `${num(a.lances)} lances · ${num(a.disputaram)} disputando`;
+  }
+
+  $("#l-total").textContent = r.lista.length ? `${num(r.lista.length)} na live` : "";
+  linhas(
+    $("#t-leiloes tbody"),
+    r.lista.slice(0, 150),
+    (l) => {
+      const detalhe = [
+        l.tipo,
+        l.tipo === "leilão" && l.inicial ? `começou em ${reais(l.inicial)}` : "",
+        l.tipo === "compra direta" ? `${num(l.vendidas)} vendidas` : "",
+        l.vencedor ? (l.situacao === "rolando" ? "na frente @" : "@") + esc(l.vencedor) : "",
+        l.disputaram ? `${num(l.disputaram)} disputaram` : "",
+      ].filter(Boolean);
+      return (
+        `<tr><td>${l.inicio ? horaCurta(l.inicio) : "—"}</td>` +
+        `<td>${esc(l.titulo)}<span class="linha2">${detalhe.join(" · ")}</span></td>` +
+        `<td class="n">${l.lances ? num(l.lances) : "—"}</td>` +
+        `<td class="n forte">${l.final ? reais(l.final) : "—"}` +
+        (l.multiplicador ? `<span class="linha2">×${l.multiplicador.toFixed(1)}</span>` : "") +
+        `</td><td><span class="tag ${CLASSE_SITUACAO[l.situacao] || ""}">${esc(l.situacao)}</span></td></tr>`
+      );
+    },
+    5,
+  );
+
+  const perderam = disputas.filter((d) => d.perdeu > 0);
+  $("#d-total").textContent = perderam.length ? `${num(perderam.length)} pessoas` : "";
+  linhas(
+    $("#t-disputas tbody"),
+    perderam.slice(0, 100),
+    (d) => {
+      const itens = [...new Set(d.perdidos)];
+      return (
+        `<tr><td>${quem(d.handle)}<span class="linha2">perdeu: ${esc(itens.slice(0, 3).join(", "))}` +
+        `${itens.length > 3 ? ` e mais ${itens.length - 3}` : ""}</span></td>` +
+        `<td class="n">${num(d.disputou)}</td><td class="n">${num(d.ganhou)}</td><td class="n forte">${num(d.perdeu)}</td></tr>`
+      );
+    },
+    4,
+  );
+  const semNome = disputas.filter((d) => !d.handle).length;
+  $("#d-nota").textContent = semNome
+    ? `${num(semNome)} de ${num(disputas.length)} ainda sem nome: a Jamble manda só o código de quem dá lance. ` +
+      `O @ aparece quando a pessoa fala no chat, manda emotion ou ganha um leilão, e fica guardado para as próximas lives.`
+    : "";
+}
+
+function desenharBatalha(p, perfis) {
+  const atual = Object.values(p?.batalhas ?? {}).sort((x, y) => (y.visto || 0) - (x.visto || 0))[0];
+  const b = resumirBatalha(atual, perfis);
+  $("#b-vazio").style.display = b ? "none" : "";
+  $("#b-conteudo").style.display = b ? "" : "none";
+  $("#b-tempo").textContent = "";
+  if (b) {
+    const nomes = (lista) => {
+      const conhecidos = lista.filter(Boolean).map((h) => "@" + h);
+      const sem = lista.length - conhecidos.length;
+      return conhecidos.concat(sem ? [`+${sem} sem nome`] : []).join(", ");
+    };
+    for (const [cor, t] of [
+      ["v", b.vermelho],
+      ["a", b.azul],
+    ]) {
+      $(`#b-${cor}-pts`).textContent = num(t.pontos);
+      $(`#b-${cor}-pessoas`).textContent = `${num(t.pessoas)} pessoas`;
+      $(`#b-${cor}-top`).textContent = t.topNomes.length ? "top: " + nomes(t.topNomes) : "";
+    }
+    $("#b-vermelho").classList.toggle("lider", b.lider === "vermelho");
+    $("#b-azul").classList.toggle("lider", b.lider === "azul");
+    const total = b.vermelho.pontos + b.azul.pontos;
+    const pv = total ? (b.vermelho.pontos / total) * 100 : 50;
+    $("#b-barra-v").style.width = pv.toFixed(1) + "%";
+    $("#b-barra-a").style.width = (100 - pv).toFixed(1) + "%";
+    const nivel = b.tier ? ` · nível ${String(b.tier).replace(/^tier_/, "")}` : "";
+    $("#b-lider").textContent =
+      (b.lider === "empate"
+        ? b.acabou
+          ? "Acabou empatada"
+          : "Empatada"
+        : `${b.acabou ? "Venceu o" : "Na frente:"} ${b.lider}, por ${num(b.diferenca)} pontos`) + nivel;
+    $("#b-tempo").textContent = b.acabou
+      ? "encerrada"
+      : b.termina
+        ? `termina às ${horaCurta(b.termina)} · faltam ${restante(b.termina - Date.now())}`
+        : "";
+  }
+
+  const ch = resumirChat(p?.chat);
+  $("#ch-total").textContent = num(ch.total);
+  $("#ch-ritmo").textContent = ch.porMinuto.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+  $("#ch-pessoas").textContent = num(ch.top.length);
+  const outrosTipos = Object.entries(ch.porTipo).filter(([t]) => t !== "STANDARD");
+  $("#ch-tipos").textContent = outrosTipos.map(([t, q]) => `${num(q)} ${t.toLowerCase()}`).join(" · ");
+  linhas(
+    $("#t-chat tbody"),
+    ch.top.slice(0, 60).map((x, i) => ({ i: i + 1, ...x })),
+    (d) =>
+      `<tr${d.i <= 3 ? ' class="podio"' : ""}><td>${d.i}</td>` +
+      `<td>${esc(d.nome)} <span class="fraco">@${esc(d.handle)}</span></td><td class="n forte">${num(d.mensagens)}</td></tr>`,
+    3,
+  );
+
+  const of = resumirOfertas(p?.ofertas, perfis);
+  $("#caixa-ofertas").style.display = of.total ? "" : "none";
+  $("#of-total").textContent = of.total ? `${num(of.total)} ofertas · ${num(of.aceitas)} aceitas` : "";
+  linhas(
+    $("#t-ofertas tbody"),
+    of.lista.slice(0, 60),
+    (o) =>
+      `<tr><td>${horaCurta(o.quando)}</td><td>${quem(o.handle)}` +
+      (o.produto ? `<span class="linha2">${esc(o.produto)}</span>` : "") +
+      `</td><td class="n">${o.valor != null ? reais(o.valor) : "—"}</td><td>${esc(o.situacao || "—")}</td></tr>`,
+    4,
+  );
+
+  const sj = Object.values(p?.sorteiosJamble ?? {}).sort((x, y) => (y.quando || 0) - (x.quando || 0));
+  $("#caixa-sorteios-jamble").style.display = sj.length ? "" : "none";
+  linhas(
+    $("#t-sorteios-jamble tbody"),
+    sj,
+    (s) =>
+      `<tr><td>${horaCurta(s.quando)}</td><td>${esc(s.titulo || "—")}</td>` +
+      `<td class="n">${s.participantes ? num(s.participantes) : "—"}</td>` +
+      `<td>${s.vencedor ? "@" + esc(s.vencedor) : s.acabou ? quem(perfis[s.vencedorId]) : "rolando"}</td></tr>`,
+    4,
+  );
+}
+
+function desenharClientes(historicoGuardado, lives, perfis, rankingMensal, eu, p) {
+  const historico = historicoComLives(historicoGuardado, lives, perfis);
+  const lista = rankingMensal?.lista ?? [];
+  const pos = minhaPosicao(lista, eu?.handle);
+  let texto;
+  if (!lista.length) {
+    texto = "Ainda não li o ranking. Com uma live aberta (a sua ou a de outro vendedor), clique em Atualizar.";
+  } else if (pos?.eu) {
+    texto =
+      `Você está em #${pos.eu.posicao} com ${num(pos.eu.pontos)} pontos` +
+      (pos.eu.posicao === 1
+        ? " · primeiro lugar"
+        : pos.acima
+          ? ` · faltam ${num(pos.faltaParaSubir)} para passar @${pos.acima.handle} (#${pos.acima.posicao})`
+          : "") +
+      (pos.faltaParaTop20 != null
+        ? ` · faltam ${num(pos.faltaParaTop20)} para o top 20 (@${pos.corteTop20.handle} tem ${num(pos.corteTop20.pontos)})`
+        : pos.folgaNoTop20 != null && pos.eu.posicao < 20
+          ? ` · ${num(pos.folgaNoTop20)} de folga sobre o 20º`
+          : "");
+  } else {
+    texto = eu?.handle
+      ? `@${eu.handle} não está na lista que a Jamble mandou (${num(lista.length)} vendedores).`
+      : `${num(lista.length)} vendedores na lista.`;
+  }
+  $("#rm-voce").textContent = texto + (rankingMensal?.quando ? ` · lido às ${horaCurta(rankingMensal.quando)}` : "");
+
+  // Quanto a live aberta rende no ranking, pelas regras que a própria Jamble
+  // manda junto com a lista (hoje: 3 pontos por real vendido, 2 por gema).
+  const regras = rankingMensal?.regras ?? null;
+  const fat = p?.metricas?.faturamento;
+  const gemas = resumirGemas(p?.linhas ?? []).gemas || resumirEmocoes(p?.emocoes ?? []).gemas;
+  const pontos = p && Number.isFinite(Number(fat)) ? pontosDaLive(regras, fat, gemas) : null;
+  $("#rm-live").textContent =
+    pontos != null
+      ? `Esta live rende ≈ ${num(pontos)} pontos para ${p.vendedor ? "@" + p.vendedor : "o vendedor"} ` +
+        `(${reais(fat)} × ${num(regras.porReal)} + ${num(gemas)} gemas × ${num(regras.porGema)}).`
+      : "";
+
+  // O topo da lista, e você no meio mesmo que esteja lá embaixo.
+  const topo = lista.slice(0, 30);
+  if (pos?.eu && !topo.includes(pos.eu)) topo.push(pos.eu);
+  linhas(
+    $("#t-ranking-mensal tbody"),
+    topo,
+    (v) => {
+      // Você em destaque; os três primeiros com a cor do pódio.
+      const classe = eu?.handle && v.handle === eu.handle ? "eu" : v.posicao <= 3 ? "podio" : "";
+      return (
+        `<tr class="${classe}"><td>${num(v.posicao)}</td><td>@${esc(v.handle)}</td>` +
+        `<td class="n">${num(v.pontos)}</td></tr>`
+      );
+    },
+    3,
+  );
+  const velho = rankingMensal?.quando && Date.now() - rankingMensal.quando > 30 * 60 * 1000;
+  $("#rm-nota").textContent = velho ? "Esse ranking tem mais de meia hora. Clique em Atualizar." : "";
+
+  const todos = clientes(historico, eu?.handle);
+  const filtro = $("#filtroClientes").value;
+  const busca = $("#buscaCliente").value.trim().replace(/^@/, "").toLowerCase();
+  const FILTROS = {
+    todos: () => true,
+    compra: (c) => c.gastou > 0,
+    gema: (c) => c.gemas > 0 && !c.gastou,
+    disputa: (c) => c.disputou > c.ganhou,
+    sumiu: (c) => c.sumiu,
+    conversa: (c) => c.perfil === "só conversa",
+  };
+  const vistos = todos.filter((c) => (FILTROS[filtro] ?? FILTROS.todos)(c) && (!busca || c.handle.toLowerCase().includes(busca)));
+  const nLives = Object.keys(historico ?? {}).length;
+  $("#cl-total").textContent = todos.length ? `${num(vistos.length)} de ${num(todos.length)} · ${plural(nLives, "live", "lives")}` : "";
+  linhas(
+    $("#t-clientes tbody"),
+    vistos.slice(0, 150),
+    (c) => {
+      const detalhe = [
+        c.perfil,
+        c.disputou ? `levou ${num(c.ganhou)} de ${num(c.disputou)} disputas` : "",
+        c.mensagens ? plural(c.mensagens, "msg", "msgs") : "",
+      ].filter(Boolean);
+      return (
+        `<tr><td>@${esc(c.handle)}${c.sumiu ? ' <span class="tag sumiu">sumiu</span>' : ""}` +
+        `<span class="linha2">${esc(detalhe.join(" · "))}</span></td>` +
+        `<td class="n">${num(c.lives)}${c.livesDela && c.livesDela !== c.lives ? `<span class="linha2">${num(c.livesDela)} suas</span>` : ""}</td>` +
+        `<td class="n">${c.gastou ? reais(c.gastou) : "—"}</td>` +
+        `<td class="n gema">${c.gemas ? num(c.gemas) : "—"}</td>` +
+        `<td class="n">${dia(c.ultima)}</td></tr>`
+      );
+    },
+    5,
+  );
+  $("#cl-nota").textContent = nLives
+    ? `Cada live que passar com a extensão ligada entra aqui (guardo até 60). "Comprou": na sua live é o que a ` +
+      `Jamble mostra na Participação; em live de outro vendedor, só os leilões que a pessoa ganhou com a página aberta.`
+    : "Ainda não tenho nenhuma live guardada. Elas entram aqui sozinhas, conforme você abre lives com a extensão ligada.";
+}
+
+async function desenharAba(dados) {
+  const { p, eu } = dados;
+  // A bolinha vale para qualquer aba aberta.
+  marcarAbaLeiloes(!!resumirLeiloes(p?.leiloes, {}).rolando);
+  if (aba === "vivo") return;
+  const { perfis, historico, rankingMensal } = await lerExtras();
+  if (aba === "leiloes") desenharLeiloes(p, perfis);
+  else if (aba === "batalha") desenharBatalha(p, perfis);
+  else if (aba === "clientes") desenharClientes(historico, dados.lives, perfis, rankingMensal, eu, p);
+}
+
+$("#filtroClientes").addEventListener("change", () => pintar());
+$("#buscaCliente").addEventListener("input", () => pintar());
+
+$("#atualizarRanking").addEventListener("click", async () => {
+  const b = $("#atualizarRanking");
+  b.disabled = true;
+  b.textContent = "lendo…";
+  const r = temStorage ? await chrome.runtime.sendMessage({ tipo: "atualizar-ranking-mensal" }).catch(() => null) : null;
+  if (!r?.ok) {
+    $("#rm-nota").textContent =
+      "Não achei uma live aberta com o botão do ranking. Abra uma live da Jamble (a sua ou a de outro vendedor) e tente de novo.";
+  }
+  setTimeout(() => {
+    b.disabled = false;
+    b.textContent = "Atualizar";
+    extrasLidosEm = 0;
+    pintar();
+  }, 2500);
+});
+
 // Se uma conta estourar no meio do desenho, a tela inteira parava de
 // atualizar sem dizer nada -- foi o que aconteceu quando um campo de metrica
 // veio faltando. Agora o erro aparece na tela e o painel continua de pe.
 let ultimoErro = "";
 async function pintar() {
   try {
-    await desenhar();
+    // Uma leitura só para as duas partes da tela.
+    const dados = await ler();
+    await desenhar(dados);
+    await desenharAba(dados);
     if (ultimoErro) {
       ultimoErro = "";
       $("#aviso").textContent = "";
@@ -573,5 +919,5 @@ if (new URLSearchParams(location.search).has("embutido")) document.body.classLis
 $("#meta").value = localStorage.getItem("meta") || "";
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
 ligarRelogio();
-pintar();
+mostrarAba(aba);
 setInterval(pintar, 2000);

@@ -33,6 +33,8 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
   });
 
   const botoes = [];
+  const teclas = [];
+  let dialogo = null;
   const janela = {
     location: { pathname: caminho, href: "https://www.jamble.com" + caminho },
     document: {
@@ -45,6 +47,14 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       // A busca real e "button,[role=tab]"; aqui qualquer selecao que fale de
       // botao devolve os botoes de mentira.
       querySelectorAll: (sel) => (String(sel).includes("button") ? botoes : []),
+      querySelector: (sel) => (String(sel).includes("dialog") ? dialogo : null),
+      dispatchEvent: (ev) => teclas.push(ev.key),
+    },
+    KeyboardEvent: class {
+      constructor(tipo, opcoes) {
+        this.type = tipo;
+        Object.assign(this, opcoes);
+      }
     },
     addEventListener(tipo, fn) {
       if (tipo === "message") ouvintesDeMensagem.push(fn);
@@ -90,13 +100,14 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       if (r !== true) resolve(undefined);
     });
 
-  return { enviadas, daPagina, daExtensao, botoes };
+  return { enviadas, daPagina, daExtensao, botoes, teclas, abrirDialogo: () => (dialogo = {}) };
 }
 
-const botaoFalso = (texto) => {
+const botaoFalso = (texto, rotulo = null) => {
   let cliques = 0;
   return {
     textContent: texto,
+    getAttribute: (nome) => (nome === "aria-label" ? rotulo : null),
     click() {
       cliques++;
     },
@@ -214,6 +225,54 @@ const botaoFalso = (texto) => {
     p.botoes.push(botaoFalso("Seguir"), botaoFalso("Comprar"));
     const r = await p.daExtensao({ tipo: "atualizar-participacao" });
     conferir(r?.ok === false, "sem botão Atualizar, responde que não achou");
+  }
+
+  // ---------- o que é novo na 2.7: leilão, batalha, chat, ranking mensal ----------
+  {
+    const p = abrirPagina("/live/pokerusbr/SwdWTbncIqpktVHipW81");
+    p.daPagina("quadro", { leilaoAtual: "x", data: { sale: { id: "x" } } });
+    p.daPagina("perfis", { u1: "ana" });
+    p.daPagina("ranking-mensal", { participants: [] });
+    p.daPagina("amostra", { chave: "offer", texto: "{}" });
+    const tipos = p.enviadas.map((m) => m.tipo);
+    for (const t of ["quadro", "perfis", "ranking-mensal", "amostra"]) {
+      conferir(tipos.includes(t), `repassa "${t}" para o background`, tipos.join(", "));
+    }
+    conferir(p.enviadas[0].contexto.showId === "SwdWTbncIqpktVHipW81", "o quadro vai com a live certa");
+  }
+
+  // O ranking mensal: aperta o botão "Ranking do vendedor: #N" da live.
+  {
+    const p = abrirPagina("/live/pokerusbr/SwdWTbncIqpktVHipW81");
+    const ranking = botaoFalso("#149", "Ranking do vendedor: #149");
+    const batalha = botaoFalso("", "Ver o ranking da batalha");
+    p.botoes.push(batalha, ranking);
+    const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
+    conferir(r?.ok === true, "acha o botão do ranking mensal");
+    conferir(ranking.cliques === 1 && batalha.cliques === 0, "aperta o do vendedor, não o da batalha", `${ranking.cliques}/${batalha.cliques}`);
+    conferir(p.teclas.length === 0, "sem janela aberta, não aperta Esc à toa");
+  }
+  {
+    const p = abrirPagina("/live/pokerusbr/SwdWTbncIqpktVHipW81");
+    const ranking = botaoFalso("#3", "Seller ranking: #3");
+    p.botoes.push(ranking);
+    p.abrirDialogo();
+    const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
+    conferir(r?.ok === true && ranking.cliques === 1, "em inglês também");
+    conferir(p.teclas.join() === "Escape", "se abriu janela por cima da live, fecha", p.teclas.join());
+  }
+  {
+    const p = abrirPagina("/seller/dashboard/wallet");
+    const ranking = botaoFalso("#149", "Ranking do vendedor: #149");
+    p.botoes.push(ranking);
+    const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
+    conferir(r?.ok === false && ranking.cliques === 0, "fora de página de live, não aperta nada");
+  }
+  {
+    const p = abrirPagina("/live/alguem/xyz");
+    p.botoes.push(botaoFalso("Seguir"));
+    const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
+    conferir(r?.ok === false, "sem o botão do ranking, responde que não achou");
   }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
