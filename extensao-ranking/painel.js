@@ -167,6 +167,12 @@ async function desenhar() {
   // falta sem precisar fazer conta de cabeca.
   const carpasAgora = gemasTotal / porCarpa;
   const meta = Number(localStorage.getItem("meta")) || 0;
+  // Da para ter o painel aberto na live e numa aba ao mesmo tempo: se a meta
+  // mudar num, o campo do outro tem que acompanhar.
+  const campoMeta = $("#meta");
+  if (document.activeElement !== campoMeta && (Number(campoMeta.value) || 0) !== meta) {
+    campoMeta.value = meta || "";
+  }
   // A caixa fica sempre, senao nao haveria onde digitar a meta. O que some
   // quando nao ha meta e a barra.
   $("#barraMeta").parentElement.style.display = meta > 0 ? "" : "none";
