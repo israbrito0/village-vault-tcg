@@ -143,6 +143,12 @@
     return /^\/seller\/dashboard\/lives\//.test(String(caminho || ""));
   }
 
+  // Páginas onde a extensão pode mexer nos botões da Jamble (atualizar, trocar
+  // de aba). Em qualquer outra tela ela não encosta em nada.
+  function ehPaginaDeLive(caminho) {
+    return /^\/(live|seller\/dashboard\/lives)\//.test(String(caminho || ""));
+  }
+
   const api = {
     GEMAS_POR_CARPA,
     porPessoa,
@@ -153,6 +159,7 @@
     quemMandou,
     idDaLive,
     ehPainelDoVendedor,
+    ehPaginaDeLive,
   };
   if (raiz) Object.assign(raiz, api);
   if (typeof module !== "undefined" && module.exports) module.exports = api;

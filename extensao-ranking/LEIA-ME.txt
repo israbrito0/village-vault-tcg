@@ -95,6 +95,11 @@ Painel da live (gemas e sorteio)
 Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
 própria e mostra, da live que estiver aberta numa aba da Jamble:
 
+  - FATURAMENTO e PÓS TAXAS, vendas, compradores e espectadores
+  - MÉTRICAS DA LIVE: ticket médio, gasto por comprador, frete, faturamento
+    por minuto, intervalo entre vendas, pico simultâneo, tempo médio
+    assistido, público que voltou, taxa de escoamento, mensagens no chat,
+    seguidores novos -- do jeito que a Jamble calcula
   - QUEM MANDOU O QUÊ, AO VIVO: hora, pessoa, ÍCONE e quanto valeu em gemas
   - EMOTIONS POR ÍCONE: quantas carpas, quantos corações, quantas masterballs
   - GEMAS ENVIADAS no total e quanto entrou nos ÚLTIMOS 5 MINUTOS
@@ -118,7 +123,8 @@ Deixe a live aberta numa aba, em qualquer um destes dois lugares:
 
 No painel, escolha "atualizar sozinho: a cada 30s". A cada intervalo ele manda
 aquela aba apertar o próprio botão "Atualizar" da Jamble, e pega a resposta
-nova. "Ler agora" faz na hora. Se não achar a aba, ele avisa na tela.
+nova. "Ler agora" faz na hora: ele passa pela aba Desempenho (métricas) e volta
+para Participação (gemas por pessoa), lendo as duas no caminho. Se não achar a aba, ele avisa na tela.
 
 De onde vêm os números
 ----------------------
@@ -128,6 +134,8 @@ só lê o que passa; não inventa conta nem chama endereço nenhum por fora:
   /api/seller/show-participation  -> por pessoa: comprou, gemas, mensagens
   /api/live/participation            e pontos (os dois dão a mesma coisa)
   /api/live/emojis                -> quanto cada ícone custa em gemas (36 hoje)
+  /api/seller/show-summary        -> as métricas da live (aba Desempenho)
+  /api/seller/show-dashboard      -> o "pós taxas" do cabeçalho
 
 O "ao vivo" é conta nossa, e é simples: a Jamble não avisa "fulano acabou de
 enviar 500 gemas", ela só diz o total de cada um. Então guardamos a leitura

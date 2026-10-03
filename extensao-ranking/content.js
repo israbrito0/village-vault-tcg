@@ -40,6 +40,7 @@
     else if (e.data.tipo === "ligado") mandar("ligado", e.data.dados);
     else if (e.data.tipo === "emocao") mandar("emocao", e.data.dados);
     else if (e.data.tipo === "participacao") mandar("participacao", e.data.dados);
+    else if (e.data.tipo === "metricas") mandar("metricas", e.data.dados);
     else if (e.data.tipo === "tabela-emocoes") mandar("tabela-emocoes", e.data.dados);
   });
 
@@ -56,14 +57,44 @@
     // So em pagina de live. Em outra tela da Jamble pode existir um botao
     // "Atualizar" que faz outra coisa, e nao e para sair clicando sozinho.
     if (msg?.tipo === "atualizar-participacao") {
-      const ehLive = /^\/(live|seller\/dashboard\/lives)\//.test(location.pathname);
-      const botao = ehLive
-        ? [...document.querySelectorAll("button")].find(
-            (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
-          )
-        : null;
-      if (botao) botao.click();
-      responder({ ok: !!botao });
+      const ehLive = ehPaginaDeLive(location.pathname);
+      if (!ehLive) {
+        responder({ ok: false });
+        return true;
+      }
+      // Passa pelas duas abas: Desempenho traz as metricas da live inteira e
+      // Participacao traz as gemas pessoa a pessoa. O inject.js le as duas
+      // respostas no caminho. No fim volta para Participacao, que e onde o
+      // "Atualizar" existe e onde ela costuma deixar a tela.
+      (async () => {
+        const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+        const aba = (nome) =>
+          [...document.querySelectorAll("button,[role=tab]")].find(
+            (b) => (b.textContent || "").trim() === nome,
+          );
+        let achou = false;
+        const desempenho = aba("Desempenho");
+        if (desempenho) {
+          desempenho.click();
+          achou = true;
+          await espera(1500);
+        }
+        const participacao = aba("Participação");
+        if (participacao) {
+          participacao.click();
+          achou = true;
+          await espera(1200);
+        }
+        const atualizar = [...document.querySelectorAll("button")].find(
+          (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
+        );
+        if (atualizar) {
+          atualizar.click();
+          achou = true;
+        }
+        responder({ ok: achou });
+      })();
+      return true;
     }
     return true;
   });

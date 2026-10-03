@@ -128,15 +128,22 @@ async function pintar() {
     : "abra a sua live no painel da Jamble, na aba Participação";
   $("#periodo").classList.toggle("vivo", !!p?.aoVivo);
 
+  // Os numeros que a Jamble calcula para a live inteira. So aparecem depois
+  // que a aba Desempenho do painel do vendedor for lida uma vez.
+  const M = p?.metricas ?? null;
+  const ouTraco = (v, f) => (v == null ? "—" : f(v));
+
+  $("#c-faturamento").textContent = ouTraco(M?.faturamento, reais);
+  $("#c-liquido").textContent = ouTraco(M?.liquido, reais);
+  $("#c-vendas").textContent = ouTraco(M?.vendas, num);
+  $("#c-compradores").textContent = ouTraco(M?.compradores, num);
+  $("#c-espectadores").textContent = ouTraco(M?.espectadores, num);
   $("#c-gemas").textContent = num(r.gemas);
+  $("#c-carpas").textContent = num(r.gemas / porCarpa);
   // As emotions sabem a hora exata de cada envio; a participação só sabe
   // quando foi lida. Quando houver emotion, ela manda.
   const fonteRecente = emocoes.length ? emocoes : eventos;
   $("#c-recentes").textContent = num(gemasRecentes(fonteRecente, 5 * 60 * 1000));
-  $("#c-carpas").textContent = num(r.gemas / porCarpa);
-  $("#c-pontos").textContent = num(r.pontos);
-  $("#c-enviaram").textContent = `${num(r.enviaram)}/${num(r.pessoas)}`;
-  $("#c-comprado").textContent = reais(r.comprado);
 
   const ordenado = linhasP.slice().sort(PORORDEM[ordem] ?? PORORDEM.gemas);
   linhas(
@@ -162,6 +169,41 @@ async function pintar() {
       `<td>${temEmocoes ? esc(nomeIcone(e.icone, nomes)) : "—"}</td>` +
       `<td class="n gema forte">+${num(e.gemas)}</td></tr>`,
     4,
+  );
+
+  // O resto das metricas da live, do jeito que a Jamble calcula.
+  const tempo = (seg) => (seg >= 60 ? `${Math.floor(seg / 60)}min ${Math.round(seg % 60)}s` : `${Math.round(seg)}s`);
+  const pc = (v) => (v * 100).toFixed(0) + "%";
+  const metricas = M
+    ? [
+        ["Ticket médio", reais(M.ticketMedio)],
+        ["Gasto por comprador", reais(M.gastoPorComprador)],
+        ["Frete arrecadado", reais(M.frete)],
+        ["Faturamento por minuto", reais(M.porMinuto)],
+        ["Intervalo entre vendas", tempo(M.segundosEntreVendas)],
+        ["Duração da live", `${num(M.minutos)} min`],
+        ["Fizeram oferta", num(M.ofertaram)],
+        ["Compradores novos", num(M.compradoresNovos)],
+        ["Pico simultâneo", num(M.pico)],
+        ["Média simultânea", num(M.mediaSimultanea)],
+        ["Ficaram mais de 1 min", num(M.ficaramUmMinuto)],
+        ["Tempo médio assistido", tempo(M.segundosAssistidos)],
+        ["Público que voltou", num(M.voltaram)],
+        ["Sessões por pessoa", (M.sessoesPorPessoa ?? 0).toFixed(1).replace(".", ",")],
+        ["Produtos mostrados", num(M.produtosMostrados)],
+        ["Produtos vendidos", num(M.produtosVendidos)],
+        ["Taxa de escoamento", pc(M.escoamento ?? 0)],
+        ["Mensagens no chat", num(M.mensagens)],
+        ["Pessoas no chat", num(M.pessoasNoChat)],
+        ["Seguidores novos", num(M.seguidoresNovos)],
+      ].filter(([, v]) => v != null && v !== "R$ 0,00" && v !== "0")
+    : [];
+  $("#caixa-metricas").style.display = metricas.length ? "" : "none";
+  linhas(
+    $("#t-metricas tbody"),
+    metricas,
+    ([k, v]) => `<tr><td>${esc(k)}</td><td class="n forte">${esc(v)}</td></tr>`,
+    2,
   );
 
   // Contagem por icone: quantos de cada um, e quanto deu em gemas.

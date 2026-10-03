@@ -32,6 +32,8 @@
       .cartao.gema .valor { color: var(--gema); }
       .cartao.gema.grande .valor { font-size: 34px; }
       .cartao.dinheiro .valor { font-size: 19px; }
+      .cartao.dinheiro.grande .valor { font-size: 26px; color: var(--vivo); }
+      #t-metricas td:first-child { color: var(--fraco); }
       .grade { display: grid; grid-template-columns: 1.3fr 1fr; gap: 12px; }
       @media (max-width: 900px) { .grade { grid-template-columns: 1fr; } }
       .painel { background: var(--caixa); border: 1px solid var(--borda); border-radius: 12px; padding: 12px 14px; margin-bottom: 12px; }
@@ -120,12 +122,14 @@
     <select id="qualLive" class="nao-imprimir" style="display:none;margin:-10px 0 14px"></select>
 
     <div class="cartoes">
+      <div class="cartao dinheiro grande"><div class="rotulo">Faturamento</div><div class="valor" id="c-faturamento">—</div></div>
+      <div class="cartao dinheiro"><div class="rotulo">Pós taxas</div><div class="valor" id="c-liquido">—</div></div>
       <div class="cartao gema grande"><div class="rotulo">Gemas enviadas</div><div class="valor" id="c-gemas">0</div></div>
-      <div class="cartao gema"><div class="rotulo">Últimos 5 min</div><div class="valor" id="c-recentes">0</div></div>
-      <div class="cartao"><div class="rotulo">Carpas (equiv.)</div><div class="valor" id="c-carpas">0</div></div>
-      <div class="cartao"><div class="rotulo">Pontos</div><div class="valor" id="c-pontos">0</div></div>
-      <div class="cartao"><div class="rotulo">Enviaram</div><div class="valor" id="c-enviaram">0/0</div></div>
-      <div class="cartao dinheiro"><div class="rotulo">Comprado</div><div class="valor" id="c-comprado">R$ 0,00</div></div>
+      <div class="cartao"><div class="rotulo">Carpas</div><div class="valor" id="c-carpas">0</div></div>
+      <div class="cartao"><div class="rotulo">Vendas</div><div class="valor" id="c-vendas">—</div></div>
+      <div class="cartao"><div class="rotulo">Compradores</div><div class="valor" id="c-compradores">—</div></div>
+      <div class="cartao gema"><div class="rotulo">Gemas · últimos 5 min</div><div class="valor" id="c-recentes">0</div></div>
+      <div class="cartao"><div class="rotulo">Espectadores</div><div class="valor" id="c-espectadores">—</div></div>
     </div>
 
     <div class="painel nao-imprimir">
@@ -175,6 +179,10 @@
         </div>
       </div>
       <div>
+        <div class="painel" id="caixa-metricas" style="display:none">
+          <h2>Métricas da live</h2>
+          <table id="t-metricas"><tbody></tbody></table>
+        </div>
         <div class="painel" id="caixa-icones" style="display:none">
           <h2>Emotions por ícone</h2>
           <table id="t-icones">

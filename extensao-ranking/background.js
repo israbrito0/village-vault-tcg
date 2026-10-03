@@ -122,6 +122,31 @@ async function guardarEmocao(evento, ctx) {
   await chrome.storage.local.set({ lives });
 }
 
+// As metricas da live como a Jamble calcula. Vem de duas respostas que se
+// completam (summary e dashboard), entao juntamos em cima do que ja tinha em
+// vez de substituir -- senao uma apagaria os campos da outra.
+async function guardarMetricas(dados, ctx) {
+  const valores = dados?.valores;
+  if (!valores || typeof valores !== "object") return;
+  const id = ctx?.showId || ctx?.liveId || "sem-live";
+  const g = await ler(["lives"]);
+  const lives = g.lives ?? {};
+  const live = lives[id] ?? {
+    id,
+    titulo: ctx?.titulo ?? "",
+    doPainel: ctx?.doPainel ?? false,
+    quando: Date.now(),
+    linhas: [],
+    eventos: [],
+    sorteios: [],
+    emocoes: [],
+  };
+  live.metricas = { ...(live.metricas ?? {}), ...valores, quando: dados.quando ?? Date.now() };
+  if (!live.titulo && ctx?.titulo) live.titulo = ctx.titulo;
+  lives[id] = live;
+  await chrome.storage.local.set({ lives });
+}
+
 // Quantas lives guardamos ao mesmo tempo. Ela costuma abrir a live de outra
 // pessoa durante a propria live (para ver o ranking mensal), e aquela live
 // tambem manda participacao. Se tudo caisse num balde so, uma apagaria o
@@ -153,6 +178,7 @@ async function guardarParticipacao(dados, ctx) {
     eventos: (antes?.eventos ?? []).concat(eventos).slice(-3000),
     sorteios: antes?.sorteios ?? [],
     emocoes: antes?.emocoes ?? [],
+    metricas: antes?.metricas ?? null,
   };
 
   // Deixa so as lives mexidas mais recentemente, para o armazenamento nao
@@ -205,6 +231,11 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   (async () => {
     if (msg?.tipo === "venda") {
       await guardarVenda(msg.dados, msg.contexto);
+      responder({ ok: true });
+      return;
+    }
+    if (msg?.tipo === "metricas") {
+      await guardarMetricas(msg.dados, msg.contexto);
       responder({ ok: true });
       return;
     }

@@ -195,6 +195,62 @@
     }
   }
 
+  // As métricas da live, como a Jamble calcula: faturamento, vendas, ticket,
+  // espectadores, funil, chat. Vêm de dois lugares que se completam --
+  //   /api/seller/show-summary    a aba Desempenho (quase tudo)
+  //   /api/seller/show-dashboard  o cabeçalho (traz o "pós taxas", que o
+  //                               summary não tem)
+  function guardarMetricas(dados, origem) {
+    const m = dados?.performance?.metrics;
+    if (m && typeof m === "object") {
+      avisar("metricas", {
+        quando: Date.now(),
+        de: "summary",
+        valores: {
+          faturamento: Number(m.revenue) || 0,
+          vendas: Number(m.orders) || 0,
+          ticketMedio: Number(m.avgOrderValue) || 0,
+          gastoPorComprador: Number(m.avgBuyerSpend) || 0,
+          compradores: Number(m.buyers) || 0,
+          ofertaram: Number(m.bidders) || 0,
+          porMinuto: Number(m.revenuePerMinute) || 0,
+          segundosEntreVendas: Number(m.secondsBetweenSales) || 0,
+          frete: Number(m.shippingRevenue) || 0,
+          espectadores: Number(m.uniqueViewers) || 0,
+          pico: Number(m.maxConcurrent) || 0,
+          mediaSimultanea: Number(m.avgConcurrent) || 0,
+          segundosAssistidos: Number(m.avgWatchSeconds) || 0,
+          ficaramUmMinuto: Number(m.watchedOneMinute) || 0,
+          voltaram: Number(m.returningViewers) || 0,
+          sessoesPorPessoa: Number(m.avgSessionsPerViewer) || 0,
+          produtosMostrados: Number(m.productsPresented) || 0,
+          produtosVendidos: Number(m.productsSold) || 0,
+          escoamento: Number(m.sellThrough) || 0,
+          mensagens: Number(m.messages) || 0,
+          pessoasNoChat: Number(m.chatParticipants) || 0,
+          seguidoresNovos: Number(m.newFollowers) || 0,
+          minutos: Number(m.durationMinutes) || 0,
+          compradoresNovos: Number(dados?.performance?.newBuyerCount) || 0,
+        },
+      });
+      return;
+    }
+    // O show-dashboard: dali só interessa o líquido e os totais do cabeçalho.
+    const s = dados?.dashboard?.show ?? dados?.show ?? dados?.dashboard;
+    if (s && (s.totalProductPrice != null || s.totalSaleProductPrice != null)) {
+      avisar("metricas", {
+        quando: Date.now(),
+        de: "dashboard",
+        valores: {
+          faturamento: Number(s.totalProductPrice ?? s.totalSaleProductPrice) || 0,
+          liquido: Number(s.totalProductPriceWithFees) || 0,
+          vendas: Number(s.soldCount ?? s.soldSaleCount) || 0,
+          compradores: Number(s.buyerCount) || 0,
+        },
+      });
+    }
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -204,6 +260,7 @@
       return;
     }
     guardarEventos(dados, origem);
+    if (/show-summary|show-dashboard/.test(origem)) guardarMetricas(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da
     // própria página da live. Vale o que chegar.
