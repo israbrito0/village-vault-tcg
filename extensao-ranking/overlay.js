@@ -171,6 +171,48 @@
     return caixa;
   }
 
+  // ---------- extensão atualizada com a página aberta ----------
+  // Quando a extensão é atualizada (ou recarregada em chrome://extensions), o
+  // que já estava rodando nesta página perde a ligação com ela -- o Chrome não
+  // troca o script de uma página que já estava aberta. Daí não dá mais para
+  // carregar o painel, e a faixa abria vazia, sem dizer nada. Agora ela diz o
+  // que fazer.
+  const AVISO = "vv-painel-aviso";
+
+  function extensaoViva() {
+    try {
+      return !!chrome.runtime?.id;
+    } catch {
+      return false;
+    }
+  }
+
+  function montarAviso() {
+    const a = document.createElement("div");
+    a.id = AVISO;
+    a.style.cssText = `
+      position: absolute; inset: 0; padding: 48px 22px 0 26px;
+      color: #ece9ff; font: 14px/1.5 system-ui, sans-serif;
+    `;
+    const titulo = document.createElement("div");
+    titulo.textContent = "A extensão foi atualizada";
+    titulo.style.cssText = "font-weight: 700; font-size: 16px; color: #ffc83d; margin-bottom: 8px;";
+    const texto = document.createElement("div");
+    texto.textContent =
+      "Esta página ainda está com a versão de antes. Aperte F5 (recarregar) para o painel novo aparecer. " +
+      "Se você está transmitindo por esta aba, recarregue só quando puder.";
+    const botao = document.createElement("button");
+    botao.type = "button";
+    botao.textContent = "Recarregar a página";
+    botao.style.cssText = `
+      margin-top: 14px; padding: 8px 14px; border: 0; border-radius: 8px;
+      background: #ffc83d; color: #2a2000; font: 700 13px system-ui, sans-serif; cursor: pointer;
+    `;
+    botao.addEventListener("click", () => location.reload());
+    a.append(titulo, texto, botao);
+    return a;
+  }
+
   // ---------- liga e desliga ----------
 
   function mostrar(ligar) {
@@ -188,19 +230,29 @@
       // o que também devolve ao Claude a capacidade de olhar a aba, que o
       // Chrome bloqueia enquanto existe o quadro de outra extensão aqui.
       const jaTem = caixa.querySelector("iframe");
+      const aviso = document.getElementById(AVISO);
       if (aberto && !jaTem) {
-        const quadro = document.createElement("iframe");
-        // Diz ao painel qual live esta na tela, para ele mostrar essa e nao
-        // a mais recente que estiver guardada.
-        const daPagina = idDaLive(location.pathname);
-        quadro.src =
-          chrome.runtime.getURL("painel.html") +
-          "?embutido=1" +
-          (daPagina ? "&live=" + encodeURIComponent(daPagina) : "");
-        quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
-        caixa.appendChild(quadro);
-      } else if (!aberto && jaTem) {
-        jaTem.remove();
+        let endereco = null;
+        try {
+          if (extensaoViva()) endereco = chrome.runtime.getURL("painel.html");
+        } catch {
+          // Mesma coisa: a extensão foi trocada por baixo desta página.
+        }
+        if (!endereco) {
+          if (!aviso) caixa.appendChild(montarAviso());
+        } else {
+          aviso?.remove();
+          const quadro = document.createElement("iframe");
+          // Diz ao painel qual live esta na tela, para ele mostrar essa e nao
+          // a mais recente que estiver guardada.
+          const daPagina = idDaLive(location.pathname);
+          quadro.src = endereco + "?embutido=1" + (daPagina ? "&live=" + encodeURIComponent(daPagina) : "");
+          quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
+          caixa.appendChild(quadro);
+        }
+      } else if (!aberto) {
+        jaTem?.remove();
+        aviso?.remove();
       }
     }
     recuarPagina(aberto ? largura : 0);

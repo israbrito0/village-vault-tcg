@@ -925,6 +925,12 @@ if (new URLSearchParams(location.search).has("embutido")) document.body.classLis
 
 $("#meta").value = localStorage.getItem("meta") || "";
 $("#intervalo").value = localStorage.getItem("intervalo") ?? "30";
+// Para conferir de relance qual versão está carregada: depois de atualizar a
+// extensão, a página da live precisa de F5 para pegar a nova.
+try {
+  if (temStorage) $("#versao").textContent = "Village & Vault " + chrome.runtime.getManifest().version;
+} catch {}
+
 ligarRelogio();
 mostrarAba(aba);
 setInterval(pintar, 2000);

@@ -17,6 +17,7 @@ function conferir(ok, nome, detalhe = "") {
 // precisa recuar para o painel não cobrir o chat.
 function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false, aberto = false } = {}) {
   const gravacoes = [];
+  let recarregou = 0;
   let relogio = null;
 
   const criar = (tag) => {
@@ -96,7 +97,7 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
   const body = criar("body");
   const janela = {
     innerWidth: larguraJanela,
-    location: { pathname: caminho },
+    location: { pathname: caminho, reload: () => recarregou++ },
     document: {
       body,
       createElement: criar,
@@ -108,7 +109,9 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
     },
     getComputedStyle: (el) => ({ position: el.__pos }),
     chrome: {
-      runtime: { getURL: (f) => "chrome-extension://falsa/" + f },
+      // Extensão viva: tem id. Quando ela é atualizada com a página aberta, o
+      // id some e getURL passa a dar erro -- é o que o teste "desligar" faz.
+      runtime: { id: "falsa", getURL: (f) => "chrome-extension://falsa/" + f },
       storage: {
         local: {
           get: async () => (aberto ? { overlay: { aberto: true, largura: 400 } } : {}),
@@ -147,6 +150,18 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
     gravacoes,
     paginaJamble,
     tick: () => relogio && relogio(),
+    recarregou: () => recarregou,
+    // Simula a extensão sendo atualizada com esta página aberta.
+    desligar: () => {
+      janela.chrome.runtime = {
+        get id() {
+          return undefined;
+        },
+        getURL() {
+          throw new Error("Extension context invalidated.");
+        },
+      };
+    },
     acha: (id) => body.querySelectorAll().find((c) => c.id === id) ?? null,
     espera: () => new Promise((r) => setTimeout(r, 30)),
   };
@@ -258,6 +273,36 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
     await p.espera();
     p.tick();
     conferir(p.paginaJamble.style.right === "0px", "com o painel fechado a pagina fica intacta", p.paginaJamble.style.right);
+  }
+
+  // ---------- extensão atualizada com a página aberta ----------
+  // Antes a faixa abria vazia, sem dizer nada: foi o que aconteceu na live de
+  // 03/10 depois de recarregar a extensão sem dar F5 na página.
+  {
+    const p = abrirPagina("/live/exclusive/ssSz", 1400, { aberto: true });
+    await p.espera();
+    p.desligar();
+    const caixa = p.acha("vv-painel-ao-lado");
+    caixa.querySelector("iframe")?.remove(); // o Chrome derruba o painel velho
+    p.tick();
+    const aviso = p.acha("vv-painel-aviso");
+    conferir(!!aviso, "extensão atualizada: a faixa avisa em vez de ficar vazia");
+    conferir(!caixa.querySelector("iframe"), "e não tenta carregar o painel sem a extensão");
+    const textos = aviso ? aviso.querySelectorAll().map((c) => c.textContent).join(" ") : "";
+    conferir(/F5/.test(textos), "o aviso diz para apertar F5", textos.slice(0, 80));
+    p.tick();
+    conferir(p.body.querySelectorAll().filter((c) => c.id === "vv-painel-aviso").length === 1, "o aviso não se repete a cada conferência");
+    const botao = aviso?.querySelectorAll().find((c) => c.tagName === "BUTTON");
+    botao?.click();
+    conferir(p.recarregou() === 1, "o botão do aviso recarrega a página");
+    p.acha("vv-painel-botao").click();
+    conferir(!p.acha("vv-painel-aviso"), "fechando o painel, o aviso sai junto");
+  }
+  {
+    // Com a extensão viva, nada de aviso.
+    const p = abrirPagina("/live/x/ABC", 1400, { aberto: true });
+    await p.espera();
+    conferir(!p.acha("vv-painel-aviso") && !!p.acha("vv-painel-ao-lado").querySelector("iframe"), "extensão viva: painel normal, sem aviso");
   }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
