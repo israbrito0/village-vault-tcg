@@ -598,15 +598,22 @@ function desenharClientes(historicoGuardado, lives, perfis, rankingMensal, eu, p
   $("#rm-voce").textContent = texto + (rankingMensal?.quando ? ` · lido às ${horaCurta(rankingMensal.quando)}` : "");
 
   // Quanto a live aberta rende no ranking, pelas regras que a própria Jamble
-  // manda junto com a lista (hoje: 3 pontos por real vendido, 2 por gema).
+  // manda junto com a lista (hoje: 3 pontos por real, 2 por gema). Os pontos
+  // batem com o valor PÓS TAXAS: em 20/09, líquido × 3 + gemas × 2 deu os
+  // 630.553 da tela no ponto. O líquido só existe na live dela (painel do
+  // vendedor); na de outro vendedor a conta usa o faturamento bruto e passa
+  // um pouco do real.
   const regras = rankingMensal?.regras ?? null;
-  const fat = p?.metricas?.faturamento;
+  const liquido = Number(p?.metricas?.liquido) > 0 ? Number(p.metricas.liquido) : null;
+  const base = liquido ?? p?.metricas?.faturamento;
   const gemas = resumirGemas(p?.linhas ?? []).gemas || resumirEmocoes(p?.emocoes ?? []).gemas;
-  const pontos = p && Number.isFinite(Number(fat)) ? pontosDaLive(regras, fat, gemas) : null;
+  const pontos = p && Number.isFinite(Number(base)) ? pontosDaLive(regras, base, gemas) : null;
   $("#rm-live").textContent =
     pontos != null
-      ? `Esta live rende ≈ ${num(pontos)} pontos para ${p.vendedor ? "@" + p.vendedor : "o vendedor"} ` +
-        `(${reais(fat)} × ${num(regras.porReal)} + ${num(gemas)} gemas × ${num(regras.porGema)}).`
+      ? `Esta live rende ${liquido ? "" : "até "}≈ ${num(pontos)} pontos para ` +
+        `${p.vendedor ? "@" + p.vendedor : "o vendedor"} ` +
+        `(${reais(base)} ${liquido ? "pós taxas" : "bruto"} × ${num(regras.porReal)} + ` +
+        `${num(gemas)} gemas × ${num(regras.porGema)}).`
       : "";
 
   // O topo da lista, e você no meio mesmo que esteja lá embaixo.

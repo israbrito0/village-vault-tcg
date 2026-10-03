@@ -176,7 +176,9 @@ O painel tem quatro abas em cima. Tudo acima e a aba AO VIVO. As outras:
     RANKING MENSAL DE VENDEDORES: sua posicao, quanto falta para passar quem
     esta logo acima, a folga sobre o 20o (top 20 ganha R$ 200 por indicacao) e
     quantos pontos a live aberta rende -- pelas regras que a propria Jamble
-    manda junto (hoje: 3 pontos por real vendido, 2 por gema). O botao
+    manda junto (hoje: 3 pontos por real, 2 por gema). Na sua live a conta
+    usa o valor pos taxas, que e o que bate com a tela; na de outro vendedor
+    so existe o bruto, entao o numero passa um pouco do real. O botao
     Atualizar aperta o "Ranking do vendedor: #N" da live aberta. A Jamble
     manda o top 20 e, a parte, o dono da live que esta aberta.
     CLIENTES DE TODAS AS LIVES: cada pessoa que apareceu nas lives que voce
