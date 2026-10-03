@@ -242,6 +242,23 @@ async function pintar() {
     }
   }
 
+  // Cada numero vem de um lugar, e nem todo lugar esta aberto. Em vez de
+  // mostrar tracinho calado, o painel diz o que falta e onde abrir.
+  const faltando = [];
+  if (p && !p.doPainel) {
+    faltando.push(
+      "Esta e a live de outra pessoa: so da para contar as emotions. Faturamento, " +
+        "participacao e metricas sao dados de vendedor e so existem na sua live.",
+    );
+  } else if (p) {
+    if (!M) faltando.push("Faturamento e metricas: abra a sua live em Painel -> Lives -> a live, e toque em Desempenho (ou clique em Ler agora aqui).");
+    if (!linhasP.length) faltando.push("Gemas por pessoa: na mesma pagina, abra a aba Participacao.");
+    if (!emocoes.length) faltando.push("Quem mandou qual icone: deixe a pagina da live aberta -- so chega o que passar com ela aberta.");
+  }
+  $("#falta").innerHTML = faltando.length
+    ? faltando.map((t) => `<div>• ${esc(t)}</div>`).join("")
+    : "";
+
   // Número velho enganando é pior do que número nenhum: se a leitura parou de
   // chegar enquanto o "atualizar sozinho" está ligado, avisa em vez de deixar
   // a tela parecer viva.

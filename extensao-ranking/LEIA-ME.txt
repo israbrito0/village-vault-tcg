@@ -167,6 +167,17 @@ Dois botoes no fim da pagina
                                 segundo sorteio contando so o que vier dali
                                 em diante (a segunda hora da live).
 
+Cada numero vem de um lugar
+---------------------------
+  emotions (quem mandou qual icone)  -> QUALQUER live aberta, inclusive a de
+                                        outra pessoa
+  gemas por pessoa, faturamento,     -> SO a sua live, aberta no painel do
+  metricas, ticket, espectadores        vendedor (Painel -> Lives -> a live)
+
+Entao na live de outro vendedor so enche o quadro de emotions -- e o painel
+diz isso na tela, em vez de mostrar tracinho. Para ter tudo na sua live,
+deixe abertas as duas: a pagina da live e o painel do vendedor dela.
+
 De onde vem o "quem mandou o quê"
 ----------------------------------
 Dos eventos LIKE que a Jamble manda no WebSocket da live (canal "show", em
