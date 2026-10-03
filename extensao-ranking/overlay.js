@@ -70,11 +70,8 @@
     `;
     fechar.addEventListener("click", () => mostrar(false));
 
-    const quadro = document.createElement("iframe");
-    quadro.src = chrome.runtime.getURL("painel.html") + "?embutido=1";
-    quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
-
-    caixa.append(pegador, fechar, quadro);
+    // O painel em si só é carregado quando ela abre -- ver `mostrar`.
+    caixa.append(pegador, fechar);
 
     // Durante o arrasto, o iframe engole o mouse -- a capa resolve.
     let arrastando = false;
@@ -113,6 +110,20 @@
     if (caixa) {
       caixa.style.display = aberto ? "block" : "none";
       caixa.style.width = largura + "px";
+
+      // O painel só entra na página quando ela abre, e sai quando ela fecha.
+      // Fechado, a página não carrega nada e volta a ser uma página comum --
+      // o que também devolve ao Claude a capacidade de olhar a aba, que o
+      // Chrome bloqueia enquanto existe o quadro de outra extensão aqui.
+      const jaTem = caixa.querySelector("iframe");
+      if (aberto && !jaTem) {
+        const quadro = document.createElement("iframe");
+        quadro.src = chrome.runtime.getURL("painel.html") + "?embutido=1";
+        quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
+        caixa.appendChild(quadro);
+      } else if (!aberto && jaTem) {
+        jaTem.remove();
+      }
     }
     if (b) {
       b.textContent = aberto ? "Esconder painel" : "Painel";
