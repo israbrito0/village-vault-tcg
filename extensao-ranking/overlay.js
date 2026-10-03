@@ -8,7 +8,10 @@
   const BOTAO = "vv-painel-botao";
   const PADRAO = 400;
   const MIN = 300;
-  const MAX = 900;
+  // Nunca mais do que metade da janela: numa tela menor, um painel largo
+  // demais passaria a cobrir o vídeo da live. Medido na página da Jamble com
+  // 1400px: o vídeo vai até 903 e um painel de 400 começa em 1000.
+  const maximo = () => Math.max(MIN, Math.min(900, Math.round(window.innerWidth * 0.5)));
 
   const ehLive = () => /^\/(live|seller\/dashboard\/lives)\//.test(location.pathname);
 
@@ -31,11 +34,17 @@
     b.type = "button";
     b.textContent = "Painel";
     b.title = "Mostrar o painel da live ao lado (gemas, carpas e sorteio)";
+    // Na borda direita, na altura do meio. O canto de cima e onde ficam os
+    // icones da propria Jamble (mensagens, presentes, perfil) -- la o botao
+    // cobriria algo do site.
     b.style.cssText = `
-      position: fixed; top: 12px; right: 12px; z-index: 2147483000;
-      padding: 7px 13px; border: 0; border-radius: 999px; cursor: pointer;
-      background: #ffc83d; color: #2a2000; font: 700 13px/1 system-ui, sans-serif;
-      box-shadow: 0 2px 10px rgba(0,0,0,.35);
+      position: fixed; top: 50%; right: 0; transform: translateY(-50%);
+      z-index: 2147483000; padding: 10px 9px; border: 0;
+      border-radius: 10px 0 0 10px; cursor: pointer;
+      background: #ffc83d; color: #2a2000;
+      font: 700 12px/1.15 system-ui, sans-serif; letter-spacing: .02em;
+      writing-mode: vertical-rl; text-orientation: mixed;
+      box-shadow: -2px 0 10px rgba(0,0,0,.35);
     `;
     b.addEventListener("click", () => mostrar(!aberto));
     return b;
@@ -85,7 +94,7 @@
     });
     capa.addEventListener("mousemove", (e) => {
       if (!arrastando) return;
-      largura = Math.min(MAX, Math.max(MIN, window.innerWidth - e.clientX));
+      largura = Math.min(maximo(), Math.max(MIN, window.innerWidth - e.clientX));
       caixa.style.width = largura + "px";
     });
     const soltar = () => {
@@ -109,6 +118,8 @@
     const b = document.getElementById(BOTAO);
     if (caixa) {
       caixa.style.display = aberto ? "block" : "none";
+      // A janela pode ter mudado de tamanho desde a última vez.
+      largura = Math.min(maximo(), Math.max(MIN, largura));
       caixa.style.width = largura + "px";
 
       // O painel só entra na página quando ela abre, e sai quando ela fecha.
@@ -132,9 +143,9 @@
       }
     }
     if (b) {
-      b.textContent = aberto ? "Esconder painel" : "Painel";
-      // Com o painel aberto o botão sai de cima dele.
-      b.style.right = aberto ? largura + 14 + "px" : "12px";
+      b.textContent = aberto ? "Fechar" : "Painel";
+      // Com o painel aberto o botao encosta na borda dele.
+      b.style.right = aberto ? largura + "px" : "0";
     }
     guardar();
   }

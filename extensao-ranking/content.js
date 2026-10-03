@@ -69,25 +69,29 @@
       // "Atualizar" existe e onde ela costuma deixar a tela.
       (async () => {
         const espera = (ms) => new Promise((r) => setTimeout(r, ms));
-        const aba = (nome) =>
-          [...document.querySelectorAll("button,[role=tab]")].find(
-            (b) => (b.textContent || "").trim() === nome,
+        // Os nomes vão em português e em inglês: se a conta estiver no outro
+        // idioma, o automático pararia de funcionar sem dizer nada.
+        const aba = (...nomes) => {
+          const alvo = nomes.map((n) => n.toLowerCase());
+          return [...document.querySelectorAll("button,[role=tab]")].find((b) =>
+            alvo.includes((b.textContent || "").trim().toLowerCase()),
           );
+        };
         let achou = false;
-        const desempenho = aba("Desempenho");
+        const desempenho = aba("Desempenho", "Performance");
         if (desempenho) {
           desempenho.click();
           achou = true;
           await espera(1500);
         }
-        const participacao = aba("Participação");
+        const participacao = aba("Participação", "Participation");
         if (participacao) {
           participacao.click();
           achou = true;
           await espera(1200);
         }
-        const atualizar = [...document.querySelectorAll("button")].find(
-          (b) => (b.textContent || "").trim().toLowerCase() === "atualizar",
+        const atualizar = [...document.querySelectorAll("button")].find((b) =>
+          ["atualizar", "refresh", "update"].includes((b.textContent || "").trim().toLowerCase()),
         );
         if (atualizar) {
           atualizar.click();

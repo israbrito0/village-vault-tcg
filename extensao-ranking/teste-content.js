@@ -42,7 +42,9 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       documentElement: elemento(),
       body: { ...elemento(), nodeType: 1 },
       addEventListener() {},
-      querySelectorAll: (sel) => (sel === "button" ? botoes : []),
+      // A busca real e "button,[role=tab]"; aqui qualquer selecao que fale de
+      // botao devolve os botoes de mentira.
+      querySelectorAll: (sel) => (String(sel).includes("button") ? botoes : []),
     },
     addEventListener(tipo, fn) {
       if (tipo === "message") ouvintesDeMensagem.push(fn);
@@ -60,6 +62,9 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       },
     },
     console,
+    // O content.js espera entre um clique e outro nas abas da Jamble.
+    setTimeout,
+    clearTimeout,
   };
   janela.window = janela;
   janela.self = janela;
@@ -183,6 +188,19 @@ const botaoFalso = (texto) => {
     conferir(r?.ok === true, "acha o botão na página da live");
     conferir(botao.cliques === 1, "e aperta uma vez só", String(botao.cliques));
   }
+  // Idioma: se a conta estiver em ingles, os botoes tem outro nome e o
+  // automatico pararia de funcionar calado.
+  {
+    const p = abrirPagina("/seller/dashboard/lives/ABC123");
+    const atualizar = botaoFalso("Refresh");
+    const desempenho = botaoFalso("Performance");
+    p.botoes.push(desempenho, botaoFalso("Participation"), atualizar);
+    const r = await p.daExtensao({ tipo: "atualizar-participacao" });
+    conferir(r?.ok === true, "acha os botoes em ingles tambem");
+    conferir(desempenho.cliques === 1, "clicou em Performance", String(desempenho.cliques));
+    conferir(atualizar.cliques === 1, "clicou em Refresh", String(atualizar.cliques));
+  }
+
   {
     const p = abrirPagina("/seller/dashboard/wallet");
     const botao = botaoFalso("Atualizar");
