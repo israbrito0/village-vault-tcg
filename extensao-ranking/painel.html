@@ -157,7 +157,8 @@
       body.transmissao .feed { max-height: none; }
 
       /* Batalha ETB: uma linha por booster -- número, quem está nele, o hit. */
-      .vagas .vaga { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: center; margin-bottom: 5px; }
+      .vagas .vaga { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; align-items: center; margin-bottom: 5px; }
+      .vagas button.coroa { padding: 5px 9px; font-size: 12px; white-space: nowrap; }
       .vagas .vaga .num { color: var(--destaque); font-weight: 800; text-align: center; }
       .vagas .vaga.ganhou { background: rgba(255,200,61,.12); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--destaque); }
       .vagas .vaga .quem { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -167,8 +168,9 @@
         padding: 5px 8px; font: inherit; font-size: 12px; min-width: 0;
       }
       .campo.curto { width: 64px; }
-      #etbHit { flex: 1; min-width: 140px; }
       #etbNovoTitulo { flex: 1; min-width: 140px; }
+      #t-etb button.ver { background: transparent; border: 0; padding: 0; color: var(--texto); font: inherit; font-weight: 600; text-align: left; cursor: pointer; text-decoration: underline dotted; }
+      #t-etb tr.vendo td { color: var(--destaque); }
       #t-etb button.mini { padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fraco); border: 1px solid var(--borda); font-weight: 600; }
 
       /* A figurinha de cada emotion com a quantidade do lado: "[carpa] ×3". */
@@ -515,14 +517,11 @@
     <section data-aba="etb">
       <div class="painel" id="caixa-etb-atual" style="display:none">
         <h2><span id="etbTitulo">Batalha ETB</span><span class="fraco" id="etbSituacao"></span></h2>
+        <div id="etbAuto" class="sub" style="margin:-4px 0 8px"></div>
         <div id="etbResultado" class="ganhador"></div>
         <div id="etbResultadoHit" class="sub" style="margin:-4px 0 10px"></div>
         <div id="etbVagas" class="vagas"></div>
-        <div class="controles nao-imprimir" id="etbControles" style="margin:10px 0 0">
-          <label>quem levou <select id="etbGanhador"></select></label>
-          <input id="etbHit" class="campo" placeholder="maior hit (ex.: Charizard ex SIR)" />
-          <button id="etbEncerrar" type="button">Definir ganhador</button>
-        </div>
+        <div class="falta nao-imprimir" id="etbDica" style="margin:6px 0 0">Quem tirou o maior hit? Clique em <b>🏆 Vencedor</b> no booster dele. Se quiser, escreva o hit antes, no campo do lado.</div>
         <div class="controles nao-imprimir" style="margin:10px 0 0">
           <button class="secundario" id="etbReabrir" type="button" style="display:none">Reabrir esta batalha</button>
         </div>
@@ -530,6 +529,7 @@
 
       <div class="painel nao-imprimir">
         <h2><span>Nova batalha</span><span class="fraco" id="etbNovoNumero"></span></h2>
+        <div class="falta" style="margin:-2px 0 8px">Produto com <b>"Batalha 1 ETB"</b> no nome vira a Batalha ETB nº 1 sozinho, com quem comprou cada vaga nos boosters. Aqui é para começar uma na mão.</div>
         <div class="controles">
           <input id="etbNovoTitulo" class="campo" placeholder="nome (ex.: ETB 30 anos)" />
           <label>boosters <input id="etbNovoBoosters" class="campo curto" type="number" min="1" max="36" value="9" /></label>

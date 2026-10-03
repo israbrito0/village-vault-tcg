@@ -76,25 +76,30 @@
     }
   }
 
+  // Abre "Vendidos" e volta para a aba onde ela estava. "tudo": aperta
+  // "Carregar Mais" até acabar (a live inteira); sem ele, só a primeira
+  // página -- as 20 vendas mais recentes, que é o que muda durante a live.
+  async function abrirVendidos(tudo) {
+    const vendidos = porTexto(/^(Vendidos|Sold)\b/i);
+    if (!vendidos) return false;
+    const grupo = [...document.querySelectorAll("button")].filter((b) => ABA_PRODUTOS.test(textoDe(b)));
+    const estava = grupo.find((b) => ATIVA_PRODUTOS.test(String(b.className)));
+    vendidos.click();
+    await espera(1500);
+    if (tudo) await carregarMais();
+    // Se já estava nos Vendidos, fica; se não deu para saber, vai para
+    // Disponíveis (a que a página abre).
+    if (estava !== vendidos) (estava ?? porTexto(/^(Disponíveis|Available)\b/i))?.click();
+    return true;
+  }
+
   let carregando = false;
   async function carregarHistorico() {
     if (carregando || !/^\/live\//.test(location.pathname)) return { ok: false, feito: [] };
     carregando = true;
     const feito = [];
     try {
-      // Vendidos: abre, carrega tudo, volta para a aba que estava.
-      const vendidos = porTexto(/^(Vendidos|Sold)\b/i);
-      if (vendidos) {
-        const grupo = [...document.querySelectorAll("button")].filter((b) => ABA_PRODUTOS.test(textoDe(b)));
-        const estava = grupo.find((b) => ATIVA_PRODUTOS.test(String(b.className)));
-        vendidos.click();
-        await espera(1500);
-        await carregarMais();
-        // Volta para a aba onde ela estava. Se já estava nos Vendidos, fica;
-        // se não deu para saber, vai para Disponíveis (a que a página abre).
-        if (estava !== vendidos) (estava ?? porTexto(/^(Disponíveis|Available)\b/i))?.click();
-        feito.push("vendidos");
-      }
+      if (await abrirVendidos(true)) feito.push("vendidos");
       // Batalha: abre a aba (se já estiver nela, passa por outra para buscar
       // de novo), carrega tudo e volta.
       const abas = [...document.querySelectorAll('[role="tab"]')];
@@ -120,9 +125,45 @@
   // O overlay.js (mesmo mundo isolado) chama ao abrir o painel e no ↻.
   self.vvCarregarHistorico = carregarHistorico;
 
+  // ---------- vaga de Batalha ETB vendida ----------
+  // Produto "Batalha 1 ETB" vendido ao vivo como compra direta: o WebSocket só
+  // diz que saiu mais uma unidade, não quem comprou. Então, uns segundos
+  // depois, a lista "Vendidos" é lida de novo (só a primeira página) e o
+  // painel preenche o booster. No máximo uma leitura a cada 15 segundos.
+  const tituloDaVenda = new Map();
+  const vendidasDaVenda = new Map();
+  let agendadoVendidos = null;
+  let ultimaReleitura = 0;
+
+  function olharQuadro(q) {
+    const d = q?.data;
+    const id = d?.sale?.id || q?.leilaoAtual;
+    if (!id) return;
+    if (typeof d?.sale_product?.title === "string") tituloDaVenda.set(id, d.sale_product.title);
+    if (!numeroDaBatalhaETB(tituloDaVenda.get(id))) return;
+    const vendidas = Number(d?.sale?.sold_count);
+    if (!Number.isFinite(vendidas)) return;
+    const antes = vendidasDaVenda.get(id);
+    vendidasDaVenda.set(id, vendidas);
+    if (antes === undefined || vendidas <= antes) return;
+    clearTimeout(agendadoVendidos);
+    const esperar = Math.max(4000, 15000 - (Date.now() - ultimaReleitura));
+    agendadoVendidos = setTimeout(async () => {
+      if (carregando) return;
+      carregando = true;
+      ultimaReleitura = Date.now();
+      try {
+        await abrirVendidos(false);
+      } finally {
+        carregando = false;
+      }
+    }, esperar);
+  }
+
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.marca !== MARCA) return;
     if (TIPOS.has(e.data.tipo)) mandar(e.data.tipo, e.data.dados);
+    if (e.data.tipo === "quadro") olharQuadro(e.data.dados);
   });
 
   chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {

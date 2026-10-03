@@ -49,7 +49,7 @@ conferir(
 // O que o content.js usa de fora precisa estar no gemas.js.
 const gemas = fs.readFileSync(path.join(__dirname, "gemas.js"), "utf8");
 const content = fs.readFileSync(path.join(__dirname, "content.js"), "utf8");
-for (const fn of ["idDaLive", "ehPainelDoVendedor"]) {
+for (const fn of ["idDaLive", "ehPainelDoVendedor", "numeroDaBatalhaETB"]) {
   if (!content.includes(fn)) continue;
   conferir(new RegExp(`function ${fn}\\b`).test(gemas), `gemas.js define ${fn}, usado pelo content.js`);
 }

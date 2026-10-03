@@ -291,8 +291,31 @@ function descarregar() {
       if (sobra > 0) for (const id of ids.slice(0, sobra)) delete perfis[id];
       await chrome.storage.local.set({ perfis });
     }
-    if (tocadas.size) await gravarLives(lives, [...tocadas]);
+    if (tocadas.size) {
+      await gravarLives(lives, [...tocadas]);
+      await sincronizarETB(lives, [...tocadas], perfis);
+    }
   });
+}
+
+// Produto com "Batalha 1 ETB" no nome vira a Batalha ETB nº 1 da live, com
+// quem comprou cada vaga nos boosters (analises.js: batalhasPeloTitulo e
+// mudarBatalhaETB "sincronizar"). Roda a cada lote de vendas que chega.
+async function sincronizarETB(lives, ids, perfis) {
+  const achadas = [];
+  for (const id of ids) {
+    if (!lives[id]) continue;
+    for (const b of batalhasPeloTitulo(resumirVendas(lives[id], perfis))) achadas.push({ liveId: id, ...b });
+  }
+  if (!achadas.length) return;
+  const { batalhasETB } = await ler(["batalhasETB"]);
+  const todas = batalhasETB ?? {};
+  let mudou = false;
+  for (const b of achadas) {
+    const r = mudarBatalhaETB(todas, { acao: "sincronizar", ...b });
+    if (r.mudou) mudou = true;
+  }
+  if (mudou) await chrome.storage.local.set({ batalhasETB: todas });
 }
 
 // Quem mandou qual icone, ao vivo. Diferente da participacao (que e a foto do

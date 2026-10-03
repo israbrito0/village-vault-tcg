@@ -13,6 +13,7 @@ const {
   vagasDoItem,
   proximoNumeroETB,
   mudarBatalhaETB,
+  batalhasPeloTitulo,
   campeoesETB,
   resumirVendas,
   gemasPelaBatalha,
@@ -412,6 +413,69 @@ conferir(quemDisputou({ a: rolandoAinda }, perfis).length === 0, "leilão roland
   mudarBatalhaETB(todas, { acao: "apagar", id: c3.id });
   conferir(!todas[c3.id] && campeoesETB(todas).length === 1, "apagar tira a batalha e a vitória dela");
   conferir(!mudarBatalhaETB(todas, { acao: "encerrar", id: "nao-existe", ganhador: "x" }).ok, "batalha que não existe: nada");
+}
+
+// ---------- batalha ETB pelo nome do produto ----------
+{
+  const { numeroDaBatalhaETB } = require("./gemas.js");
+  const casos = [
+    ["Batalha 1 ETB", 1],
+    ["🎟️ BATALHA 2 - ETB 151", 2],
+    ["Batalha ETB #3", 3],
+    ["Batalha nº 4 ETB", 4],
+    ["Batalha Nº 7 - ETB", 7],
+    ["ETB Batalha 5", 5],
+    ["Batalha ETB", null],
+    ["Batalha 30 anos EUA", null],
+    ["🎟️ DUPLO 30y - BATALHA DO BEM", null],
+    ["ETB Fogo Fantasma", null],
+  ];
+  for (const [titulo, numero] of casos) conferir(numeroDaBatalhaETB(titulo) === numero, `"${titulo}" -> ${numero}`, String(numeroDaBatalhaETB(titulo)));
+
+  // Vendas da live: vagas da Batalha 1 (compra direta, com quem comprou pela
+  // lista Vendidos) e 2 unidades da Batalha 2 que saíram ao vivo sem o @.
+  const linha = (titulo, vencedor, vendidas, inicio, situacao = "vendido") => ({
+    titulo, tipo: "compra direta", vencedor, vendidas, inicio, situacao, total: vendidas * 149, final: 149,
+  });
+  const vendas = {
+    lista: [
+      linha("Batalha 1 ETB", "ana", 1, 10),
+      linha("Batalha 1 ETB", "bia", 3, 20),
+      linha("Batalha 2 ETB", null, 2, 40, "rolando"),
+      linha("Batalha 1 ETB", "caio", 1, 30),
+      linha("Outro produto", "zeca", 1, 15),
+      { titulo: "Batalha 3 ETB", tipo: "leilão", vencedor: "lider", vendidas: 0, inicio: 50, situacao: "rolando" },
+    ],
+  };
+  const achadas = batalhasPeloTitulo(vendas);
+  conferir(achadas.map((b) => b.numero).join() === "1,2", "acha as batalhas 1 e 2 pelos nomes (leilão rolando não conta)", JSON.stringify(achadas));
+  conferir(achadas[0].vagas.join() === "ana,bia,bia,bia,caio", "uma vaga por unidade, na ordem da compra", achadas[0].vagas.join());
+  conferir(achadas[1].vagas.length === 0 && achadas[1].semDono === 2, "vaga vendida ao vivo sem o @ ainda: conta como esperando");
+
+  const todas = {};
+  const s1 = mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, titulo: "Batalha 1 ETB", vagas: ["ana", "bia"], semDono: 1 }, 100);
+  const b1 = todas[s1.id];
+  conferir(s1.ok && s1.mudou && b1.numero === 1 && b1.automatica && b1.boosters === 9, "cria a Batalha ETB nº 1 sozinha, com 9 boosters");
+  conferir(b1.slots[0].handle === "ana" && b1.slots[0].auto && b1.slots[2].handle === "" && b1.semDono === 1, "com quem comprou nos boosters");
+  // Ela corrige o booster 2 na mão.
+  mudarBatalhaETB(todas, { acao: "salvar", id: b1.id, slots: b1.slots.map((s, i) => (i === 1 ? { ...s, handle: "beto" } : s)) });
+  conferir(b1.slots[1].handle === "beto" && b1.slots[1].auto === false, "o booster corrigido na mão deixa de ser automático");
+  const s2 = mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, vagas: ["ana", "bia", "caio"], semDono: 0 });
+  conferir(s2.mudou && b1.slots[2].handle === "caio" && b1.slots[1].handle === "beto", "entra quem comprou depois, e o que ela corrigiu fica");
+  const s3 = mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, vagas: ["ana", "bia", "caio"], semDono: 0 });
+  conferir(s3.ok && !s3.mudou, "nada novo: não regrava");
+  mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, vagas: ["ana", "bia"] });
+  conferir(b1.slots[2].handle === "" && !b1.slots[2].auto, "venda cancelada: o booster automático volta a ficar vazio");
+  mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, vagas: Array.from({ length: 12 }, (_, i) => "p" + i) });
+  conferir(b1.boosters === 12 && b1.slots[11].handle === "p11" && b1.slots[1].handle === "beto", "mais vagas que boosters: aumenta, sem perder o que ela corrigiu");
+  mudarBatalhaETB(todas, { acao: "encerrar", id: b1.id, ganhador: "beto" });
+  const s4 = mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 1, vagas: ["x"] });
+  conferir(!s4.mudou && b1.slots[0].handle === "p0", "batalha encerrada não muda mais");
+  const manual = mudarBatalhaETB(todas, { acao: "criar", liveId: "L1" });
+  conferir(todas[manual.id].numero === 2, "a feita na mão pega o próximo número");
+  mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 2, vagas: ["ana"] });
+  conferir(todas[manual.id].slots[0].handle === "ana" && todas[manual.id].automatica, "e o produto 'Batalha 2 ETB' preenche a nº 2 feita na mão");
+  conferir(!mudarBatalhaETB(todas, { acao: "sincronizar", liveId: "L1", numero: 0 }).ok, "sem número, nada");
 }
 
 // ---------- batalha ----------

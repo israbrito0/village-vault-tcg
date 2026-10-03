@@ -526,6 +526,23 @@ const live = (id, doPainel = true) => ({
     conferir(ruim?.ok === false && Object.keys(guardado.batalhasETB).length === 1, "pedido inválido não grava nada");
   }
 
+  // ---------- "Batalha 1 ETB" vendido: a batalha aparece sozinha ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("ETB", false);
+    const vaga = (saleId, comprador, unidades, quando) => ({
+      saleId, titulo: "Batalha 1 ETB", tipo: "BUY_IT_NOW", unidades, preco: 149, total: 149 * unidades, comprador, cancelado: false, quando,
+    });
+    await mandar({ tipo: "vendidos", dados: { quando: 1791054100000, itens: [vaga("v1", "ana", 1, 1), vaga("v2", "bia", 2, 2)] }, contexto: ctx });
+    await esperar(1800);
+    const b = Object.values(guardado.batalhasETB ?? {})[0];
+    conferir(b && b.numero === 1 && b.liveId === "ETB" && b.automatica, "vendeu vaga de 'Batalha 1 ETB': aparece a Batalha ETB nº 1");
+    conferir(b && b.slots.slice(0, 3).map((s) => s.handle).join() === "ana,bia,bia", "com quem comprou nos boosters", b && b.slots.map((s) => s.handle).join());
+    await mandar({ tipo: "vendidos", dados: { quando: 1791054200000, itens: [vaga("v3", "caio", 1, 3)] }, contexto: ctx });
+    await esperar(1800);
+    conferir(Object.values(guardado.batalhasETB)[0].slots[3].handle === "caio" && Object.keys(guardado.batalhasETB).length === 1, "quem compra depois entra na mesma batalha");
+  }
+
   // ---------- ranking mensal e amostras ----------
   {
     const { guardado, mandar } = montar();

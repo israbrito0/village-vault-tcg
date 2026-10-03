@@ -280,17 +280,44 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
     conferir(q.el("#caixa-etb-atual").style.display === "" && /Batalha ETB nº 1 · ETB 30 anos/.test(q.el("#etbTitulo").textContent), "começou a Batalha ETB nº 1", q.el("#etbTitulo").textContent);
     conferir((vagas.match(/data-campo="handle"/g) || []).length === 9, "9 boosters para preencher");
     conferir((vagas.match(/value="israelbrito"/g) || []).length === 3 && /value="drico3dlab"/.test(vagas), "com quem comprou as vagas já nos boosters (3 da israelbrito)");
-    conferir(/<option value="israelbrito">@israelbrito<\/option>/.test(q.el("#etbGanhador").innerHTML), "dá para escolher o ganhador entre quem está nos boosters");
+    conferir((vagas.match(/data-etb-vencedor="\d+"[^>]*>🏆 Vencedor/g) || []).length === 9, "cada booster tem o botão 🏆 Vencedor");
 
-    q.el("#etbGanhador").value = "drico3dlab";
-    q.el("#etbHit").value = "Charizard ex SIR";
-    q.el("#etbEncerrar").click();
+    // Ela escreve o hit no booster 2 (drico3dlab) e clica no 🏆 dele.
+    const batalha = Object.values(q.ctx.window.__teste.batalhasETB)[0];
+    const slots = batalha.slots.map((s, i) => (i === 1 ? { ...s, hit: "Charizard ex SIR" } : s));
+    await q.ctx.etb("salvar", { id: batalha.id, slots });
+    // No navegador, o botão clicado fica com o foco, dentro da lista dos
+    // boosters: a lista tem que virar a de batalha encerrada mesmo assim.
+    q.el("#etbVagas").contains = () => true;
+    q.ctx.document.activeElement = { tagName: "BUTTON" };
+    q.el("#etbVagas").ouvintes.click.find(Boolean)({ target: { closest: (sel) => (/vencedor/.test(sel) ? { dataset: { etbVencedor: "1" } } : null) } });
     await q.espera();
     conferir(/🏆/.test(q.el("#etbResultado").innerHTML) && /@drico3dlab/.test(q.el("#etbResultado").innerHTML), "o ganhador aparece grande", q.el("#etbResultado").innerHTML.slice(0, 120));
     conferir(/levou a Batalha ETB nº 1 com Charizard ex SIR/.test(q.texto("#etbResultadoHit")), "com o maior hit", q.texto("#etbResultadoHit"));
     conferir(/class="vaga ganhou"/.test(q.el("#etbVagas").innerHTML), "o booster do ganhador fica destacado");
     conferir(/🏆 @drico3dlab/.test(q.el("#t-etb tbody").innerHTML) && /@drico3dlab/.test(q.el("#t-etb-campeoes tbody").innerHTML), "entra no histórico e no ranking de campeões");
     conferir(/nº 2/.test(q.el("#etbNovoNumero").textContent), "a próxima será a nº 2");
+  }
+
+  // ---------- Batalha ETB automática (pelo nome do produto) ----------
+  {
+    const auto = JSON.parse(JSON.stringify(comExclusive));
+    auto.batalhasETB = {};
+    const A = require("./analises.js");
+    const s = A.mudarBatalhaETB(auto.batalhasETB, { acao: "sincronizar", liveId: LIVE, numero: 1, titulo: "Batalha 1 ETB", vagas: ["ana", "bia"], semDono: 2 }, 1);
+    A.mudarBatalhaETB(auto.batalhasETB, { acao: "sincronizar", liveId: LIVE, numero: 2, titulo: "Batalha 2 ETB", vagas: ["caio"] }, 2);
+    const q = abrirPainel({ busca: `?embutido=1&live=${LIVE}`, dados: auto });
+    await q.espera();
+    q.ctx.mostrarAba("etb");
+    await q.espera();
+    conferir(/nº 2/.test(q.el("#etbTitulo").textContent), "mostra a batalha mais nova (nº 2)", q.el("#etbTitulo").textContent);
+    conferir(/pelo nome do produto/.test(q.texto("#etbAuto")), "e diz que as vagas vêm do nome do produto", q.texto("#etbAuto"));
+    // Clicar na nº 1 da lista mostra a nº 1.
+    q.el("#t-etb tbody").ouvintes.click[0]({ target: { closest: (sel) => (/ver/.test(sel) ? { dataset: { etbVer: s.id } } : null) } });
+    await q.espera();
+    conferir(/nº 1/.test(q.el("#etbTitulo").textContent), "clicar numa batalha da lista mostra ela", q.el("#etbTitulo").textContent);
+    conferir(/2 vagas vendidas esperando o nome/.test(q.texto("#etbAuto")), "avisa as vagas vendidas que ainda esperam o @", q.texto("#etbAuto"));
+    conferir(/value="ana"/.test(q.el("#etbVagas").innerHTML), "com quem comprou nos boosters");
   }
 
   // ---------- histórico desde o começo da live ----------

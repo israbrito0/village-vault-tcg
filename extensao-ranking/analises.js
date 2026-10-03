@@ -9,6 +9,9 @@
 
 (function (raiz) {
   const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+  // Funções do gemas.js: no navegador ele já foi carregado antes deste; no
+  // Node (testes), vem pelo require.
+  const doGemas = typeof module !== "undefined" && module.exports ? require("./gemas.js") : raiz;
   const ms = (seg) => (seg ? Math.round(Number(seg) * 1000) : null);
 
   // Perfis: a Jamble manda quem deu lance e quem está na batalha como CÓDIGO
@@ -652,6 +655,28 @@
     return vagas.slice(0, limite);
   }
 
+  // As batalhas ETB que aparecem nos nomes dos produtos vendidos na live
+  // ("Batalha 1 ETB" -> nº 1): para cada número, quem pegou cada vaga (uma por
+  // unidade, na ordem da compra) e quantas unidades já saíram sem o @ ainda
+  // (compra direta ao vivo não diz quem comprou -- vem com a lista Vendidos).
+  function batalhasPeloTitulo(vendas) {
+    const m = new Map();
+    const linhas = (vendas?.lista || []).slice().sort((a, b) => n(a.inicio) - n(b.inicio));
+    for (const v of linhas) {
+      const numero = doGemas?.numeroDaBatalhaETB?.(v.titulo);
+      if (!numero) continue;
+      const direta = v.tipo === "compra direta";
+      // Leilão rolando: quem está na frente ainda não comprou nada.
+      if (v.situacao !== "vendido" && !(direta && v.situacao === "rolando")) continue;
+      const b = m.get(numero) || { numero, titulo: v.titulo, vagas: [], semDono: 0 };
+      const unidades = n(v.vendidas) || (v.situacao === "vendido" ? 1 : 0);
+      if (v.vencedor) for (let i = 0; i < unidades; i++) b.vagas.push(v.vencedor);
+      else b.semDono += unidades;
+      m.set(numero, b);
+    }
+    return [...m.values()].sort((a, b) => a.numero - b.numero);
+  }
+
   // O número da próxima batalha na live (Batalha ETB nº 1, 2, 3...).
   function proximoNumeroETB(batalhas, liveId) {
     return (
@@ -672,40 +697,108 @@
   //   encerrar  { id, ganhador, hit }
   //   reabrir   { id }
   //   apagar    { id }
+  function novaBatalha(todas, { liveId, numero, titulo, boosters, vagas, auto }, agora) {
+    const id = "etb-" + agora.toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+    todas[id] = {
+      id,
+      liveId,
+      numero,
+      titulo,
+      boosters,
+      // "auto": o @ veio de quem comprou a vaga. Booster preenchido ou
+      // corrigido na mão não é trocado pelo automático.
+      slots: Array.from({ length: boosters }, (_, i) => ({ handle: arroba(vagas[i]), hit: "", auto: !!auto && !!arroba(vagas[i]) })),
+      situacao: "rodando",
+      ganhador: null,
+      hit: "",
+      criadaEm: agora,
+      encerradaEm: null,
+    };
+    // Guarda as últimas 500.
+    const ids = Object.keys(todas).sort((x, y) => n(todas[x].criadaEm) - n(todas[y].criadaEm));
+    for (const velho of ids.slice(0, Math.max(0, ids.length - 500))) delete todas[velho];
+    return todas[id];
+  }
+
   function mudarBatalhaETB(todas, msg, agora = Date.now()) {
     const b = todas[msg?.id];
     if (msg?.acao === "criar") {
       const liveId = limpo(msg.liveId, 80);
       if (!liveId) return { ok: false };
-      const boosters = Math.min(36, Math.max(1, Math.round(n(msg.boosters)) || 9));
-      const vagas = Array.isArray(msg.vagas) ? msg.vagas : [];
-      const id = "etb-" + agora.toString(36) + "-" + Math.random().toString(36).slice(2, 7);
-      todas[id] = {
-        id,
-        liveId,
-        numero: proximoNumeroETB(todas, liveId),
-        titulo: limpo(msg.titulo, 80) || "ETB",
-        boosters,
-        slots: Array.from({ length: boosters }, (_, i) => ({ handle: arroba(vagas[i]), hit: "" })),
-        situacao: "rodando",
-        ganhador: null,
-        hit: "",
-        criadaEm: agora,
-        encerradaEm: null,
-      };
-      // Guarda as últimas 500.
-      const ids = Object.keys(todas).sort((x, y) => n(todas[x].criadaEm) - n(todas[y].criadaEm));
-      for (const velho of ids.slice(0, Math.max(0, ids.length - 500))) delete todas[velho];
-      return { ok: true, id };
+      const nova = novaBatalha(
+        todas,
+        {
+          liveId,
+          numero: proximoNumeroETB(todas, liveId),
+          titulo: limpo(msg.titulo, 80) || "ETB",
+          boosters: Math.min(36, Math.max(1, Math.round(n(msg.boosters)) || 9)),
+          vagas: Array.isArray(msg.vagas) ? msg.vagas : [],
+          auto: false,
+        },
+        agora,
+      );
+      return { ok: true, id: nova.id };
+    }
+    // A batalha que veio do nome do produto ("Batalha 1 ETB"): cria se não
+    // existe e preenche as vagas com quem comprou. Só mexe em booster vazio
+    // ou que ela mesma preencheu antes; nunca no que foi escrito na mão, e
+    // nunca numa batalha já encerrada.
+    if (msg?.acao === "sincronizar") {
+      const liveId = limpo(msg.liveId, 80);
+      const numero = Math.round(n(msg.numero));
+      if (!liveId || numero < 1) return { ok: false };
+      const vagas = (Array.isArray(msg.vagas) ? msg.vagas : []).map(arroba).filter(Boolean).slice(0, 36);
+      const semDono = Math.max(0, Math.round(n(msg.semDono)));
+      let atual = Object.values(todas).find((x) => x.liveId === liveId && x.numero === numero);
+      if (!atual) {
+        atual = novaBatalha(
+          todas,
+          { liveId, numero, titulo: limpo(msg.titulo, 80) || `Batalha ${numero} ETB`, boosters: Math.min(36, Math.max(9, vagas.length)), vagas, auto: true },
+          agora,
+        );
+        atual.automatica = true;
+        atual.semDono = semDono;
+        return { ok: true, id: atual.id, mudou: true };
+      }
+      if (atual.situacao !== "rodando") return { ok: true, id: atual.id, mudou: false };
+      let mudou = false;
+      if (vagas.length > atual.boosters) {
+        while (atual.slots.length < vagas.length) atual.slots.push({ handle: "", hit: "", auto: false });
+        atual.boosters = atual.slots.length;
+        mudou = true;
+      }
+      atual.slots.forEach((s, i) => {
+        const quem = vagas[i] || "";
+        if (s.handle && !s.auto) return; // escrito na mão: fica
+        if (s.handle === quem) return;
+        s.handle = quem;
+        s.auto = !!quem;
+        mudou = true;
+      });
+      if (n(atual.semDono) !== semDono) {
+        atual.semDono = semDono;
+        mudou = true;
+      }
+      if (!atual.automatica) {
+        atual.automatica = true;
+        mudou = true;
+      }
+      return { ok: true, id: atual.id, mudou };
     }
     if (!b) return { ok: false };
     if (msg.acao === "salvar") {
       if (msg.titulo != null) b.titulo = limpo(msg.titulo, 80) || b.titulo;
       if (Array.isArray(msg.slots)) {
-        b.slots = Array.from({ length: b.boosters }, (_, i) => ({
-          handle: arroba(msg.slots[i]?.handle),
-          hit: limpo(msg.slots[i]?.hit, 120),
-        }));
+        b.slots = Array.from({ length: b.boosters }, (_, i) => {
+          const quem = arroba(msg.slots[i]?.handle);
+          const antes = b.slots[i];
+          return {
+            handle: quem,
+            hit: limpo(msg.slots[i]?.hit, 120),
+            // Continua automático só se ela não mexeu no @.
+            auto: !!quem && quem === antes?.handle && !!antes?.auto,
+          };
+        });
       }
       return { ok: true, id: b.id };
     }
@@ -825,6 +918,7 @@
     vagasDoItem,
     proximoNumeroETB,
     mudarBatalhaETB,
+    batalhasPeloTitulo,
     campeoesETB,
     resumirOfertas,
   };

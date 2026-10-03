@@ -331,6 +331,29 @@ const botaoFalso = (texto, rotulo = null, { role = null, selecionado = false, cl
     conferir(log.join(" > ") === "Chat > Batalha" && batalha.selecionado, "se ela já estava na Batalha, fica na Batalha", log.join(" > "));
   }
   {
+    // Vaga de "Batalha 1 ETB" vendida ao vivo: relê a lista Vendidos (só a
+    // primeira página) para saber quem comprou.
+    const p = abrirPagina("/live/x/y");
+    const log = [];
+    p.botoes.push(
+      botaoFalso("Disponíveis (3)", null, { classe: "bg-[var(--bg-inverse)]", log }),
+      botaoFalso("Vendidos (2)", null, { classe: "bg-[var(--bg-tertiary)]", log }),
+      botaoFalso("Carregar Mais", null, { log }),
+    );
+    const quadro = (vendidas) => ({ leilaoAtual: "S1", data: { sale: { id: "S1", sold_count: vendidas }, sale_product: { title: "Batalha 1 ETB" } } });
+    p.daPagina("quadro", quadro(2)); // primeira vista: só anota
+    await new Promise((r) => setTimeout(r, 40));
+    conferir(log.length === 0, "a primeira vez que vê a vaga só anota");
+    p.daPagina("quadro", quadro(3)); // saiu mais uma
+    await new Promise((r) => setTimeout(r, 60));
+    conferir(log.join(" > ") === "Vendidos (2) > Disponíveis (3)", "saiu mais uma vaga: relê os Vendidos e volta (sem Carregar Mais)", log.join(" > "));
+    log.length = 0;
+    p.daPagina("quadro", { leilaoAtual: "S2", data: { sale: { id: "S2", sold_count: 1 }, sale_product: { title: "Pack 151" } } });
+    p.daPagina("quadro", { leilaoAtual: "S2", data: { sale: { id: "S2", sold_count: 2 }, sale_product: { title: "Pack 151" } } });
+    await new Promise((r) => setTimeout(r, 60));
+    conferir(log.length === 0, "produto que não é batalha: não relê nada");
+  }
+  {
     // Fora da página da live, não mexe em nada.
     const p = abrirPagina("/seller/dashboard/lives/ABC");
     const vend = botaoFalso("Vendidos (3)");

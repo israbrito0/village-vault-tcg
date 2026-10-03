@@ -240,18 +240,27 @@ Batalha ETB (a da loja, nao a da Jamble)
 ----------------------------------------
 Abre-se uma ETB, cada booster vai para uma pessoa, e quem tirar o maior hit
 leva. Na aba "Batalha ETB":
-  1. Nova batalha: de um nome (ex.: ETB 30 anos), o numero de boosters (9) e,
-     se as vagas foram vendidas na live, escolha o item em "vagas de quem
-     comprou": cada unidade comprada vira um booster com o @ de quem comprou,
-     na ordem da compra (quem comprou 3 fica com 3 boosters).
-  2. "Comecar batalha": aparece a Batalha ETB no 1 (no 2, no 3... na live),
-     com os boosters. Da para escrever ou corrigir o @ e o que cada um tirou;
-     salva sozinho ao sair do campo.
-  3. Em "quem levou", escolha o ganhador, escreva o maior hit e clique em
-     "Definir ganhador". O ganhador aparece grande (serve para o OBS no modo
-     transmissao), o booster dele fica destacado, e a batalha entra no
-     historico da live e no ranking "Quem mais ganhou batalha ETB" (todas as
-     lives). "Reabrir esta batalha" desfaz o ganhador; o X da lista apaga.
+
+AUTOMATICO: produto com "Batalha 1 ETB" no nome (vale tambem "BATALHA 1 -
+ETB", "Batalha ETB #1", "Batalha no 1 ETB") vira a Batalha ETB no 1 da live
+sozinho, e cada vaga vendida vai para um booster com o @ de quem comprou, na
+ordem da compra (quem comprou 3 fica com 3 boosters). Na compra direta a
+Jamble nao diz ao vivo quem comprou: quando sai uma vaga, a extensao rele a
+lista "Vendidos" uns segundos depois (a coluna dos produtos pisca) e o
+booster e preenchido. Ate la, o painel avisa "N vagas vendidas esperando o
+nome". O que voce escrever na mao num booster nao e trocado pelo automatico.
+
+NA MAO: em "Nova batalha", de um nome e o numero de boosters (9); se as
+vagas foram vendidas com outro nome, escolha o item em "vagas de quem
+comprou".
+
+VENCEDOR: cada booster tem o botao "🏆 Vencedor". Clique no de quem tirou o
+maior hit (se quiser, escreva o hit antes, no campo do lado). O ganhador
+aparece grande (serve para o OBS no modo transmissao), o booster dele fica
+destacado, e a batalha entra no historico da live e no ranking "Quem mais
+ganhou batalha ETB" (todas as lives). Clicou errado? "Reabrir esta
+batalha". Clicar no nome de uma batalha da lista mostra os boosters dela; o
+X apaga.
 
 Nomes que ainda nao apareceram
 ------------------------------

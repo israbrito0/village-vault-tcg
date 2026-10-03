@@ -283,9 +283,28 @@
     return /^https:\/\/[\w.-]+\.(b-cdn\.net|jamble\.com)\/[\w./%=-]+$/.test(u) ? u : null;
   }
 
+  // Produto que é vaga de Batalha ETB: o nome tem "batalha", "etb" e o número
+  // da batalha -- "Batalha 1 ETB", "BATALHA 2 - ETB", "Batalha ETB #3",
+  // "Batalha nº 4 ETB". Devolve o número, ou null se não for vaga de batalha.
+  // ("Batalha 30 anos EUA", sem "etb", não é.)
+  function numeroDaBatalhaETB(titulo) {
+    const t = String(titulo ?? "")
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase();
+    if (!/\bbatalha\b/.test(t) || !/\betb\b/.test(t)) return null;
+    const m =
+      t.match(/#\s*(\d{1,3})\b/) ||
+      t.match(/\bbatalha\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/) ||
+      t.match(/\betb\s*(?:n[o°º]?\.?\s*)?(\d{1,3})\b/);
+    const numero = m ? Number(m[1]) : 0;
+    return numero > 0 ? numero : null;
+  }
+
   const api = {
     GEMAS_POR_CARPA,
     urlDeImagem,
+    numeroDaBatalhaETB,
     porPessoa,
     diffGemas,
     resumirGemas,

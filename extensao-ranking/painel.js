@@ -907,6 +907,7 @@ $("#buscarHistorico").addEventListener("click", async () => {
 
 let ultimoP = null;
 let etbAssinatura = "";
+let etbEscolhida = null; // clicou numa batalha da lista: mostra essa
 
 async function etb(acao, extra = {}) {
   if (temStorage) {
@@ -925,12 +926,21 @@ async function lerETB() {
 
 const liveDaBatalha = () => ultimoP?.id ?? LIVE_DA_PAGINA;
 
+// A batalha que está na tela (a escolhida na lista, ou a mais nova).
+async function batalhaNaTela() {
+  const daLive = Object.values(await lerETB())
+    .filter((b) => b.liveId === liveDaBatalha())
+    .sort((a, b) => b.numero - a.numero);
+  return daLive.find((b) => b.id === etbEscolhida) ?? daLive[0] ?? null;
+}
+
 function desenharETB(p, batalhas, perfis, fotos) {
   const liveId = p?.id ?? LIVE_DA_PAGINA;
   const daLive = Object.values(batalhas)
     .filter((b) => b.liveId === liveId)
     .sort((a, b) => b.numero - a.numero);
-  const atual = daLive[0] ?? null;
+  if (etbEscolhida && !daLive.some((b) => b.id === etbEscolhida)) etbEscolhida = null;
+  const atual = daLive.find((b) => b.id === etbEscolhida) ?? daLive[0] ?? null;
   const vendas = resumirVendas(p, perfis);
 
   // Quem já apareceu nesta live, para completar o @ enquanto digita.
@@ -975,13 +985,23 @@ function desenharETB(p, batalhas, perfis, fotos) {
     const ganhador = atual.ganhador;
     $("#etbTitulo").textContent = `Batalha ETB nº ${atual.numero} · ${atual.titulo}`;
     $("#etbSituacao").textContent = rodando ? "● rodando" : `encerrada às ${horaCurta(atual.encerradaEm)}`;
-    $("#etbControles").style.display = rodando ? "" : "none";
+    // Veio do nome do produto: diz de onde, e quantas vagas já saíram sem o
+    // @ de quem comprou (a lista Vendidos é relida em segundos).
+    const semDono = Number(atual.semDono) || 0;
+    $("#etbAuto").textContent = atual.automatica
+      ? "Vagas pelo nome do produto: quem comprou entra sozinho no booster." +
+        (rodando && semDono ? ` ${plural(semDono, "vaga vendida", "vagas vendidas")} esperando o nome de quem comprou…` : "")
+      : "";
+    $("#etbDica").style.display = rodando ? "" : "none";
     $("#etbReabrir").style.display = rodando ? "none" : "";
 
     // A lista dos boosters. Não redesenha enquanto ela digita num campo.
     const editor = $("#etbVagas");
     const assinatura = JSON.stringify([atual.id, atual.situacao, ganhador, atual.slots]);
-    const digitando = typeof editor.contains === "function" && editor.contains(document.activeElement);
+    // Só campo de texto conta como "digitando": o botão 🏆 recém-clicado fica
+    // com o foco, e por isso a lista não virava a de batalha encerrada.
+    const foco = document.activeElement;
+    const digitando = foco?.tagName === "INPUT" && typeof editor.contains === "function" && editor.contains(foco);
     if (assinatura !== etbAssinatura && !digitando) {
       etbAssinatura = assinatura;
       editor.innerHTML = atual.slots
@@ -992,7 +1012,8 @@ function desenharETB(p, batalhas, perfis, fotos) {
             return (
               `<div class="vaga"><span class="num">${i + 1}</span>` +
               `<input data-vaga="${i}" data-campo="handle" list="etbPessoas" placeholder="@ no booster ${i + 1}" value="${esc(quem)}" />` +
-              `<input data-vaga="${i}" data-campo="hit" placeholder="o que tirou" value="${esc(oQueTirou)}" /></div>`
+              `<input data-vaga="${i}" data-campo="hit" placeholder="o que tirou" value="${esc(oQueTirou)}" />` +
+              `<button type="button" class="coroa" data-etb-vencedor="${i}" title="Este tirou o maior hit: definir como vencedor">🏆 Vencedor</button></div>`
             );
           }
           const classe = quem && quem === ganhador ? "vaga ganhou" : "vaga";
@@ -1003,19 +1024,6 @@ function desenharETB(p, batalhas, perfis, fotos) {
           );
         })
         .join("");
-    }
-
-    // Quem pode ganhar: quem está nos boosters.
-    const gsel = $("#etbGanhador");
-    if (document.activeElement !== gsel) {
-      const nomes = [...new Set(atual.slots.map((s) => s.handle).filter(Boolean))];
-      const opcoes =
-        '<option value="">escolha</option>' + nomes.map((h) => `<option value="${esc(h)}">@${esc(h)}</option>`).join("");
-      if (gsel.innerHTML !== opcoes) {
-        const antes = gsel.value;
-        gsel.innerHTML = opcoes;
-        gsel.value = antes;
-      }
     }
 
     // O anúncio do ganhador, grande (aparece também no modo transmissão).
@@ -1036,8 +1044,12 @@ function desenharETB(p, batalhas, perfis, fotos) {
     (b) => {
       const quemLevou = b.ganhador;
       const comoEsta = b.situacao === "rodando" ? "rodando" : "encerrada";
+      const classe = atual && b.id === atual.id ? "vendo" : "";
+      const origem = b.automatica ? " · pelo nome do produto" : "";
       return (
-        `<tr><td>${num(b.numero)}</td><td>${esc(b.titulo)}<span class="linha2">${comoEsta} · ${horaCurta(b.criadaEm)}</span></td>` +
+        `<tr class="${classe}"><td>${num(b.numero)}</td>` +
+        `<td><button type="button" class="ver" data-etb-ver="${esc(b.id)}" title="Ver esta batalha">${esc(b.titulo)}</button>` +
+        `<span class="linha2">${comoEsta}${origem} · ${horaCurta(b.criadaEm)}</span></td>` +
         `<td>${quemLevou ? "🏆 @" + esc(quemLevou) : "—"}${b.hit ? `<span class="linha2">${esc(b.hit)}</span>` : ""}</td>` +
         `<td class="n"><button type="button" class="mini" data-etb-apagar="${esc(b.id)}" title="Apagar esta batalha">✕</button></td></tr>`
       );
@@ -1074,59 +1086,69 @@ $("#etbCriar").addEventListener("click", async () => {
   const r = await etb("criar", { liveId, titulo: $("#etbNovoTitulo").value, boosters, vagas });
   if (r?.ok) {
     $("#etbNovoTitulo").value = "";
+    etbEscolhida = r.id;
     etbAssinatura = "";
   }
   pintar();
 });
 
-// Cada campo de booster salva ao sair dele (ou Enter).
-$("#etbVagas").addEventListener("change", async () => {
-  const atual = Object.values(await lerETB())
-    .filter((b) => b.liveId === liveDaBatalha())
-    .sort((a, b) => b.numero - a.numero)[0];
-  if (!atual || atual.situacao !== "rodando") return;
+// O que está escrito nos campos dos boosters agora, mesmo antes de sair do
+// campo (ela pode escrever o hit e já clicar no 🏆).
+function slotsDaTela(atual) {
   const slots = atual.slots.map((s) => ({ ...s }));
-  for (const campo of $("#etbVagas").querySelectorAll("input[data-vaga]")) {
+  const editor = $("#etbVagas");
+  const campos = typeof editor.querySelectorAll === "function" ? editor.querySelectorAll("input[data-vaga]") : [];
+  for (const campo of campos) {
     const i = Number(campo.dataset.vaga);
     if (slots[i]) slots[i][campo.dataset.campo] = campo.value;
   }
-  await etb("salvar", { id: atual.id, slots });
+  return slots;
+}
+
+// Cada campo de booster salva ao sair dele (ou Enter).
+$("#etbVagas").addEventListener("change", async () => {
+  const atual = await batalhaNaTela();
+  if (!atual || atual.situacao !== "rodando") return;
+  await etb("salvar", { id: atual.id, slots: slotsDaTela(atual) });
   pintar();
 });
 
-// Escolheu o ganhador: o hit dele vem para o campo, se ainda estiver vazio.
-$("#etbGanhador").addEventListener("change", async () => {
-  if ($("#etbHit").value) return;
-  const atual = Object.values(await lerETB())
-    .filter((b) => b.liveId === liveDaBatalha())
-    .sort((a, b) => b.numero - a.numero)[0];
-  const doGanhador = atual?.slots.find((s) => s.handle === $("#etbGanhador").value && s.hit);
-  if (doGanhador) $("#etbHit").value = doGanhador.hit;
-});
-
-$("#etbEncerrar").addEventListener("click", async () => {
-  const atual = Object.values(await lerETB())
-    .filter((b) => b.liveId === liveDaBatalha())
-    .sort((a, b) => b.numero - a.numero)[0];
-  if (!atual) return;
-  const r = await etb("encerrar", { id: atual.id, ganhador: $("#etbGanhador").value, hit: $("#etbHit").value });
-  if (!r?.ok) {
-    $("#aviso").textContent = "Escolha quem levou a batalha.";
+// 🏆 Vencedor: um clique no booster de quem tirou o maior hit. Salva o que
+// estiver nos campos e define o ganhador com o hit daquele booster. Clicou
+// errado? "Reabrir esta batalha" desfaz.
+$("#etbVagas").addEventListener("click", async (e) => {
+  const botao = e.target.closest && e.target.closest("button[data-etb-vencedor]");
+  if (!botao) return;
+  const atual = await batalhaNaTela();
+  if (!atual || atual.situacao !== "rodando") return;
+  const slots = slotsDaTela(atual);
+  const vaga = slots[Number(botao.dataset.etbVencedor)];
+  const ganhador = String(vaga?.handle ?? "").trim();
+  if (!ganhador) {
+    $("#aviso").textContent = "Esse booster está sem o @ de quem pegou: escreva o @ e clique de novo.";
     return;
   }
-  $("#etbHit").value = "";
+  await etb("salvar", { id: atual.id, slots });
+  const r = await etb("encerrar", { id: atual.id, ganhador, hit: vaga.hit });
+  if (r?.ok) $("#aviso").textContent = "";
+  etbAssinatura = "";
   pintar();
 });
 
 $("#etbReabrir").addEventListener("click", async () => {
-  const atual = Object.values(await lerETB())
-    .filter((b) => b.liveId === liveDaBatalha())
-    .sort((a, b) => b.numero - a.numero)[0];
+  const atual = await batalhaNaTela();
   if (atual) await etb("reabrir", { id: atual.id });
   pintar();
 });
 
 $("#t-etb tbody").addEventListener("click", async (e) => {
+  const ver = e.target.closest && e.target.closest("button[data-etb-ver]");
+  if (ver) {
+    etbEscolhida = ver.dataset.etbVer;
+    etbAssinatura = "";
+    pintar();
+    return;
+  }
   const b = e.target.closest && e.target.closest("button[data-etb-apagar]");
   if (!b || !confirm("Apagar esta batalha? Não dá para desfazer.")) return;
   await etb("apagar", { id: b.dataset.etbApagar });
