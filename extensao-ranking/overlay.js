@@ -6,6 +6,7 @@
 (() => {
   const ID = "vv-painel-ao-lado";
   const BOTAO = "vv-painel-botao";
+  const CAPA = "vv-painel-capa";
   const PADRAO = 400;
   const MIN = 300;
   // Nunca mais do que metade da janela: numa tela menor, um painel largo
@@ -18,7 +19,13 @@
   let largura = PADRAO;
   let aberto = false;
 
+  // garantir() roda a cada 2s e chama mostrar(), que chamaria guardar(): sem
+  // esta trava seria uma gravacao a cada 2 segundos, para sempre, sem motivo.
+  let guardadoComo = "";
   function guardar() {
+    const agora = aberto + ":" + largura;
+    if (agora === guardadoComo) return;
+    guardadoComo = agora;
     try {
       chrome.storage.local.set({ overlay: { aberto, largura } });
     } catch {
@@ -85,6 +92,7 @@
     // Durante o arrasto, o iframe engole o mouse -- a capa resolve.
     let arrastando = false;
     const capa = document.createElement("div");
+    capa.id = CAPA;
     capa.style.cssText = "position: fixed; inset: 0; z-index: 2147483001; display: none; cursor: ew-resize;";
 
     pegador.addEventListener("mousedown", (e) => {
@@ -106,6 +114,7 @@
     capa.addEventListener("mouseup", soltar);
     capa.addEventListener("mouseleave", soltar);
 
+    document.getElementById(CAPA)?.remove();
     document.body.append(capa);
     return caixa;
   }
@@ -155,6 +164,7 @@
       // Saiu da live: tira tudo em vez de deixar sobrando por cima do site.
       document.getElementById(ID)?.remove();
       document.getElementById(BOTAO)?.remove();
+      document.getElementById(CAPA)?.remove();
       return;
     }
     if (!document.body) return;

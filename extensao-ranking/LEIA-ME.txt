@@ -230,10 +230,11 @@ Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as sete suites, 282 casos:
+Roda as oito suites, 297 casos:
   manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada)
   leitura dos payloads da Jamble (vendas, emotions, metricas, participacao)
   a ponte entre a pagina e a extensao (content.js)
+  o painel encostado na live (overlay: botao, vazamento, largura)
   contas de gemas, emotions por icone, metricas e planilha
   o que o background guarda (troca de live, duas lives, lote, limites)
   nome de fora nao vira codigo (escape de HTML)
