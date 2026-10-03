@@ -9,6 +9,11 @@ const {
   resumirLeiloes,
   quemDisputou,
   rankingDeCompras,
+  itensComCompradores,
+  vagasDoItem,
+  proximoNumeroETB,
+  mudarBatalhaETB,
+  campeoesETB,
   resumirVendas,
   gemasPelaBatalha,
   juntarGemas,
@@ -344,6 +349,69 @@ conferir(quemDisputou({ a: rolandoAinda }, perfis).length === 0, "leilão roland
   conferir(g2.find((x) => x.handle === "samantaavila").desdeInicio === "jamble" && g2.find((x) => x.handle === "samantaavila").gemas === 3000, "na live dela, a Participação manda");
   conferir(!g2.some((x) => x.handle === "colecionar_164"), "com Participação, a estimativa da batalha não entra");
   conferir(juntarGemas(vistas, [], []).find((x) => x.handle === "samantaavila").desdeInicio === null, "sem nada desde o começo: só o visto");
+}
+
+// ---------- batalha ETB (a da loja) ----------
+{
+  const H = require("./amostras-historico.js");
+  const live = { vendidos: {}, vendidosEm: 1 };
+  for (const i of H.VENDIDOS_EXCLUSIVE.items) {
+    live.vendidos[i.sold.saleId] = {
+      saleId: i.sold.saleId, titulo: i.title, tipo: i.saleType, inicial: i.startingPrice, unidades: i.soldCount,
+      preco: i.sold.soldPrice, total: i.sold.totalSoldPrice, comprador: i.sold.buyerUsername, cancelado: false,
+      quando: Math.round(i.sold.createdAt * 1000),
+    };
+  }
+  const vendas = resumirVendas(live, {});
+  // O caso da live do @exclusive: a compra de 3 unidades vale 3.
+  conferir(vendas.faturado === 1788 && vendas.unidades === 12, "exclusive: R$ 1.788 em 12 unidades", `${vendas.faturado} / ${vendas.unidades}`);
+  const de3 = vendas.lista.find((v) => v.vencedor === "israelbrito" && v.vendidas === 3);
+  conferir(de3 && de3.total === 447 && de3.final === 149, "a compra de 3: total R$ 447, R$ 149 cada");
+  const eu = rankingDeCompras(live, {}).find((c) => c.handle === "israelbrito");
+  conferir(eu && eu.total === 596 && eu.itens.some((i) => i.unidades === 3 && i.valor === 447), "no ranking de compras: R$ 149 + 3 × R$ 149 = R$ 596", JSON.stringify(eu));
+
+  const itens = itensComCompradores(vendas);
+  const bem = itens.find((i) => i.titulo.includes("BATALHA DO BEM"));
+  const mal = itens.find((i) => i.titulo.includes("BATALHA DO MAL"));
+  conferir(bem && bem.unidades === 5 && bem.compradores === 3, "itens vendidos: Batalha do Bem, 5 vagas, 3 pessoas", JSON.stringify(bem));
+  conferir(mal && mal.unidades === 7 && itens[0] === mal, "e o mais recente vem primeiro (Batalha do Mal, 7 vagas)");
+  const vagas = vagasDoItem(vendas, bem.titulo, 9);
+  conferir(vagas.join() === "bombomzinho,drico3dlab,israelbrito,israelbrito,israelbrito", "uma vaga por unidade, na ordem da compra", vagas.join());
+  conferir(vagasDoItem(vendas, mal.titulo, 4).length === 4, "nunca mais vagas que boosters");
+
+  // Criar, numerar, salvar, encerrar, reabrir, apagar.
+  const todas = {};
+  const c1 = mudarBatalhaETB(todas, { acao: "criar", liveId: "L1", titulo: "  ETB   30 anos ", boosters: 9, vagas }, 1000);
+  const b1 = todas[c1.id];
+  conferir(c1.ok && b1.numero === 1 && b1.titulo === "ETB 30 anos" && b1.slots.length === 9, "cria a Batalha ETB nº 1 com 9 boosters");
+  conferir(b1.slots[2].handle === "israelbrito" && b1.slots[5].handle === "", "as vagas puxadas vêm preenchidas, o resto vazio");
+  const c2 = mudarBatalhaETB(todas, { acao: "criar", liveId: "L1", boosters: 0 }, 2000);
+  conferir(todas[c2.id].numero === 2 && todas[c2.id].boosters === 9 && todas[c2.id].titulo === "ETB", "a próxima é a nº 2 (padrão: ETB, 9 boosters)");
+  conferir(proximoNumeroETB(todas, "L2") === 1, "em outra live, começa do nº 1");
+  conferir(!mudarBatalhaETB(todas, { acao: "criar", liveId: "" }).ok, "sem live, não cria");
+
+  const slots = b1.slots.map((s) => ({ ...s }));
+  slots[5] = { handle: "  @@luskatcg ", hit: " Charizard ex SIR " };
+  slots[2] = { handle: "israelbrito", hit: "Pikachu ex " + "x".repeat(300) };
+  mudarBatalhaETB(todas, { acao: "salvar", id: c1.id, slots: [...slots, { handle: "sobrando" }] });
+  conferir(b1.slots[5].handle === "luskatcg" && b1.slots[5].hit === "Charizard ex SIR", "salvar limpa o @ e os espaços");
+  conferir(b1.slots[2].hit.length === 120 && b1.slots.length === 9, "hit tem tamanho máximo, e não cria booster a mais");
+
+  conferir(!mudarBatalhaETB(todas, { acao: "encerrar", id: c1.id, ganhador: "" }).ok, "sem ganhador, não encerra");
+  mudarBatalhaETB(todas, { acao: "encerrar", id: c1.id, ganhador: "@luskatcg", hit: "" }, 5000);
+  conferir(b1.situacao === "encerrada" && b1.ganhador === "luskatcg" && b1.encerradaEm === 5000, "encerra com o ganhador");
+  conferir(b1.hit === "Charizard ex SIR", "o maior hit vem do booster do ganhador quando não é escrito");
+  mudarBatalhaETB(todas, { acao: "reabrir", id: c1.id });
+  conferir(b1.situacao === "rodando" && b1.ganhador === null, "reabrir volta a rodar, sem ganhador");
+  mudarBatalhaETB(todas, { acao: "encerrar", id: c1.id, ganhador: "luskatcg", hit: "Charizard ex SIR" });
+  mudarBatalhaETB(todas, { acao: "encerrar", id: c2.id, ganhador: "luskatcg", hit: "Mew ex" });
+  const c3 = mudarBatalhaETB(todas, { acao: "criar", liveId: "L2", vagas: ["ana"] });
+  mudarBatalhaETB(todas, { acao: "encerrar", id: c3.id, ganhador: "ana", hit: "Umbreon" });
+  const camp = campeoesETB(todas);
+  conferir(camp[0].handle === "luskatcg" && camp[0].vitorias === 2 && camp[1].handle === "ana", "quem mais ganhou batalha, em todas as lives", JSON.stringify(camp.map((c) => c.handle + c.vitorias)));
+  mudarBatalhaETB(todas, { acao: "apagar", id: c3.id });
+  conferir(!todas[c3.id] && campeoesETB(todas).length === 1, "apagar tira a batalha e a vitória dela");
+  conferir(!mudarBatalhaETB(todas, { acao: "encerrar", id: "nao-existe", ganhador: "x" }).ok, "batalha que não existe: nada");
 }
 
 // ---------- batalha ----------

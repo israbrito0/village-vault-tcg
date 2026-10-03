@@ -236,6 +236,23 @@ O painel tem quatro abas em cima. Tudo acima e a aba AO VIVO. As outras:
     lives suas e nao apareceu em nenhuma das duas ultimas) e quem so conversa.
     Guarda o resumo de ate 60 lives; comeca a encher a partir desta versao.
 
+Batalha ETB (a da loja, nao a da Jamble)
+----------------------------------------
+Abre-se uma ETB, cada booster vai para uma pessoa, e quem tirar o maior hit
+leva. Na aba "Batalha ETB":
+  1. Nova batalha: de um nome (ex.: ETB 30 anos), o numero de boosters (9) e,
+     se as vagas foram vendidas na live, escolha o item em "vagas de quem
+     comprou": cada unidade comprada vira um booster com o @ de quem comprou,
+     na ordem da compra (quem comprou 3 fica com 3 boosters).
+  2. "Comecar batalha": aparece a Batalha ETB no 1 (no 2, no 3... na live),
+     com os boosters. Da para escrever ou corrigir o @ e o que cada um tirou;
+     salva sozinho ao sair do campo.
+  3. Em "quem levou", escolha o ganhador, escreva o maior hit e clique em
+     "Definir ganhador". O ganhador aparece grande (serve para o OBS no modo
+     transmissao), o booster dele fica destacado, e a batalha entra no
+     historico da live e no ranking "Quem mais ganhou batalha ETB" (todas as
+     lives). "Reabrir esta batalha" desfaz o ganhador; o X da lista apaga.
+
 Nomes que ainda nao apareceram
 ------------------------------
 Em lance e batalha a Jamble manda so o CODIGO da pessoa, nao o @. O @ aparece

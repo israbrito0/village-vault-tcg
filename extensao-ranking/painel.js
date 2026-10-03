@@ -124,10 +124,28 @@ function corDe(handle) {
 }
 function avatar(handle, nome, fotos) {
   const url = urlDeImagem(fotos && fotos[handle]);
-  if (url) return `<img class="avatar" src="${esc(url)}" alt="" referrerpolicy="no-referrer" loading="lazy" />`;
+  // Foto que já falhou (apagada, link velho) não é tentada de novo.
+  if (url && !globalThis.vvFotosQuebradas?.has(url)) {
+    return `<img class="avatar" src="${esc(url)}" alt="" referrerpolicy="no-referrer" loading="lazy" />`;
+  }
   const letra = String(nome || handle || "?").trim().charAt(0).toUpperCase() || "?";
   return `<span class="avatar letra" style="background:${corDe(handle)}">${esc(letra)}</span>`;
 }
+
+// Foto de perfil que não carregou: anota, e no próximo desenho (2s) ela vira a
+// inicial -- em vez do ícone de imagem quebrada.
+globalThis.vvFotosQuebradas = new Set();
+document.addEventListener?.(
+  "error",
+  (e) => {
+    const img = e.target;
+    if (img?.tagName === "IMG" && img.classList?.contains("avatar")) {
+      globalThis.vvFotosQuebradas.add(img.getAttribute("src"));
+      etbAssinatura = ""; // a lista dos boosters também redesenha
+    }
+  },
+  true,
+);
 
 // Troca o conteúdo só quando mudou: a lista não pisca nem perde a rolagem.
 function trocarHtml(el, html) {
@@ -405,7 +423,10 @@ async function desenhar(dados) {
     $("#t-compras tbody"),
     compras.slice(0, 80).map((c, i) => ({ i: i + 1, ...c })),
     (c) => {
-      const itens = c.itens.slice(0, 4).map((it) => `${it.titulo} (${reais(it.valor)})`);
+      // "3× Batalha do Bem (R$ 447,00)": quantas unidades, quando foi mais de uma.
+      const itens = c.itens
+        .slice(0, 4)
+        .map((it) => `${it.unidades > 1 ? num(it.unidades) + "× " : ""}${it.titulo} (${reais(it.valor)})`);
       const resto = c.itens.length > 4 ? ` e mais ${c.itens.length - 4}` : "";
       return (
         `<tr${c.i <= 3 ? ' class="podio"' : ""}><td>${c.i}</td>` +
@@ -516,7 +537,7 @@ try {
   aba = localStorage.getItem("aba") || "vivo";
 } catch {}
 
-const ABAS = ["vivo", "leiloes", "batalha", "clientes"];
+const ABAS = ["vivo", "leiloes", "batalha", "clientes", "etb"];
 
 function mostrarAba(nome) {
   if (!ABAS.includes(nome)) nome = "vivo";
@@ -611,8 +632,14 @@ function desenharLeiloes(p, perfis) {
       return (
         `<tr><td>${l.inicio ? horaCurta(l.inicio) : "—"}</td>` +
         `<td>${esc(l.titulo)}<span class="linha2">${detalhe.join(" · ")}</span></td>` +
-        `<td class="n">${l.lances ? num(l.lances) : "—"}</td>` +
-        `<td class="n forte">${l.final ? reais(l.final) : "—"}` +
+        // Sem lance (compra direta), a coluna fica vazia: o "—" encostava no
+        // valor e parecia "—R$ 149", um número negativo.
+        `<td class="n">${l.lances ? num(l.lances) : ""}</td>` +
+        // O valor é o que entrou: 3 unidades de R$ 149 aparecem como R$ 447,
+        // com o "3 × R$ 149" embaixo. Antes aparecia só o preço de uma -- na
+        // live do @exclusive (03/10) parecia que a compra de 3 tinha contado 1.
+        `<td class="n forte">${l.total || l.final ? reais(l.total || l.final) : "—"}` +
+        (l.vendidas > 1 && l.final ? `<span class="linha2">${num(l.vendidas)} × ${reais(l.final)}</span>` : "") +
         (l.multiplicador ? `<span class="linha2">×${l.multiplicador.toFixed(1)}</span>` : "") +
         `</td><td><span class="tag ${CLASSE_SITUACAO[l.situacao] || ""}">${esc(l.situacao)}</span></td></tr>`
       );
@@ -849,6 +876,7 @@ function desenharClientes(historicoGuardado, lives, perfis, rankingMensal, eu, p
 
 async function desenharAba(dados) {
   const { p, eu } = dados;
+  ultimoP = p;
   // A bolinha vale para qualquer aba aberta.
   marcarAbaLeiloes(!!resumirVendas(p, {}).rolando);
   if (aba === "vivo") return;
@@ -856,6 +884,7 @@ async function desenharAba(dados) {
   if (aba === "leiloes") desenharLeiloes(p, perfis);
   else if (aba === "batalha") desenharBatalha(p, perfis, await lerFotos());
   else if (aba === "clientes") desenharClientes(historico, dados.lives, perfis, rankingMensal, eu, p);
+  else if (aba === "etb") desenharETB(p, await lerETB(), perfis, await lerFotos());
 }
 
 // Busca de novo o histórico desde o começo da live (vendas e batalha), na
@@ -868,6 +897,240 @@ $("#buscarHistorico").addEventListener("click", async () => {
   b.disabled = false;
   b.textContent = "Buscar desde o começo";
   if (!r?.ok) $("#aviso").textContent = "Não achei a página da live aberta para buscar o histórico. Abra a live na Jamble e tente de novo.";
+  pintar();
+});
+
+// ---------- Batalha ETB ----------
+// A da loja, não a da Jamble: abre-se uma ETB, cada booster vai para uma
+// pessoa, e quem tirar o maior hit leva. As contas e as regras (criar, salvar,
+// encerrar) ficam no analises.js; quem grava é o background.
+
+let ultimoP = null;
+let etbAssinatura = "";
+
+async function etb(acao, extra = {}) {
+  if (temStorage) {
+    return (await chrome.runtime.sendMessage({ tipo: "batalha-etb", acao, ...extra }).catch(() => null)) ?? { ok: false };
+  }
+  // Fora da extensão (conferindo a tela), grava no window.__teste.
+  const t = (window.__teste = window.__teste ?? {});
+  t.batalhasETB = t.batalhasETB ?? {};
+  return mudarBatalhaETB(t.batalhasETB, { acao, ...extra });
+}
+
+async function lerETB() {
+  const g = temStorage ? await chrome.storage.local.get(["batalhasETB"]) : window.__teste ?? {};
+  return g.batalhasETB ?? {};
+}
+
+const liveDaBatalha = () => ultimoP?.id ?? LIVE_DA_PAGINA;
+
+function desenharETB(p, batalhas, perfis, fotos) {
+  const liveId = p?.id ?? LIVE_DA_PAGINA;
+  const daLive = Object.values(batalhas)
+    .filter((b) => b.liveId === liveId)
+    .sort((a, b) => b.numero - a.numero);
+  const atual = daLive[0] ?? null;
+  const vendas = resumirVendas(p, perfis);
+
+  // Quem já apareceu nesta live, para completar o @ enquanto digita.
+  const conhecidos = new Set([
+    ...vendas.lista.map((v) => v.vencedor),
+    ...Object.keys(p?.chat?.porPessoa ?? {}),
+    ...(p?.emocoes ?? []).map((e) => e.handle),
+    ...(p?.linhas ?? []).map((l) => l.handle),
+  ]);
+  trocarHtml(
+    $("#etbPessoas"),
+    [...conhecidos]
+      .filter(Boolean)
+      .sort()
+      .map((h) => `<option value="${esc(h)}"></option>`)
+      .join(""),
+  );
+
+  // Nova batalha: o número que ela vai ter, e os itens vendidos de onde puxar
+  // as vagas (quem comprou, uma vaga por unidade).
+  $("#etbNovoNumero").textContent = `será a nº ${proximoNumeroETB(batalhas, liveId)}`;
+  const sel = $("#etbNovoItem");
+  if (document.activeElement !== sel) {
+    const opcoes =
+      '<option value="">ninguém, preencho na mão</option>' +
+      itensComCompradores(vendas)
+        .map((i) => {
+          const rotulo = `${i.titulo} · ${plural(i.unidades, "unidade", "unidades")}, ${plural(i.compradores, "pessoa", "pessoas")}`;
+          return `<option value="${esc(i.titulo)}">${esc(rotulo)}</option>`;
+        })
+        .join("");
+    if (sel.innerHTML !== opcoes) {
+      const antes = sel.value;
+      sel.innerHTML = opcoes;
+      sel.value = antes;
+    }
+  }
+
+  $("#caixa-etb-atual").style.display = atual ? "" : "none";
+  if (atual) {
+    const rodando = atual.situacao === "rodando";
+    const ganhador = atual.ganhador;
+    $("#etbTitulo").textContent = `Batalha ETB nº ${atual.numero} · ${atual.titulo}`;
+    $("#etbSituacao").textContent = rodando ? "● rodando" : `encerrada às ${horaCurta(atual.encerradaEm)}`;
+    $("#etbControles").style.display = rodando ? "" : "none";
+    $("#etbReabrir").style.display = rodando ? "none" : "";
+
+    // A lista dos boosters. Não redesenha enquanto ela digita num campo.
+    const editor = $("#etbVagas");
+    const assinatura = JSON.stringify([atual.id, atual.situacao, ganhador, atual.slots]);
+    const digitando = typeof editor.contains === "function" && editor.contains(document.activeElement);
+    if (assinatura !== etbAssinatura && !digitando) {
+      etbAssinatura = assinatura;
+      editor.innerHTML = atual.slots
+        .map((s, i) => {
+          const quem = s.handle;
+          const oQueTirou = s.hit;
+          if (rodando) {
+            return (
+              `<div class="vaga"><span class="num">${i + 1}</span>` +
+              `<input data-vaga="${i}" data-campo="handle" list="etbPessoas" placeholder="@ no booster ${i + 1}" value="${esc(quem)}" />` +
+              `<input data-vaga="${i}" data-campo="hit" placeholder="o que tirou" value="${esc(oQueTirou)}" /></div>`
+            );
+          }
+          const classe = quem && quem === ganhador ? "vaga ganhou" : "vaga";
+          return (
+            `<div class="${classe}"><span class="num">${i + 1}</span>` +
+            `<span class="quem">${quem ? avatar(quem, quem, fotos) + "@" + esc(quem) : '<span class="fraco">vaga vazia</span>'}</span>` +
+            `<span class="fraco">${esc(oQueTirou)}</span></div>`
+          );
+        })
+        .join("");
+    }
+
+    // Quem pode ganhar: quem está nos boosters.
+    const gsel = $("#etbGanhador");
+    if (document.activeElement !== gsel) {
+      const nomes = [...new Set(atual.slots.map((s) => s.handle).filter(Boolean))];
+      const opcoes =
+        '<option value="">escolha</option>' + nomes.map((h) => `<option value="${esc(h)}">@${esc(h)}</option>`).join("");
+      if (gsel.innerHTML !== opcoes) {
+        const antes = gsel.value;
+        gsel.innerHTML = opcoes;
+        gsel.value = antes;
+      }
+    }
+
+    // O anúncio do ganhador, grande (aparece também no modo transmissão).
+    trocarHtml(
+      $("#etbResultado"),
+      ganhador ? `🏆 ${avatar(ganhador, ganhador, fotos)} @${esc(ganhador)}` : "",
+    );
+    $("#etbResultadoHit").textContent = ganhador
+      ? `levou a Batalha ETB nº ${atual.numero}${atual.hit ? " com " + atual.hit : ""}`
+      : "";
+  } else {
+    etbAssinatura = "";
+  }
+
+  linhas(
+    $("#t-etb tbody"),
+    daLive,
+    (b) => {
+      const quemLevou = b.ganhador;
+      const comoEsta = b.situacao === "rodando" ? "rodando" : "encerrada";
+      return (
+        `<tr><td>${num(b.numero)}</td><td>${esc(b.titulo)}<span class="linha2">${comoEsta} · ${horaCurta(b.criadaEm)}</span></td>` +
+        `<td>${quemLevou ? "🏆 @" + esc(quemLevou) : "—"}${b.hit ? `<span class="linha2">${esc(b.hit)}</span>` : ""}</td>` +
+        `<td class="n"><button type="button" class="mini" data-etb-apagar="${esc(b.id)}" title="Apagar esta batalha">✕</button></td></tr>`
+      );
+    },
+    4,
+  );
+
+  linhas(
+    $("#t-etb-campeoes tbody"),
+    campeoesETB(batalhas)
+      .slice(0, 30)
+      .map((c, i) => ({ i: i + 1, ...c })),
+    (c) =>
+      `<tr${c.i <= 3 ? ' class="podio"' : ""}><td>${c.i}</td>` +
+      `<td><span class="pessoa">${avatar(c.handle, c.handle, fotos)}<span>@${esc(c.handle)}` +
+      (c.hits.length ? `<span class="linha2">${esc(c.hits.slice(-2).join(" · "))}</span>` : "") +
+      `</span></span></td><td class="n forte">${num(c.vitorias)}</td></tr>`,
+    3,
+  );
+}
+
+$("#etbCriar").addEventListener("click", async () => {
+  const liveId = liveDaBatalha();
+  if (!liveId) {
+    $("#aviso").textContent = "Abra o painel na live para começar uma batalha.";
+    return;
+  }
+  const batalhas = await lerETB();
+  const rodando = Object.values(batalhas).find((b) => b.liveId === liveId && b.situacao === "rodando");
+  if (rodando && !confirm(`A Batalha ETB nº ${rodando.numero} ainda está rodando. Começar outra assim mesmo?`)) return;
+  const boosters = Number($("#etbNovoBoosters").value) || 9;
+  const item = $("#etbNovoItem").value;
+  const vagas = item ? vagasDoItem(resumirVendas(ultimoP, extras.perfis), item, boosters) : [];
+  const r = await etb("criar", { liveId, titulo: $("#etbNovoTitulo").value, boosters, vagas });
+  if (r?.ok) {
+    $("#etbNovoTitulo").value = "";
+    etbAssinatura = "";
+  }
+  pintar();
+});
+
+// Cada campo de booster salva ao sair dele (ou Enter).
+$("#etbVagas").addEventListener("change", async () => {
+  const atual = Object.values(await lerETB())
+    .filter((b) => b.liveId === liveDaBatalha())
+    .sort((a, b) => b.numero - a.numero)[0];
+  if (!atual || atual.situacao !== "rodando") return;
+  const slots = atual.slots.map((s) => ({ ...s }));
+  for (const campo of $("#etbVagas").querySelectorAll("input[data-vaga]")) {
+    const i = Number(campo.dataset.vaga);
+    if (slots[i]) slots[i][campo.dataset.campo] = campo.value;
+  }
+  await etb("salvar", { id: atual.id, slots });
+  pintar();
+});
+
+// Escolheu o ganhador: o hit dele vem para o campo, se ainda estiver vazio.
+$("#etbGanhador").addEventListener("change", async () => {
+  if ($("#etbHit").value) return;
+  const atual = Object.values(await lerETB())
+    .filter((b) => b.liveId === liveDaBatalha())
+    .sort((a, b) => b.numero - a.numero)[0];
+  const doGanhador = atual?.slots.find((s) => s.handle === $("#etbGanhador").value && s.hit);
+  if (doGanhador) $("#etbHit").value = doGanhador.hit;
+});
+
+$("#etbEncerrar").addEventListener("click", async () => {
+  const atual = Object.values(await lerETB())
+    .filter((b) => b.liveId === liveDaBatalha())
+    .sort((a, b) => b.numero - a.numero)[0];
+  if (!atual) return;
+  const r = await etb("encerrar", { id: atual.id, ganhador: $("#etbGanhador").value, hit: $("#etbHit").value });
+  if (!r?.ok) {
+    $("#aviso").textContent = "Escolha quem levou a batalha.";
+    return;
+  }
+  $("#etbHit").value = "";
+  pintar();
+});
+
+$("#etbReabrir").addEventListener("click", async () => {
+  const atual = Object.values(await lerETB())
+    .filter((b) => b.liveId === liveDaBatalha())
+    .sort((a, b) => b.numero - a.numero)[0];
+  if (atual) await etb("reabrir", { id: atual.id });
+  pintar();
+});
+
+$("#t-etb tbody").addEventListener("click", async (e) => {
+  const b = e.target.closest && e.target.closest("button[data-etb-apagar]");
+  if (!b || !confirm("Apagar esta batalha? Não dá para desfazer.")) return;
+  await etb("apagar", { id: b.dataset.etbApagar });
+  etbAssinatura = "";
   pintar();
 });
 

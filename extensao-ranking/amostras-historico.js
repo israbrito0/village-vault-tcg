@@ -70,4 +70,25 @@ const BATALHA_PARTICIPANTES = {
   hasNextPage: true,
 };
 
-module.exports = { VENDIDOS_PAGINA_1, VENDIDOS_PAGINA_2, BATALHA_PARTICIPANTES };
+// Live do @exclusive (03/10/2026): 10 vendas de compra direta, uma delas de 3
+// unidades (R$ 447) -- o caso em que o painel mostrava só R$ 149 na linha.
+const MAL = '🎟️ DUPLO 30y - BATALHA DO MAL';
+const BEM = '🎟️ DUPLO 30y - BATALHA DO BEM';
+const VENDIDOS_EXCLUSIVE = {
+  success: true,
+  items: [
+    vendido('JUjhJpfYQHZaVAx8DPYm', MAL, 'BUY_IT_NOW', 149, 'sZQGZLVUJrkUbddUgbYY', 'bombomzinho', '0Btd', 149, 1, 149, 1791056875.031),
+    vendido('sPTovWCrISQCE7PrEewy', MAL, 'BUY_IT_NOW', 149, '7Gfs2PmkQNU6skvclTge', 'clubpokecard', 'qUCS', 149, 1, 149, 1791056869.963),
+    vendido('t6uoHwJQMqnGWG7sqzNB', MAL, 'BUY_IT_NOW', 149, 'b9dIr7vpkiGyzUIl90kp', 'israelbrito', '8wzV', 149, 1, 149, 1791056869.255),
+    vendido('B4nOL0716U8kVSmszPqv', MAL, 'BUY_IT_NOW', 149, 'DqriU5iQmg7lnctOCyLo', 'clubpokecard', 'qUCS', 149, 1, 149, 1791055828.251),
+    vendido('sWsTd9TbU39a9hwbg9eP', MAL, 'BUY_IT_NOW', 149, 'OqNjnrHGMzziCFYpoYGR', 'bombomzinho', '0Btd', 149, 1, 149, 1791055787.39),
+    vendido('ne5Dr6CyvYDEFMzgtFsg', MAL, 'BUY_IT_NOW', 149, 'Lc3SC5Eqi94Zw5rzZpHR', 'luskatcg', 'SNZ1', 149, 1, 149, 1791054000.695),
+    vendido('ceMTzshgjBrvtQGA1FRC', MAL, 'BUY_IT_NOW', 149, 'UYzaL714N1Sib6v3k7uY', 'clubpokecard', 'qUCS', 149, 1, 149, 1791053190.036),
+    vendido('CFHZsFcSLGzTkdaWZLJm', BEM, 'BUY_IT_NOW', 149, 'Hp4QRRMAGUXo1PAp6yyi', 'israelbrito', '8wzV', 149, 3, 447, 1791051720.778),
+    vendido('lJGvD05C9vuWZ3YjKWll', BEM, 'BUY_IT_NOW', 149, 'iKKBUobhcp6uYe3fuy6I', 'drico3dlab', 'O4a5', 149, 1, 149, 1791049691.416),
+    vendido('wYTVxvYzCBdm0WEkOj1S', BEM, 'BUY_IT_NOW', 149, 'uBEhC4tW0CaHPfifk5jC', 'bombomzinho', '0Btd', 149, 1, 149, 1791049251.895),
+  ],
+  hasNextPage: false,
+};
+
+module.exports = { VENDIDOS_PAGINA_1, VENDIDOS_PAGINA_2, BATALHA_PARTICIPANTES, VENDIDOS_EXCLUSIVE };

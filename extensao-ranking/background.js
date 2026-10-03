@@ -625,8 +625,20 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok: pedidos > 0, pedidos });
       return;
     }
-    // Pedido do painel: o ranking mensal. Basta uma aba de live apertar o
-    // botão -- a lista é a mesma em todas.
+    // Batalha ETB (a da loja): criar, salvar quem está em cada booster,
+    // definir o ganhador, reabrir, apagar. Guardada à parte das lives, para o
+    // histórico não sumir quando uma live sai do balde.
+    if (msg?.tipo === "batalha-etb") {
+      const r = await emOrdem(async () => {
+        const { batalhasETB } = await ler(["batalhasETB"]);
+        const todas = batalhasETB ?? {};
+        const res = mudarBatalhaETB(todas, msg);
+        if (res.ok) await chrome.storage.local.set({ batalhasETB: todas });
+        return res;
+      });
+      responder(r);
+      return;
+    }
     // Pedido do painel (botão de atualizar da aba separada): cada aba de live
     // busca o histórico da sua live.
     if (msg?.tipo === "carregar-historico") {
@@ -645,6 +657,8 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok });
       return;
     }
+    // Pedido do painel: o ranking mensal. Basta uma aba de live apertar o
+    // botão -- a lista é a mesma em todas.
     if (msg?.tipo === "atualizar-ranking-mensal") {
       let ok = false;
       try {

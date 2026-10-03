@@ -156,6 +156,21 @@
       body.transmissao .linha-feed .oque img { width: clamp(26px, 3vw, 40px); height: clamp(26px, 3vw, 40px); }
       body.transmissao .feed { max-height: none; }
 
+      /* Batalha ETB: uma linha por booster -- número, quem está nele, o hit. */
+      .vagas .vaga { display: grid; grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr); gap: 6px; align-items: center; margin-bottom: 5px; }
+      .vagas .vaga .num { color: var(--destaque); font-weight: 800; text-align: center; }
+      .vagas .vaga.ganhou { background: rgba(255,200,61,.12); border-radius: 8px; box-shadow: inset 0 0 0 1px var(--destaque); }
+      .vagas .vaga .quem { display: inline-flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .vagas .vaga .quem .avatar { width: 22px; height: 22px; }
+      .campo, .vagas input {
+        background: var(--fundo); color: var(--texto); border: 1px solid var(--borda); border-radius: 7px;
+        padding: 5px 8px; font: inherit; font-size: 12px; min-width: 0;
+      }
+      .campo.curto { width: 64px; }
+      #etbHit { flex: 1; min-width: 140px; }
+      #etbNovoTitulo { flex: 1; min-width: 140px; }
+      #t-etb button.mini { padding: 2px 8px; font-size: 11px; background: transparent; color: var(--fraco); border: 1px solid var(--borda); font-weight: 600; }
+
       /* A figurinha de cada emotion com a quantidade do lado: "[carpa] ×3". */
       .chips { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; }
       .chip { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--texto); white-space: nowrap; }
@@ -222,6 +237,7 @@
       <button type="button" data-aba="leiloes">Leilões</button>
       <button type="button" data-aba="batalha">Batalha e chat</button>
       <button type="button" data-aba="clientes">Clientes</button>
+      <button type="button" data-aba="etb">Batalha ETB</button>
     </nav>
 
     <section data-aba="vivo" class="ativa">
@@ -494,6 +510,52 @@
         </div>
         <div class="falta" id="cl-nota"></div>
       </div>
+    </section>
+
+    <section data-aba="etb">
+      <div class="painel" id="caixa-etb-atual" style="display:none">
+        <h2><span id="etbTitulo">Batalha ETB</span><span class="fraco" id="etbSituacao"></span></h2>
+        <div id="etbResultado" class="ganhador"></div>
+        <div id="etbResultadoHit" class="sub" style="margin:-4px 0 10px"></div>
+        <div id="etbVagas" class="vagas"></div>
+        <div class="controles nao-imprimir" id="etbControles" style="margin:10px 0 0">
+          <label>quem levou <select id="etbGanhador"></select></label>
+          <input id="etbHit" class="campo" placeholder="maior hit (ex.: Charizard ex SIR)" />
+          <button id="etbEncerrar" type="button">Definir ganhador</button>
+        </div>
+        <div class="controles nao-imprimir" style="margin:10px 0 0">
+          <button class="secundario" id="etbReabrir" type="button" style="display:none">Reabrir esta batalha</button>
+        </div>
+      </div>
+
+      <div class="painel nao-imprimir">
+        <h2><span>Nova batalha</span><span class="fraco" id="etbNovoNumero"></span></h2>
+        <div class="controles">
+          <input id="etbNovoTitulo" class="campo" placeholder="nome (ex.: ETB 30 anos)" />
+          <label>boosters <input id="etbNovoBoosters" class="campo curto" type="number" min="1" max="36" value="9" /></label>
+        </div>
+        <div class="controles">
+          <label>vagas de quem comprou <select id="etbNovoItem"></select></label>
+        </div>
+        <button id="etbCriar" type="button">Começar batalha</button>
+      </div>
+
+      <div class="painel">
+        <h2>Batalhas desta live</h2>
+        <table id="t-etb">
+          <thead><tr><th>Nº</th><th>Batalha</th><th>Ganhador · hit</th><th></th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="painel">
+        <h2>Quem mais ganhou batalha ETB</h2>
+        <table id="t-etb-campeoes">
+          <thead><tr><th>#</th><th>Pessoa · hits</th><th class="n">Vitórias</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <datalist id="etbPessoas"></datalist>
     </section>
 
     <div class="controles nao-imprimir" style="margin-top: 4px">

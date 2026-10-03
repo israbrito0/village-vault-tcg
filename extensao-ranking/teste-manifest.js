@@ -84,11 +84,11 @@ const painelJsTexto = fs.readFileSync(path.join(__dirname, "painel.js"), "utf8")
 const ESPERADAS = {
   "background.js": [
     bg,
-    ["leilaoDoFrame", "mesclarLeilao", "batalhaDoFrame", "mensagensDoFrame", "sorteioJambleDoFrame", "ofertaDoFrame", "resumoDaLive", "rankingDaResposta", "regrasDoRanking"],
+    ["leilaoDoFrame", "mesclarLeilao", "batalhaDoFrame", "mensagensDoFrame", "sorteioJambleDoFrame", "ofertaDoFrame", "resumoDaLive", "rankingDaResposta", "regrasDoRanking", "mudarBatalhaETB"],
   ],
   "painel.js": [
     painelJsTexto,
-    ["resumirVendas", "rankingDeCompras", "gemasPelaBatalha", "juntarGemas", "quemDisputou", "resumirBatalha", "resumirChat", "resumirOfertas", "minhaPosicao", "pontosDaLive", "historicoComLives", "clientes"],
+    ["resumirVendas", "rankingDeCompras", "gemasPelaBatalha", "juntarGemas", "quemDisputou", "resumirBatalha", "resumirChat", "resumirOfertas", "minhaPosicao", "pontosDaLive", "historicoComLives", "clientes", "itensComCompradores", "vagasDoItem", "proximoNumeroETB", "mudarBatalhaETB", "campeoesETB"],
   ],
 };
 for (const [arquivo, [texto, funcoes]] of Object.entries(ESPERADAS)) {

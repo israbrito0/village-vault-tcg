@@ -620,6 +620,131 @@
   }
 
   // ---------------------------------------------------------------------------
+  // Batalha ETB -- a da loja, não a da Jamble: abre-se uma ETB, cada booster
+  // vai para uma pessoa, e quem tirar o maior hit leva. As vagas costumam ser
+  // vendidas como um item da live (ex.: "Batalha 30 anos EUA", 9 unidades).
+  // ---------------------------------------------------------------------------
+
+  // Os itens já vendidos nesta live, com quantas unidades e quantas pessoas:
+  // de onde puxar quem está na batalha. O mais recente primeiro.
+  function itensComCompradores(vendas) {
+    const m = new Map();
+    for (const v of vendas?.lista || []) {
+      if (v.situacao !== "vendido" || !v.vencedor) continue;
+      const it = m.get(v.titulo) || { titulo: v.titulo, unidades: 0, compradores: new Set(), ultima: 0 };
+      it.unidades += n(v.vendidas) || 1;
+      it.compradores.add(v.vencedor);
+      it.ultima = Math.max(it.ultima, n(v.inicio));
+      m.set(v.titulo, it);
+    }
+    return [...m.values()]
+      .map((i) => ({ titulo: i.titulo, unidades: i.unidades, compradores: i.compradores.size, ultima: i.ultima }))
+      .sort((a, b) => b.ultima - a.ultima);
+  }
+
+  // Uma vaga por unidade comprada daquele item, na ordem em que compraram.
+  function vagasDoItem(vendas, titulo, limite = 9) {
+    const linhas = (vendas?.lista || [])
+      .filter((v) => v.situacao === "vendido" && v.vencedor && v.titulo === titulo)
+      .sort((a, b) => n(a.inicio) - n(b.inicio));
+    const vagas = [];
+    for (const v of linhas) for (let i = 0; i < (n(v.vendidas) || 1); i++) vagas.push(v.vencedor);
+    return vagas.slice(0, limite);
+  }
+
+  // O número da próxima batalha na live (Batalha ETB nº 1, 2, 3...).
+  function proximoNumeroETB(batalhas, liveId) {
+    return (
+      Object.values(batalhas || {})
+        .filter((b) => b.liveId === liveId)
+        .reduce((m, b) => Math.max(m, n(b.numero)), 0) + 1
+    );
+  }
+
+  // Texto de fora (nome, @, hit) entra limpo e com tamanho máximo.
+  const limpo = (t, max) => String(t ?? "").replace(/\s+/g, " ").trim().slice(0, max);
+  const arroba = (t) => limpo(t, 40).replace(/^@+/, "");
+
+  // Toda mudança nas batalhas passa por aqui -- o background usa para gravar,
+  // e o painel, quando roda fora da extensão. Devolve { ok, id }.
+  //   criar     { liveId, titulo, boosters, vagas: [@...] }
+  //   salvar    { id, titulo?, slots?: [{ handle, hit }] }
+  //   encerrar  { id, ganhador, hit }
+  //   reabrir   { id }
+  //   apagar    { id }
+  function mudarBatalhaETB(todas, msg, agora = Date.now()) {
+    const b = todas[msg?.id];
+    if (msg?.acao === "criar") {
+      const liveId = limpo(msg.liveId, 80);
+      if (!liveId) return { ok: false };
+      const boosters = Math.min(36, Math.max(1, Math.round(n(msg.boosters)) || 9));
+      const vagas = Array.isArray(msg.vagas) ? msg.vagas : [];
+      const id = "etb-" + agora.toString(36) + "-" + Math.random().toString(36).slice(2, 7);
+      todas[id] = {
+        id,
+        liveId,
+        numero: proximoNumeroETB(todas, liveId),
+        titulo: limpo(msg.titulo, 80) || "ETB",
+        boosters,
+        slots: Array.from({ length: boosters }, (_, i) => ({ handle: arroba(vagas[i]), hit: "" })),
+        situacao: "rodando",
+        ganhador: null,
+        hit: "",
+        criadaEm: agora,
+        encerradaEm: null,
+      };
+      // Guarda as últimas 500.
+      const ids = Object.keys(todas).sort((x, y) => n(todas[x].criadaEm) - n(todas[y].criadaEm));
+      for (const velho of ids.slice(0, Math.max(0, ids.length - 500))) delete todas[velho];
+      return { ok: true, id };
+    }
+    if (!b) return { ok: false };
+    if (msg.acao === "salvar") {
+      if (msg.titulo != null) b.titulo = limpo(msg.titulo, 80) || b.titulo;
+      if (Array.isArray(msg.slots)) {
+        b.slots = Array.from({ length: b.boosters }, (_, i) => ({
+          handle: arroba(msg.slots[i]?.handle),
+          hit: limpo(msg.slots[i]?.hit, 120),
+        }));
+      }
+      return { ok: true, id: b.id };
+    }
+    if (msg.acao === "encerrar") {
+      const ganhador = arroba(msg.ganhador);
+      if (!ganhador) return { ok: false, id: b.id };
+      b.ganhador = ganhador;
+      b.hit = limpo(msg.hit, 120) || (b.slots.find((s) => s.handle === ganhador && s.hit)?.hit ?? "");
+      b.situacao = "encerrada";
+      b.encerradaEm = agora;
+      return { ok: true, id: b.id };
+    }
+    if (msg.acao === "reabrir") {
+      b.situacao = "rodando";
+      b.ganhador = null;
+      b.encerradaEm = null;
+      return { ok: true, id: b.id };
+    }
+    if (msg.acao === "apagar") {
+      delete todas[b.id];
+      return { ok: true, id: b.id };
+    }
+    return { ok: false };
+  }
+
+  // Quem mais ganhou batalhas ETB, em todas as lives.
+  function campeoesETB(batalhas) {
+    const m = new Map();
+    for (const b of Object.values(batalhas || {})) {
+      if (b.situacao !== "encerrada" || !b.ganhador) continue;
+      const c = m.get(b.ganhador) || { handle: b.ganhador, vitorias: 0, hits: [] };
+      c.vitorias++;
+      if (b.hit) c.hits.push(b.hit);
+      m.set(b.ganhador, c);
+    }
+    return [...m.values()].sort((a, b) => b.vitorias - a.vitorias || a.handle.localeCompare(b.handle));
+  }
+
+  // ---------------------------------------------------------------------------
   // Sorteio da própria Jamble (giveaway). Ainda não vi um acontecer numa live,
   // então a leitura é defensiva: pega o que tiver cara de produto, de quantos
   // participam e de quem ganhou, e ignora o resto.
@@ -696,6 +821,11 @@
     clientes,
     sorteioJambleDoFrame,
     ofertaDoFrame,
+    itensComCompradores,
+    vagasDoItem,
+    proximoNumeroETB,
+    mudarBatalhaETB,
+    campeoesETB,
     resumirOfertas,
   };
   if (raiz) Object.assign(raiz, api);

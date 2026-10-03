@@ -47,7 +47,7 @@ class Elemento {
   }
 }
 
-const ABAS = ["vivo", "leiloes", "batalha", "clientes"];
+const ABAS = ["vivo", "leiloes", "batalha", "clientes", "etb"];
 
 function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
   const elementos = new Map();
@@ -152,7 +152,7 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
       `aba ${aba}: só ela fica à mostra`,
     );
   }
-  conferir(p.body.dataset.aba === "clientes", "o corpo sabe qual aba está aberta (o rodapé depende disso)");
+  conferir(p.body.dataset.aba === ABAS[ABAS.length - 1], "o corpo sabe qual aba está aberta (o rodapé depende disso)", p.body.dataset.aba);
 
   conferir(p.texto("#c-faturamento") === "R$ 5.913,00", "Ao vivo: faturamento", p.texto("#c-faturamento"));
   conferir(p.texto("#l-faturado") === "R$ 1.942,00", "Leilões: vendido em leilão + compra direta", p.texto("#l-faturado"));
@@ -224,6 +224,73 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
     conferir(/21 mensagens/.test(q.texto("#chatTotal")), "Chat: quantas mensagens", q.texto("#chatTotal"));
     conferir(/vbpracima/.test(q.el("#t-compras tbody").innerHTML) && /750/.test(q.el("#t-compras tbody").innerHTML), "Ranking de compras: quem levou e quanto");
     conferir(/pixel_heart\.png/.test(q.el("#t-ranking-vivo tbody").innerHTML) && /×2/.test(q.el("#t-ranking-vivo tbody").innerHTML), "Ranking de gemas: a figurinha com a quantidade do lado");
+  }
+
+  // ---------- live do @exclusive: compra de 3 unidades vale 3 ----------
+  // A linha da compra de 3 mostrava R$ 149 (o preço de uma) e parecia que só
+  // uma tinha contado.
+  const H2 = require("./amostras-historico.js");
+  const comExclusive = JSON.parse(JSON.stringify(dados));
+  {
+    const live = comExclusive.lives[LIVE];
+    live.leiloes = {};
+    live.vendidos = {};
+    for (const i of H2.VENDIDOS_EXCLUSIVE.items) {
+      live.vendidos[i.sold.saleId] = {
+        saleId: i.sold.saleId, titulo: i.title, tipo: i.saleType, inicial: i.startingPrice, unidades: i.soldCount,
+        preco: i.sold.soldPrice, total: i.sold.totalSoldPrice, comprador: i.sold.buyerUsername, cancelado: false,
+        quando: Math.round(i.sold.createdAt * 1000),
+      };
+    }
+    live.vendidosEm = 1791057000000;
+    const q = abrirPainel({ busca: `?embutido=1&live=${LIVE}`, dados: comExclusive });
+    await q.espera();
+    q.ctx.mostrarAba("leiloes");
+    await q.espera();
+    conferir(q.texto("#l-faturado") === "R$ 1.788,00" && q.el("#l-vendidos").textContent === "12", "exclusive: R$ 1.788 em 12 unidades");
+    const linhas = q.el("#t-leiloes tbody").innerHTML.replace(/\s/g, " ").split("<tr>");
+    const de3 = linhas.find((l) => /3 vendidas/.test(l));
+    conferir(de3 && /R\$ 447,00/.test(de3) && /3 × R\$ 149,00/.test(de3), "a linha da compra de 3 mostra R$ 447 (3 × R$ 149)", de3 && de3.slice(0, 300));
+    conferir(!/—R\$/.test(q.el("#t-leiloes tbody").innerHTML.replace(/<[^>]+>/g, "")), "nada de \"—R$\" parecendo número negativo");
+    q.ctx.mostrarAba("vivo");
+    await q.espera();
+    const compras = q.el("#t-compras tbody").innerHTML.replace(/\s/g, " ");
+    conferir(/3× 🎟️ DUPLO 30y - BATALHA DO BEM \(R\$ 447,00\)/.test(compras), "no ranking de compras: \"3× ... (R$ 447,00)\"", compras.slice(0, 300));
+    conferir(/R\$ 596,00/.test(compras), "e o total da pessoa: R$ 596");
+  }
+
+  // ---------- Batalha ETB ----------
+  {
+    const q = abrirPainel({ busca: `?embutido=1&live=${LIVE}`, dados: JSON.parse(JSON.stringify(comExclusive)) });
+    await q.espera();
+    q.ctx.mostrarAba("etb");
+    await q.espera();
+    conferir(q.el("#aviso").textContent === "", "aba Batalha ETB: desenha sem erro", q.el("#aviso").textContent);
+    conferir(q.el("#caixa-etb-atual").style.display === "none", "sem batalha ainda: só o formulário de começar");
+    conferir(/nº 1/.test(q.el("#etbNovoNumero").textContent), "a próxima será a nº 1");
+    const opcoes = q.el("#etbNovoItem").innerHTML;
+    conferir(/BATALHA DO BEM · 5 unidades, 3 pessoas/.test(opcoes), "dá para puxar as vagas de quem comprou a batalha", opcoes.slice(0, 200));
+
+    q.el("#etbNovoTitulo").value = "ETB 30 anos";
+    q.el("#etbNovoBoosters").value = "9";
+    q.el("#etbNovoItem").value = "🎟️ DUPLO 30y - BATALHA DO BEM";
+    q.el("#etbCriar").click();
+    await q.espera();
+    const vagas = q.el("#etbVagas").innerHTML;
+    conferir(q.el("#caixa-etb-atual").style.display === "" && /Batalha ETB nº 1 · ETB 30 anos/.test(q.el("#etbTitulo").textContent), "começou a Batalha ETB nº 1", q.el("#etbTitulo").textContent);
+    conferir((vagas.match(/data-campo="handle"/g) || []).length === 9, "9 boosters para preencher");
+    conferir((vagas.match(/value="israelbrito"/g) || []).length === 3 && /value="drico3dlab"/.test(vagas), "com quem comprou as vagas já nos boosters (3 da israelbrito)");
+    conferir(/<option value="israelbrito">@israelbrito<\/option>/.test(q.el("#etbGanhador").innerHTML), "dá para escolher o ganhador entre quem está nos boosters");
+
+    q.el("#etbGanhador").value = "drico3dlab";
+    q.el("#etbHit").value = "Charizard ex SIR";
+    q.el("#etbEncerrar").click();
+    await q.espera();
+    conferir(/🏆/.test(q.el("#etbResultado").innerHTML) && /@drico3dlab/.test(q.el("#etbResultado").innerHTML), "o ganhador aparece grande", q.el("#etbResultado").innerHTML.slice(0, 120));
+    conferir(/levou a Batalha ETB nº 1 com Charizard ex SIR/.test(q.texto("#etbResultadoHit")), "com o maior hit", q.texto("#etbResultadoHit"));
+    conferir(/class="vaga ganhou"/.test(q.el("#etbVagas").innerHTML), "o booster do ganhador fica destacado");
+    conferir(/🏆 @drico3dlab/.test(q.el("#t-etb tbody").innerHTML) && /@drico3dlab/.test(q.el("#t-etb-campeoes tbody").innerHTML), "entra no histórico e no ranking de campeões");
+    conferir(/nº 2/.test(q.el("#etbNovoNumero").textContent), "a próxima será a nº 2");
   }
 
   // ---------- histórico desde o começo da live ----------

@@ -515,6 +515,17 @@ const live = (id, doPainel = true) => ({
     conferir(l.batalhaRanking?.lista?.[0]?.pontos === 44520 && l.batalhaRanking.temMais === true, "guarda o ranking da batalha");
   }
 
+  // ---------- batalha ETB: gravada à parte das lives ----------
+  {
+    const { guardado, mandar } = montar();
+    const r = await mandar({ tipo: "batalha-etb", acao: "criar", liveId: "L1", titulo: "ETB 30 anos", boosters: 9, vagas: ["ana", "bia"] });
+    conferir(r?.ok && guardado.batalhasETB?.[r.id]?.numero === 1, "cria e guarda a batalha");
+    const e = await mandar({ tipo: "batalha-etb", acao: "encerrar", id: r.id, ganhador: "bia", hit: "Charizard" });
+    conferir(e?.ok && guardado.batalhasETB[r.id].ganhador === "bia", "define o ganhador");
+    const ruim = await mandar({ tipo: "batalha-etb", acao: "encerrar", id: "nao-existe", ganhador: "x" });
+    conferir(ruim?.ok === false && Object.keys(guardado.batalhasETB).length === 1, "pedido inválido não grava nada");
+  }
+
   // ---------- ranking mensal e amostras ----------
   {
     const { guardado, mandar } = montar();
