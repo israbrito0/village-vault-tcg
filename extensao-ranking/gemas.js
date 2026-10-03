@@ -73,6 +73,57 @@
     return (eventos ?? []).reduce((s, e) => (e.ts >= corte ? s + e.gemas : s), 0);
   }
 
+  // ---------- emotions: quem mandou qual ícone ----------
+  // Vem dos eventos LIKE do WebSocket, um por envio. Só cobre o tempo em que a
+  // aba ficou aberta, então serve para o "ao vivo" e para o sorteio por ícone;
+  // os totais da live inteira continuam saindo da participação.
+
+  function resumirEmocoes(emocoes) {
+    const porIcone = new Map();
+    const porPessoa = new Map();
+    let gemas = 0;
+
+    for (const e of emocoes ?? []) {
+      if (!e) continue;
+      const g = Number(e.gemas) || 0;
+      gemas += g;
+
+      const i = porIcone.get(e.icone) ?? { icone: e.icone, qtd: 0, gemas: 0 };
+      i.qtd++;
+      i.gemas += g;
+      porIcone.set(e.icone, i);
+
+      if (!e.handle) continue;
+      const p = porPessoa.get(e.handle) ?? { handle: e.handle, nome: e.nome || e.handle, qtd: 0, gemas: 0, icones: {} };
+      p.qtd++;
+      p.gemas += g;
+      p.icones[e.icone] = (p.icones[e.icone] ?? 0) + 1;
+      porPessoa.set(e.handle, p);
+    }
+
+    return {
+      total: (emocoes ?? []).length,
+      gemas,
+      porIcone: [...porIcone.values()].sort((a, b) => b.gemas - a.gemas),
+      porPessoa: [...porPessoa.values()].sort((a, b) => b.gemas - a.gemas),
+    };
+  }
+
+  // Quem mandou um ícone específico, e quantas vezes. É o que o sorteio de
+  // carpa usa: "só quem mandou carpa" vira exatamente esta lista.
+  function quemMandou(emocoes, icone) {
+    const m = new Map();
+    for (const e of emocoes ?? []) {
+      if (!e?.handle) continue;
+      if (icone && e.icone !== icone) continue;
+      const p = m.get(e.handle) ?? { handle: e.handle, nome: e.nome || e.handle, qtd: 0, gemas: 0 };
+      p.qtd++;
+      p.gemas += Number(e.gemas) || 0;
+      m.set(e.handle, p);
+    }
+    return [...m.values()].sort((a, b) => b.qtd - a.qtd);
+  }
+
   // Identificador da live a partir do endereço. Importa acertar porque cada
   // live tem a sua contagem: se duas lives caírem no mesmo id, uma apaga a
   // outra. A página da live é /live/<vendedor>/<id> -- o id é o SEGUNDO
@@ -98,6 +149,8 @@
     diffGemas,
     resumirGemas,
     gemasRecentes,
+    resumirEmocoes,
+    quemMandou,
     idDaLive,
     ehPainelDoVendedor,
   };

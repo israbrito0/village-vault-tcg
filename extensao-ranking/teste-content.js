@@ -115,11 +115,14 @@ const botaoFalso = (texto) => {
       conferir(tipos.includes(t), `repassa "${t}" para o background`, tipos.join(", "));
     }
 
-    // Emotion por pessoa não existe mais: a Jamble não entrega isso, e a
-    // tentativa de adivinhar só gerava falso positivo.
+    // Emotion por pessoa voltou: a Jamble manda sim, nos eventos LIKE do
+    // WebSocket -- confirmado numa live de verdade em 03/10/2026.
     p.enviadas.length = 0;
-    p.daPagina("emocao", { icone: "magikarp_shiny" });
-    conferir(p.enviadas.length === 0, "não repassa mais emotion");
+    p.daPagina("emocao", { id: "e1", icone: "magikarp_shiny", gemas: 500, handle: "jako" });
+    const passou = p.enviadas.find((m) => m.tipo === "emocao");
+    conferir(!!passou, "repassa a emotion para o background");
+    conferir(passou && passou.dados.icone === "magikarp_shiny", "com o ícone junto", passou && passou.dados.icone);
+    conferir(passou && passou.contexto.showId === "ABC123", "e com a live certa no contexto");
   }
 
   // ---------- o contexto vai certo em cada tipo de página ----------

@@ -85,6 +85,43 @@ async function guardarVenda(evento, ctx) {
   if (!agendado) agendado = setTimeout(enviar, ESPERA_MS);
 }
 
+// Quem mandou qual icone, ao vivo. Diferente da participacao (que e a foto do
+// total e chega de tempos em tempos), isto e evento: vem na hora, um por envio.
+// So cobre o tempo em que a aba da live ficou aberta -- por isso os totais
+// grandes continuam saindo da participacao, que e a Jamble quem calcula.
+async function guardarEmocao(evento, ctx) {
+  if (!evento?.id) return;
+  const id = ctx?.showId || ctx?.liveId || "sem-live";
+  const g = await ler(["lives"]);
+  const lives = g.lives ?? {};
+  const live = lives[id] ?? {
+    id,
+    titulo: ctx?.titulo ?? "",
+    doPainel: ctx?.doPainel ?? false,
+    quando: Date.now(),
+    linhas: [],
+    eventos: [],
+    sorteios: [],
+  };
+  const emocoes = live.emocoes ?? [];
+
+  // O mesmo evento chega repetido no WebSocket; o id da Jamble resolve.
+  if (emocoes.some((e) => e.id === String(evento.id))) return;
+  emocoes.push({
+    id: String(evento.id),
+    handle: String(evento.handle ?? "").replace(/^@/, ""),
+    nome: evento.nome || evento.handle || "",
+    icone: String(evento.icone ?? ""),
+    gemas: Number(evento.gemas) || 0,
+    ts: Number(evento.ts) || Date.now(),
+  });
+
+  live.emocoes = emocoes.slice(-5000);
+  if (!live.titulo && ctx?.titulo) live.titulo = ctx.titulo;
+  lives[id] = live;
+  await chrome.storage.local.set({ lives });
+}
+
 // Quantas lives guardamos ao mesmo tempo. Ela costuma abrir a live de outra
 // pessoa durante a propria live (para ver o ranking mensal), e aquela live
 // tambem manda participacao. Se tudo caisse num balde so, uma apagaria o
@@ -115,6 +152,7 @@ async function guardarParticipacao(dados, ctx) {
     anterior: agora,
     eventos: (antes?.eventos ?? []).concat(eventos).slice(-3000),
     sorteios: antes?.sorteios ?? [],
+    emocoes: antes?.emocoes ?? [],
   };
 
   // Deixa so as lives mexidas mais recentemente, para o armazenamento nao
@@ -170,13 +208,21 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok: true });
       return;
     }
+    if (msg?.tipo === "emocao") {
+      await guardarEmocao(msg.dados, msg.contexto);
+      responder({ ok: true });
+      return;
+    }
     if (msg?.tipo === "participacao") {
       await guardarParticipacao(msg.dados, msg.contexto);
       responder({ ok: true });
       return;
     }
     if (msg?.tipo === "tabela-emocoes") {
-      await chrome.storage.local.set({ tabelaEmocoes: msg.dados?.tabela ?? {} });
+      await chrome.storage.local.set({
+        tabelaEmocoes: msg.dados?.tabela ?? {},
+        nomesEmocoes: msg.dados?.nomes ?? {},
+      });
       responder({ ok: true });
       return;
     }

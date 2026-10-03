@@ -38,6 +38,7 @@
     if (e.data.tipo === "venda") mandar("venda", e.data.dados);
     else if (e.data.tipo === "candidato") mandar("candidato", e.data.dados);
     else if (e.data.tipo === "ligado") mandar("ligado", e.data.dados);
+    else if (e.data.tipo === "emocao") mandar("emocao", e.data.dados);
     else if (e.data.tipo === "participacao") mandar("participacao", e.data.dados);
     else if (e.data.tipo === "tabela-emocoes") mandar("tabela-emocoes", e.data.dados);
   });

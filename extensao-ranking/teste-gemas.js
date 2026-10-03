@@ -5,6 +5,8 @@ const {
   diffGemas,
   resumirGemas,
   gemasRecentes,
+  resumirEmocoes,
+  quemMandou,
   idDaLive,
   ehPainelDoVendedor,
   GEMAS_POR_CARPA,
@@ -142,6 +144,44 @@ conferir(
   idDaLive("/live/israelbrito/aaa") !== idDaLive("/live/israelbrito/bbb"),
   "duas lives do mesmo vendedor têm ids diferentes",
 );
+
+// ---------- emotions: contagem por ícone e por pessoa ----------
+// São os 10 envios reais capturados na live do @oscatarina em 03/10/2026,
+// mais três de outras pessoas para o sorteio ter com quem trabalhar.
+
+const emo = (id, handle, icone, gemas) => ({ id, handle, nome: handle, icone, gemas, ts: t0 });
+const envios = [
+  ...Array.from({ length: 8 }, (_, i) => emo("h" + i, "israelbrito", "pixel_heart", 10)),
+  emo("c1", "israelbrito", "charmander", 60),
+  emo("c2", "israelbrito", "charmander", 60),
+  emo("k1", "jako", "magikarp_shiny", 500),
+  emo("k2", "jako", "magikarp_shiny", 500),
+  emo("k3", "bruno", "magikarp_shiny", 500),
+];
+
+const re = resumirEmocoes(envios);
+conferir(re.total === 13, "conta todos os envios", String(re.total));
+conferir(re.gemas === 8 * 10 + 2 * 60 + 3 * 500, "soma as gemas pelo preço de cada ícone", String(re.gemas));
+conferir(re.porIcone[0].icone === "magikarp_shiny" && re.porIcone[0].qtd === 3, "ícone que mais rendeu vem primeiro", JSON.stringify(re.porIcone[0]));
+conferir(re.porIcone.length === 3, "três ícones distintos", String(re.porIcone.length));
+conferir(re.porPessoa.length === 3, "três pessoas", String(re.porPessoa.length));
+
+const israel = re.porPessoa.find((p) => p.handle === "israelbrito");
+conferir(israel.qtd === 10 && israel.gemas === 200, "total da pessoa", `${israel.qtd} envios, ${israel.gemas} gemas`);
+conferir(israel.icones.pixel_heart === 8 && israel.icones.charmander === 2, "e a conta dela por ícone", JSON.stringify(israel.icones));
+
+// quemMandou é o que o sorteio por ícone usa
+const carpeiros = quemMandou(envios, "magikarp_shiny");
+conferir(carpeiros.length === 2, "só quem mandou carpa entra", carpeiros.map((c) => c.handle).join(","));
+conferir(carpeiros[0].handle === "jako" && carpeiros[0].qtd === 2, "quem mandou mais vem primeiro", JSON.stringify(carpeiros[0]));
+conferir(!carpeiros.some((c) => c.handle === "israelbrito"), "quem só mandou coração não entra no sorteio de carpa");
+conferir(quemMandou(envios, null).length === 3, "sem ícone, entra todo mundo que mandou emotion");
+conferir(quemMandou(envios, "pokeball").length === 0, "ícone que ninguém mandou dá lista vazia");
+conferir(quemMandou([], "magikarp_shiny").length === 0, "sem emotion nenhuma, lista vazia");
+
+const vazio = resumirEmocoes([]);
+conferir(vazio.total === 0 && vazio.gemas === 0 && vazio.porIcone.length === 0, "sem emotions não quebra");
+conferir(resumirEmocoes(undefined).total === 0, "sem lista nenhuma não quebra");
 
 console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

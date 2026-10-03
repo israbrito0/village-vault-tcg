@@ -178,6 +178,39 @@ const live = (id, doPainel = true) => ({
     conferir(r?.ok === false, "mexer em live que não existe responde que não deu");
   }
 
+  // ---------- emotions: quem mandou qual ícone ----------
+  {
+    const { guardado, mandar } = montar();
+    const emo = (id, icone, gemas, handle) => ({ id, icone, gemas, handle, nome: handle, ts: 1700000000000 });
+
+    await mandar({ tipo: "emocao", dados: emo("e1", "magikarp_shiny", 500, "jako"), contexto: live("A") });
+    await mandar({ tipo: "emocao", dados: emo("e2", "pixel_heart", 10, "ana"), contexto: live("A") });
+    conferir(guardado.lives.A.emocoes.length === 2, "guarda as emotions da live", String(guardado.lives.A.emocoes.length));
+    conferir(guardado.lives.A.emocoes[0].icone === "magikarp_shiny", "com o ícone");
+
+    // o mesmo evento chegando de novo não pode duplicar
+    await mandar({ tipo: "emocao", dados: emo("e1", "magikarp_shiny", 500, "jako"), contexto: live("A") });
+    conferir(guardado.lives.A.emocoes.length === 2, "evento repetido não duplica", String(guardado.lives.A.emocoes.length));
+
+    // emotion de outra live vai para o balde dela
+    await mandar({ tipo: "emocao", dados: emo("e3", "pokeball", 20, "zz"), contexto: live("B", false) });
+    conferir(guardado.lives.A.emocoes.length === 2 && guardado.lives.B.emocoes.length === 1, "cada live com as suas");
+
+    // a participação chegando depois NÃO pode apagar as emotions já guardadas
+    await mandar({ tipo: "participacao", dados: participacao([linha("jako", 500)], t0), contexto: live("A") });
+    conferir(guardado.lives.A.emocoes.length === 2, "participação não apaga as emotions", String(guardado.lives.A.emocoes.length));
+    conferir(guardado.lives.A.linhas.length === 1, "e a participação entra normalmente");
+
+    // e emotion depois da participação continua somando
+    await mandar({ tipo: "emocao", dados: emo("e4", "charmander", 60, "bruno"), contexto: live("A") });
+    conferir(guardado.lives.A.emocoes.length === 3, "emotion depois da participação soma");
+    conferir(guardado.lives.A.linhas.length === 1, "sem mexer na participação");
+
+    // sem id não entra
+    await mandar({ tipo: "emocao", dados: { icone: "pokeball", gemas: 20, handle: "x" }, contexto: live("A") });
+    conferir(guardado.lives.A.emocoes.length === 3, "emotion sem id é ignorada");
+  }
+
   // ---------- tabela de preços ----------
   {
     const { guardado, mandar } = montar();

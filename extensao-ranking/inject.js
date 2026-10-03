@@ -132,11 +132,14 @@
   function guardarTabela(dados) {
     if (!Array.isArray(dados?.emojis)) return;
     const tabela = {};
+    const nomes = {};
     for (const e of dados.emojis) {
-      if (typeof e?.id === "string" && typeof e?.gemPrice === "number") tabela[e.id] = e.gemPrice;
+      if (typeof e?.id !== "string" || typeof e?.gemPrice !== "number") continue;
+      tabela[e.id] = e.gemPrice;
+      if (typeof e.name === "string") nomes[e.id] = e.name;
     }
     if (!Object.keys(tabela).length) return;
-    avisar("tabela-emocoes", { tabela });
+    avisar("tabela-emocoes", { tabela, nomes });
   }
 
   // O ranking por pessoa vem pronto em /api/seller/show-participation: cada
@@ -162,6 +165,36 @@
     });
   }
 
+  // Quem mandou qual ícone, ao vivo. Chega no canal "show" do WebSocket, em
+  // data.events[], com event_type "LIKE". Confirmado numa live de verdade em
+  // 03/10/2026: 10 envios, 10 eventos, cada um com o ícone, o valor em gemas e
+  // o perfil de quem mandou.
+  //
+  // Antes eu tinha concluído que isso não existia -- estava errado: na live em
+  // que testei ninguém mandou emotion nenhuma, então nunca passou um LIKE.
+  function guardarEventos(dados, origem) {
+    const lista = dados?.data?.events;
+    if (!Array.isArray(lista)) return;
+    for (const e of lista) {
+      if (!e || e.event_type !== "LIKE" || !e.id) continue;
+      const id = `like:${e.id}`;
+      if (jaVistos.has(id)) continue; // o mesmo evento chega repetido
+      jaVistos.add(id);
+      const p = e.liker_profile ?? {};
+      avisar("emocao", {
+        id: String(e.id),
+        handle: String(p.username ?? "").replace(/^@/, ""),
+        nome: p.display_name || p.username || "",
+        icone: String(e.like_icon_id ?? ""),
+        // A Jamble chama de "battle_entry_count", mas é o preço em gemas:
+        // bateu com a tabela de /api/live/emojis nos ícones testados.
+        gemas: Number(e.like_icon_battle_entry_count) || 0,
+        ts: e.created_at ? Math.round(Number(e.created_at) * 1000) : Date.now(),
+        origem,
+      });
+    }
+  }
+
   function analisar(texto, origem) {
     if (!texto || texto.length > 400000) return;
     let dados;
@@ -170,6 +203,7 @@
     } catch {
       return;
     }
+    guardarEventos(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da
     // própria página da live. Vale o que chegar.

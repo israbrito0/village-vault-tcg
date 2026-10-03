@@ -167,6 +167,77 @@ async function pedir(url, corpo) {
   conferir(!leilao.some((m) => m.tipo === "emocao"), "não existe mais mensagem de emotion");
   conferir(!leilao.some((m) => m.tipo === "venda"), "leilão sem valor não vira venda");
 
+  // ---------- eventos LIKE: quem mandou qual ícone ----------
+  // Formato exato capturado numa live de verdade em 03/10/2026.
+  const frameLike = (id, icone, gemas, username) =>
+    JSON.stringify({
+      data: {
+        events: [
+          {
+            id,
+            is_visible: true,
+            event_type: "LIKE",
+            created_at: 1791011816.703589,
+            user_id: "u-abc",
+            seller_id: "s-abc",
+            show_id: "show-abc",
+            targets: ["ALL"],
+            icon: "live_like_purple_icon",
+            like_icon_url: "https://jamble-test.b-cdn.net/like_icons/" + icone + ".png",
+            like_icon_id: icone,
+            like_icon_battle_entry_count: gemas,
+            liker_profile: { id: "u-abc", username: username, display_name: "israel brito" },
+          },
+        ],
+      },
+    });
+
+  recebidos.length = 0;
+  aoAbrir.emitir(frameLike("RcdoiFnpQQV43WNtUZ58", "charmander", 60, "israelbrito"));
+  const emo = recebidos.filter((m) => m.tipo === "emocao").map((m) => m.dados);
+  conferir(emo.length === 1, "evento LIKE vira uma emotion", JSON.stringify(emo));
+  conferir(emo[0] && emo[0].icone === "charmander", "pega o ícone", emo[0] && emo[0].icone);
+  conferir(emo[0] && emo[0].gemas === 60, "pega o valor em gemas", String(emo[0] && emo[0].gemas));
+  conferir(emo[0] && emo[0].handle === "israelbrito", "pega quem mandou", emo[0] && emo[0].handle);
+  conferir(emo[0] && emo[0].nome === "israel brito", "e o nome de exibição");
+  conferir(
+    emo[0] && emo[0].ts === Math.round(1791011816.703589 * 1000),
+    "usa a hora do envio, não a da leitura",
+  );
+
+  // O mesmo evento chega repetido no WebSocket: não pode contar duas vezes.
+  recebidos.length = 0;
+  aoAbrir.emitir(frameLike("RcdoiFnpQQV43WNtUZ58", "charmander", 60, "israelbrito"));
+  conferir(recebidos.filter((m) => m.tipo === "emocao").length === 0, "evento repetido é ignorado");
+
+  // Outro id, mesmo ícone: é um envio novo e conta.
+  recebidos.length = 0;
+  aoAbrir.emitir(frameLike("OUTRO-ID-9", "magikarp_shiny", 500, "jako"));
+  const emo2 = recebidos.filter((m) => m.tipo === "emocao").map((m) => m.dados);
+  conferir(emo2.length === 1 && emo2[0].icone === "magikarp_shiny" && emo2[0].gemas === 500, "envio novo conta");
+
+  // Evento de outro tipo no mesmo canal não vira emotion.
+  recebidos.length = 0;
+  aoAbrir.emitir(JSON.stringify({ data: { events: [{ id: "z9", event_type: "JOIN", liker_profile: { username: "x" } }] } }));
+  conferir(recebidos.filter((m) => m.tipo === "emocao").length === 0, "evento que não é LIKE é ignorado");
+
+  // Sem id não dá para evitar contagem dupla, então não entra.
+  recebidos.length = 0;
+  aoAbrir.emitir(JSON.stringify({ data: { events: [{ event_type: "LIKE", like_icon_id: "pokeball", liker_profile: { username: "y" } }] } }));
+  conferir(recebidos.filter((m) => m.tipo === "emocao").length === 0, "LIKE sem id é ignorado");
+
+  // A tabela de preços traz também o nome bonito de cada ícone.
+  const tab2 = await pedir(
+    "https://www.jamble.com/api/live/emojis",
+    JSON.stringify({ success: true, emojis: [{ id: "magikarp_shiny", name: "Carpa Zika", gemPrice: 500 }] }),
+  );
+  const d2 = tab2.find((m) => m.tipo === "tabela-emocoes");
+  conferir(
+    d2 && d2.dados && d2.dados.nomes && d2.dados.nomes.magikarp_shiny === "Carpa Zika",
+    "a tabela traz o nome do ícone",
+    JSON.stringify(d2 && d2.dados && d2.dados.nomes),
+  );
+
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);
 })();

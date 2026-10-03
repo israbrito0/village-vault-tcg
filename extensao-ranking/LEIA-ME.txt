@@ -9,6 +9,9 @@ NA HORA DA LIVE, EM 3 PASSOS
 2. Clique no icone da extensao -> "Painel da live (gemas e sorteio)".
 3. No painel, deixe "atualizar sozinho: a cada 30s". Pronto.
 
+Abra o painel JUNTO com a live, antes de comecar: o "quem mandou o que" so
+enxerga as emotions que passarem com a aba aberta.
+
 O contador de gemas comeca a subir sozinho.
 
 Para mostrar na transmissao: clique em "Modo transmissao" no fim da pagina --
@@ -88,15 +91,18 @@ Painel da live (gemas e sorteio)
 Clique no ícone da extensão e depois em "Painel da live". Ele abre numa aba
 própria e mostra, da live que estiver aberta numa aba da Jamble:
 
+  - QUEM MANDOU O QUÊ, AO VIVO: hora, pessoa, ÍCONE e quanto valeu em gemas
+  - EMOTIONS POR ÍCONE: quantas carpas, quantos corações, quantas masterballs
   - GEMAS ENVIADAS no total e quanto entrou nos ÚLTIMOS 5 MINUTOS
   - quantas pessoas enviaram gemas, de quantas estão na live
   - ranking pessoa a pessoa, podendo ordenar por gemas, por pontos ou por
     quanto cada um comprou
-  - GEMAS AO VIVO: hora, quem enviou, quanto enviou e o total dessa pessoa
-  - sorteio, com três opções:
-      só quem enviou gemas (ou todo mundo da live)
-      mais gemas = mais chance (ou chance igual para todos)
-      não repetir quem já ganhou
+  - sorteio, escolhendo entre quem entra:
+      QUEM MANDOU CARPA (ou qualquer outro ícone que tenha aparecido)
+      quem mandou qualquer emotion
+      quem enviou gemas, a live toda
+      todo mundo da live
+    e ainda: quem mandou mais tem mais chance, e não repetir quem já ganhou
   - "Salvar relatório em PDF": usa a impressão do navegador, já sem os botões
 
 Como deixar ligado durante a live
@@ -149,16 +155,30 @@ Dois botoes no fim da pagina
                                 segundo sorteio contando so o que vier dali
                                 em diante (a segunda hora da live).
 
-Sobre "carpas"
---------------
-Uma carpa (Carpa Zika, magikarp_shiny) custa 500 gemas. A Jamble entrega
-quantas gemas cada pessoa enviou, mas NÃO diz qual ícone foi -- isso foi
-testado numa live ao vivo em 01/10/2026: para quem assiste chega só o total
-(like_count), nunca quem mandou o quê. Por isso o número de carpas do painel é
-o total de gemas dividido por 500: é equivalência, não contagem carpa a carpa.
-Quem enviar 500 gemas em coraçãozinho aparece igual a quem enviou uma carpa.
-O 500 não fica escrito na unha: a extensão lê o preço em /api/live/emojis, então
-se a Jamble mudar, o painel acompanha sozinho.
+De onde vem o "quem mandou o quê"
+----------------------------------
+Dos eventos LIKE que a Jamble manda no WebSocket da live (canal "show", em
+data.events[]). Cada envio vira um evento com:
+
+  like_icon_id                  qual ícone (magikarp_shiny, pixel_heart, ...)
+  like_icon_battle_entry_count  quanto vale em gemas
+  liker_profile.username        quem mandou
+  created_at                    a que horas
+  id                            para não contar o mesmo envio duas vezes
+
+Confirmado numa live de verdade em 03/10/2026: 10 envios, 10 eventos, todos
+com nome e ícone certos.
+
+IMPORTANTE -- a diferença entre as duas fontes:
+
+  Os eventos LIKE só chegam enquanto a aba da live está aberta. Se você abrir
+  o painel no meio da live, as emotions de antes NÃO aparecem no "quem mandou
+  o quê" nem no sorteio por ícone.
+
+  Os números grandes do topo (gemas, pontos, comprado) vêm da participação,
+  que a Jamble calcula para a live inteira -- esses não perdem nada.
+
+  Então: abra o painel JUNTO com a live, antes de começar.
 
 Nada disso vai para o site -- fica só neste computador. E CPF, telefone e
 e-mail são escondidos antes de entrar no arquivo de depuração (o canal
@@ -168,7 +188,7 @@ Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as sete suítes, 164 casos:
+Roda as sete suítes, 201 casos:
   manifest e ligações entre os arquivos (arquivo que falta, ordem errada)
   leitura dos payloads da Jamble (vendas, participação, tabela de preços)
   a ponte entre a página e a extensão (content.js)

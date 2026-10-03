@@ -108,9 +108,8 @@
     <div class="painel nao-imprimir">
       <h2>Sorteio entre quem participou</h2>
       <div class="controles">
-        <label><input type="radio" name="quem" value="gemas" checked /> só quem enviou gemas</label>
-        <label><input type="radio" name="quem" value="todos" /> todo mundo da live</label>
-        <label><input type="checkbox" id="peso" /> mais gemas, mais chance</label>
+        <label>sortear entre <select id="quemSorteia"><option value="gemas">quem enviou gemas, a live toda</option><option value="todos">todo mundo da live</option></select></label>
+        <label><input type="checkbox" id="peso" /> quem mandou mais, mais chance</label>
         <label><input type="checkbox" id="semRepetir" checked /> não repetir ganhador</label>
         <button id="sortear">Sortear</button>
         <button class="secundario" id="limparSorteios">Limpar</button>
@@ -153,11 +152,18 @@
         </div>
       </div>
       <div>
+        <div class="painel" id="caixa-icones" style="display:none">
+          <h2>Emotions por ícone</h2>
+          <table id="t-icones">
+            <thead><tr><th>Ícone</th><th class="n">Qtd</th><th class="n">Gemas</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
         <div class="painel">
-          <h2>Gemas ao vivo</h2>
+          <h2>Quem mandou o quê, ao vivo</h2>
           <div class="lista" style="max-height:260px">
             <table id="t-feed">
-              <thead><tr><th>Hora</th><th>Pessoa</th><th class="n">Enviou</th><th class="n">Total</th></tr></thead>
+              <thead><tr><th>Hora</th><th>Pessoa</th><th>Ícone</th><th class="n">Gemas</th></tr></thead>
               <tbody></tbody>
             </table>
           </div>
