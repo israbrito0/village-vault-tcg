@@ -288,6 +288,16 @@ const live = (id, doPainel = true) => ({
     const { guardado, mandar } = montar();
     await mandar({ tipo: "tabela-emocoes", dados: { tabela: { magikarp_shiny: 500, pixel_heart: 10 } } });
     conferir(guardado.tabelaEmocoes.magikarp_shiny === 500, "guarda a tabela de preços");
+
+    await mandar({
+      tipo: "tabela-emocoes",
+      dados: {
+        tabela: { magikarp_shiny: 500 },
+        icones: { magikarp_shiny: "https://jamble-test.b-cdn.net/like_icons/magikarp_shiny.png", ruim: "javascript:alert(1)" },
+      },
+    });
+    conferir(guardado.iconesEmocoes?.magikarp_shiny?.endsWith("magikarp_shiny.png"), "guarda a figurinha de cada ícone");
+    conferir(!("ruim" in (guardado.iconesEmocoes ?? {})), "endereço que não é da Jamble fica de fora");
   }
 
   // ---------- participação não contamina a fila que vai para o site ----------
@@ -413,6 +423,53 @@ const live = (id, doPainel = true) => ({
     }
     conferir(!guardado.lives.VELHA, "a live mais antiga sai das lives guardadas inteiras", Object.keys(guardado.lives).join(","));
     conferir(guardado.historico?.VELHA?.pessoas?.fiel?.gastou === 300, "mas o resumo dela fica no histórico de clientes");
+  }
+
+  // ---------- figurinha e foto que vêm junto com cada envio ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("FOTOS", false);
+    await mandar({
+      tipo: "emocao",
+      dados: {
+        ...emocao("f1", "diniztcg", 10),
+        icone: "pixel_heart",
+        iconeUrl: "https://jamble-test.b-cdn.net/like_icons/pixel_heart.png",
+        foto: "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/a-low.png",
+        time: "blue",
+      },
+      contexto: ctx,
+    });
+    await mandar({ tipo: "emocao", dados: { ...emocao("f2", "outro", 10), foto: 'https://x.com/a.png" onerror="x' }, contexto: ctx });
+    await esperar(1800);
+    conferir(guardado.iconesEmocoes?.pixel_heart?.endsWith("pixel_heart.png"), "a figurinha que veio no envio fica guardada");
+    conferir(guardado.fotos?.diniztcg?.endsWith("a-low.png"), "a foto de quem mandou fica guardada");
+    conferir(!guardado.fotos?.outro, "foto com endereço estranho fica de fora");
+    conferir(guardado.lives.FOTOS.emocoes[0].time === "blue", "o envio guarda o time da batalha");
+    conferir(!("foto" in guardado.lives.FOTOS.emocoes[0]), "a foto não é repetida em cada envio (fica no mapa de fotos)");
+  }
+
+  // ---------- chat com o texto, e mensagem apagada sai ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("CHAT", false);
+    const m = (id, quem, texto) => ({
+      id,
+      created_at: 1791049977,
+      group_message_id: "G",
+      message_type: "STANDARD",
+      is_visible: true,
+      content: texto,
+      sender_profile: { id: quem, username: quem, foto: "https://jamble.b-cdn.net/profiles/user_id=" + quem + "/p.png" },
+    });
+    await mandar({ tipo: "quadro", dados: { grupoDaLive: "G", data: { messages: [m("c1", "ana", "boa noite"), m("c2", "bia", "quanto o lote?")] } }, contexto: ctx });
+    await mandar({ tipo: "quadro", dados: { grupoDaLive: "G", data: { updated_messages: [{ id: "c1", group_message_id: "G", is_visible: false }] } }, contexto: ctx });
+    await mandar({ tipo: "quadro", dados: { grupoDaLive: "G", data: { updated_messages: [{ id: "c2", group_message_id: "G", is_visible: true, content: "quanto o lote 2?" }] } }, contexto: ctx });
+    await esperar(1800);
+    const chat = guardado.lives.CHAT.chat;
+    conferir(chat.total === 2, "as duas mensagens contam", String(chat.total));
+    conferir(chat.msgs.length === 1 && chat.msgs[0].texto === "quanto o lote 2?", "a apagada sai da lista, a editada troca o texto", JSON.stringify(chat.msgs));
+    conferir(guardado.fotos?.bia?.endsWith("/p.png"), "a foto de quem fala no chat fica guardada");
   }
 
   // ---------- ranking mensal e amostras ----------

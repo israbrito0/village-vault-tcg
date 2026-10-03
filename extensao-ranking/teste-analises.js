@@ -8,6 +8,8 @@ const {
   mesclarLeilao,
   resumirLeiloes,
   quemDisputou,
+  rankingDeCompras,
+  edicoesDoFrame,
   batalhaDoFrame,
   resumirBatalha,
   mensagensDoFrame,
@@ -243,6 +245,28 @@ conferir(quemDisputou({ [cd.id]: cd }, perfis).length === 0, "compra direta não
 const rolandoAinda = mesclarLeilao(null, { ...p1, disputantes: [SAMANTA] });
 conferir(quemDisputou({ a: rolandoAinda }, perfis).length === 0, "leilão rolando ainda não tem perdedor");
 
+// ---------- ranking de compras ----------
+
+{
+  // Live de outro vendedor: só os leilões, com o que cada um levou.
+  const rc = rankingDeCompras({ linhas: [], leiloes }, perfis);
+  conferir(rc.length === 1 && rc[0].handle === "vbpracima" && rc[0].total === 750, "quem levou o leilão entra com o valor", JSON.stringify(rc));
+  conferir(rc[0].itens[0].titulo === "30 anos a R$ 5,00 💵" && rc[0].itens[0].valor === 750, "e o que levou");
+  // Live dela: o total da Participação manda (inclui compra direta), e os
+  // itens vêm dos leilões.
+  const dela = rankingDeCompras(
+    { linhas: [{ handle: "vbpracima", nome: "vb", gastou: 1200 }, { handle: "ana", nome: "Ana", gastou: 300 }, { handle: "zero", gastou: 0 }], leiloes },
+    perfis,
+  );
+  conferir(dela[0].handle === "vbpracima" && dela[0].total === 1200 && dela[0].itens.length === 1, "na live dela, o total vem da Participação", JSON.stringify(dela[0]));
+  conferir(dela[1].handle === "ana" && dela[1].total === 300 && dela[1].nome === "Ana", "quem só comprou compra direta também aparece");
+  conferir(!dela.some((x) => x.handle === "zero"), "quem não comprou nada não aparece");
+  // Participação atrasada: o leilão que acabou de fechar vale mais.
+  const atrasada = rankingDeCompras({ linhas: [{ handle: "vbpracima", gastou: 100 }], leiloes }, perfis);
+  conferir(atrasada[0].total === 750, "Participação atrás do leilão: fica o maior", String(atrasada[0].total));
+  conferir(rankingDeCompras(undefined).length === 0, "sem live: lista vazia");
+}
+
 // ---------- batalha ----------
 
 const b = batalhaDoFrame(batalhaReal);
@@ -276,8 +300,18 @@ const msgs = mensagensDoFrame(frameChat);
 conferir(msgs.length === 3, "só as mensagens do grupo da live", String(msgs.length));
 conferir(msgs[0].handle === "samantaavila" && msgs[0].nome === "samantaavila.x" && msgs[0].tipo === "STANDARD", "quem mandou, nome e tipo");
 conferir(msgs[0].ts === 1791049977775, "hora da mensagem em milissegundos");
-conferir(!("content" in msgs[0]) && !("texto" in msgs[0]), "o texto da mensagem não é guardado");
+conferir(!("content" in msgs[0]), "a mensagem crua não passa adiante, só o que o painel usa");
 conferir(mensagensDoFrame({ data: frameChat.data }).length === 0, "sem saber o grupo da live, não conta nada");
+const comTexto = mensagensDoFrame({
+  grupoDaLive: GRUPO,
+  data: { messages: [{ ...mensagem("t1", SAMANTA, "samantaavila", 1791049977), content: "quanto o lote?", is_visible: false }] },
+});
+conferir(comTexto[0].texto === "quanto o lote?" && comTexto[0].visivel === false, "mensagem traz o texto e se está visível");
+const ed = edicoesDoFrame({
+  grupoDaLive: GRUPO,
+  data: { updated_messages: [{ id: "t1", group_message_id: GRUPO, is_visible: false }, { id: "p", group_message_id: "OUTRO", is_visible: false }] },
+});
+conferir(ed.length === 1 && ed[0].id === "t1" && ed[0].visivel === false, "edição/remoção só do chat da live");
 
 const agora = 1791050000000;
 const chat = {

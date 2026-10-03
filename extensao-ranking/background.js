@@ -209,10 +209,22 @@ function descarregar() {
   if (!lote.length) return Promise.resolve();
 
   return emOrdem(async () => {
-    const g = await ler(["lives", "perfis"]);
+    const g = await ler(["lives", "perfis", "iconesEmocoes", "fotos"]);
     const lives = g.lives ?? {};
     const perfis = g.perfis ?? {};
+    const icones = g.iconesEmocoes ?? {};
+    const fotos = g.fotos ?? {};
     let perfisNovos = 0;
+    let iconesNovos = 0;
+    let fotosNovas = 0;
+    const anotarFoto = (handle, url) => {
+      const certa = urlDeImagem(url);
+      const h = String(handle ?? "").replace(/^@/, "");
+      if (!certa || !h || fotos[h] === certa) return;
+      delete fotos[h]; // vai para o fim: a mais recente fica
+      fotos[h] = certa;
+      fotosNovas++;
+    };
     const tocadas = new Set();
 
     for (const { tipo, dados, ctx } of lote) {
@@ -226,10 +238,29 @@ function descarregar() {
       }
       const live = liveDe(lives, ctx);
       tocadas.add(live.id);
-      if (tipo === "emocao") juntarEmocao(live, dados);
-      else if (tipo === "quadro") juntarQuadro(live, dados);
+      if (tipo === "emocao") {
+        juntarEmocao(live, dados);
+        anotarFoto(dados?.handle, dados?.foto);
+        // A figurinha do ícone vem junto em cada envio: vale para o painel
+        // mostrar mesmo antes de a tabela de preços passar por aqui.
+        const url = urlDeImagem(dados?.iconeUrl);
+        const icone = String(dados?.icone ?? "");
+        if (url && icone && icones[icone] !== url) {
+          icones[icone] = url;
+          iconesNovos++;
+        }
+      } else if (tipo === "quadro") {
+        juntarQuadro(live, dados);
+        for (const m of dados?.data?.messages ?? []) anotarFoto(m?.sender_profile?.username, m?.sender_profile?.foto);
+      }
     }
 
+    if (iconesNovos) await chrome.storage.local.set({ iconesEmocoes: icones });
+    if (fotosNovas) {
+      const nomes = Object.keys(fotos);
+      for (const h of nomes.slice(0, Math.max(0, nomes.length - FOTOS_MAX))) delete fotos[h];
+      await chrome.storage.local.set({ fotos });
+    }
     if (perfisNovos) {
       const ids = Object.keys(perfis);
       const sobra = ids.length - PERFIS_MAX;
@@ -256,11 +287,19 @@ function juntarEmocao(live, evento) {
     icone: String(evento.icone ?? ""),
     gemas: Number(evento.gemas) || 0,
     ts: Number(evento.ts) || Date.now(),
+    // Em batalha, para qual time foi o envio.
+    ...(evento.time === "red" || evento.time === "blue" ? { time: evento.time } : {}),
   });
   if (emocoes.length > 5000) live.emocoes = emocoes.slice(-5000);
 }
 
 const semVazios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null));
+
+// Quantas mensagens do chat (com o texto) cada live guarda para o painel.
+const CHAT_GUARDADAS = 300;
+// Fotos de perfil (@ -> endereço), para a lista ao vivo. Acima disso, saem as
+// mais antigas.
+const FOTOS_MAX = 8000;
 
 // Um pedaço do WebSocket da live (já enxugado pelo inject.js): pode trazer o
 // leilão, a batalha, mensagens do chat, uma oferta ou um sorteio da Jamble.
@@ -292,6 +331,7 @@ function juntarQuadro(live, q) {
   const mensagens = mensagensDoFrame(q);
   if (mensagens.length) {
     const chat = (live.chat = live.chat ?? { total: 0, porPessoa: {}, porTipo: {}, ts: [], ids: [] });
+    chat.msgs = chat.msgs ?? [];
     const vistas = new Set(chat.ids);
     for (const m of mensagens) {
       // Duas abas da mesma live (a página e o painel do vendedor) recebem a
@@ -305,9 +345,22 @@ function juntarQuadro(live, q) {
       if (m.nome) p.nome = m.nome;
       chat.porTipo[m.tipo] = (chat.porTipo[m.tipo] || 0) + 1;
       chat.ts.push(m.ts);
+      // As últimas mensagens, com o texto, para o painel mostrar o chat.
+      if (m.visivel) chat.msgs.push({ id: m.id, handle: m.handle, nome: m.nome, texto: m.texto, ts: m.ts });
     }
     chat.ids = chat.ids.slice(-4000);
     chat.ts = chat.ts.slice(-2000);
+    chat.msgs = chat.msgs.sort((a, b) => a.ts - b.ts).slice(-CHAT_GUARDADAS);
+  }
+
+  // Editada: troca o texto. Apagada: sai da lista (a contagem fica).
+  for (const e of edicoesDoFrame(q)) {
+    const msgs = live.chat?.msgs;
+    if (!msgs) break;
+    const i = msgs.findIndex((m) => m.id === e.id);
+    if (i < 0) continue;
+    if (!e.visivel) msgs.splice(i, 1);
+    else if (e.texto) msgs[i].texto = e.texto;
   }
 
   const sorteio = sorteioJambleDoFrame(q);
@@ -466,9 +519,19 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       return;
     }
     if (msg?.tipo === "tabela-emocoes") {
-      await chrome.storage.local.set({
-        tabelaEmocoes: msg.dados?.tabela ?? {},
-        nomesEmocoes: msg.dados?.nomes ?? {},
+      await emOrdem(async () => {
+        // As figurinhas: só endereço válido, por cima das que já tinha (uma
+        // tabela sem iconUrl não apaga as que vieram nos envios).
+        const { iconesEmocoes } = await ler(["iconesEmocoes"]);
+        const icones = { ...(iconesEmocoes ?? {}) };
+        for (const [id, url] of Object.entries(msg.dados?.icones ?? {})) {
+          if (urlDeImagem(url)) icones[id] = url;
+        }
+        await chrome.storage.local.set({
+          tabelaEmocoes: msg.dados?.tabela ?? {},
+          nomesEmocoes: msg.dados?.nomes ?? {},
+          iconesEmocoes: icones,
+        });
       });
       responder({ ok: true });
       return;

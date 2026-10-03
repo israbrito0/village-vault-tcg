@@ -123,6 +123,49 @@
       body.transmissao #detalheSorteio { font-size: clamp(12px, 1.5vw, 17px); }
       body.transmissao .painel h2 { font-size: clamp(13px, 1.5vw, 17px); }
       body.transmissao .lista { max-height: none; }
+      /* Emotions e Chat: pílulas por ícone e a lista ao vivo, uma linha por
+         envio ou mensagem, com a foto de quem mandou. */
+      .titulo-bloco { text-transform: none; letter-spacing: 0; font-size: 15px; color: var(--texto); }
+      .pilulas { display: flex; flex-wrap: wrap; gap: 7px; margin: 4px 0 12px; }
+      .pilulas button.pilula {
+        display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 6px;
+        border-radius: 999px; background: rgba(255,255,255,.05); border: 1px solid var(--borda);
+        color: var(--texto); font: 600 12px/1.3 ui-monospace, "Cascadia Mono", Consolas, monospace; cursor: pointer;
+      }
+      .pilulas button.pilula img { width: 20px; height: 20px; object-fit: contain; }
+      .pilulas button.pilula b { font-weight: 800; }
+      .pilulas button.pilula.ativa { border-color: var(--destaque); background: rgba(255,200,61,.15); box-shadow: inset 0 0 0 1px var(--destaque); }
+      .feed { max-height: 340px; overflow: auto; border-top: 1px solid var(--borda); }
+      .linha-feed {
+        display: grid; grid-template-columns: 34px minmax(0, 1fr) auto auto; align-items: center; gap: 10px;
+        padding: 7px 4px; border-bottom: 1px solid rgba(255,255,255,.06);
+      }
+      .linha-feed.chat { grid-template-columns: 34px minmax(0, 1fr) auto; align-items: start; }
+      .avatar { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; box-shadow: 0 0 0 2px rgba(255,200,61,.35); }
+      .avatar.letra { display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 800; font-size: 13px; }
+      .linha-feed .quem { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .linha-feed .oque { display: inline-flex; align-items: center; gap: 5px; color: var(--gema); font-size: 12px; font-weight: 700; }
+      .linha-feed .oque img { width: 26px; height: 26px; object-fit: contain; }
+      .linha-feed .hora { color: var(--fraco); font: 12px ui-monospace, "Cascadia Mono", Consolas, monospace; }
+      .linha-feed.chat .quem { font-size: 12px; color: var(--fraco); font-weight: 600; }
+      .linha-feed.chat .texto { display: block; white-space: normal; color: var(--texto); font-size: 13px; font-weight: 400; overflow-wrap: anywhere; margin-top: 1px; }
+      .feed .vazio { padding: 10px 4px; }
+      td .pessoa { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+      td .pessoa .avatar { width: 24px; height: 24px; }
+      body.transmissao .linha-feed { font-size: clamp(13px, 1.5vw, 18px); }
+      body.transmissao .linha-feed .oque img { width: clamp(26px, 3vw, 40px); height: clamp(26px, 3vw, 40px); }
+      body.transmissao .feed { max-height: none; }
+
+      /* A figurinha de cada emotion com a quantidade do lado: "[carpa] ×3". */
+      .chips { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 3px; }
+      .chip { display: inline-flex; align-items: center; gap: 2px; font-size: 12px; font-weight: 700; color: var(--texto); white-space: nowrap; }
+      .chip img { width: 24px; height: 24px; object-fit: contain; }
+      .chip.texto { font-weight: 600; color: var(--fraco); }
+      .icone-celula { display: inline-flex; align-items: center; gap: 6px; }
+      .icone-celula img { width: 22px; height: 22px; object-fit: contain; }
+      body.transmissao .chip { font-size: clamp(12px, 1.5vw, 18px); }
+      body.transmissao .chip img { width: clamp(24px, 3vw, 40px); height: clamp(24px, 3vw, 40px); }
+
       /* Abas: cada assunto numa tela, para caber na faixa ao lado da live. */
       .abas { display: flex; flex-wrap: wrap; gap: 2px; margin: 0 0 14px; border-bottom: 1px solid var(--borda); }
       .abas button { background: transparent; color: var(--fraco); border: 0; border-bottom: 2px solid transparent; border-radius: 0; padding: 7px 11px; font-weight: 600; }
@@ -193,19 +236,46 @@
       <div class="cartao"><div class="rotulo">Espectadores</div><div class="valor" id="c-espectadores">—</div></div>
     </div>
 
+    <div class="painel" id="caixa-emotions">
+      <h2><span class="titulo-bloco">✨ Emotions</span><span class="fraco" id="emoTotal"></span></h2>
+      <div class="pilulas" id="emoPilulas"></div>
+      <div class="feed" id="emoFeed"></div>
+    </div>
+
     <div class="painel" id="caixa-ranking-vivo">
       <h2>
-        <span>Ranking ao vivo · quem mandou o quê</span>
+        <span>Ranking de gemas · quem mandou o quê</span>
         <span class="fraco" id="rankingVivoTotal"></span>
       </h2>
       <div class="lista">
         <table id="t-ranking-vivo">
           <thead>
-            <tr><th>#</th><th>Pessoa</th><th class="n">Gemas</th><th class="n">Envios</th><th>O que mandou</th></tr>
+            <tr><th>#</th><th>Pessoa · o que mandou</th><th class="n">Gemas</th></tr>
           </thead>
           <tbody></tbody>
         </table>
       </div>
+    </div>
+
+    <div class="painel" id="caixa-compras">
+      <h2>
+        <span>Ranking de compras</span>
+        <span class="fraco" id="comprasTotal"></span>
+      </h2>
+      <div class="lista">
+        <table id="t-compras">
+          <thead>
+            <tr><th>#</th><th>Pessoa · o que levou</th><th class="n">Comprou</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <div class="falta" id="comprasNota"></div>
+    </div>
+
+    <div class="painel" id="caixa-chat">
+      <h2><span class="titulo-bloco">💬 Chat</span><span class="fraco" id="chatTotal"></span></h2>
+      <div class="feed" id="chatFeed"></div>
     </div>
 
     <div class="painel" id="caixaMeta">
@@ -269,22 +339,6 @@
         <div class="painel" id="caixa-metricas" style="display:none">
           <h2>Métricas da live</h2>
           <table id="t-metricas"><tbody></tbody></table>
-        </div>
-        <div class="painel" id="caixa-icones" style="display:none">
-          <h2>Emotions por ícone</h2>
-          <table id="t-icones">
-            <thead><tr><th>Ícone</th><th class="n">Qtd</th><th class="n">Gemas</th></tr></thead>
-            <tbody></tbody>
-          </table>
-        </div>
-        <div class="painel">
-          <h2>Quem mandou o quê, ao vivo</h2>
-          <div class="lista" style="max-height:260px">
-            <table id="t-feed">
-              <thead><tr><th>Hora</th><th>Pessoa</th><th>Ícone</th><th class="n">Gemas</th></tr></thead>
-              <tbody></tbody>
-            </table>
-          </div>
         </div>
         <div class="painel">
           <h2>Sorteios realizados</h2>

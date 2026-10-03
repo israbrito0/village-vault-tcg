@@ -56,7 +56,7 @@ const temStorage = typeof chrome !== "undefined" && chrome.storage?.local;
 
 async function ler() {
   const g = temStorage
-    ? await chrome.storage.local.get(["lives", "tabelaEmocoes", "nomesEmocoes", "eu"])
+    ? await chrome.storage.local.get(["lives", "tabelaEmocoes", "nomesEmocoes", "iconesEmocoes", "eu"])
     : window.__teste ?? {};
   const lives = g.lives ?? {};
   const live = escolherLive(lives);
@@ -70,6 +70,7 @@ async function ler() {
     emocoes: live?.emocoes ?? [],
     tabela: g.tabelaEmocoes ?? {},
     nomes: g.nomesEmocoes ?? {},
+    icones: g.iconesEmocoes ?? {},
     eu: g.eu ?? null,
   };
 }
@@ -105,6 +106,126 @@ function linhas(tbody, dados, montar, colunas) {
 const CARPA = "magikarp_shiny";
 const nomeIcone = (id, nomes) => (nomes && nomes[id]) || id;
 
+// A figurinha do ícone, quando a Jamble já mandou o endereço dela; senão, o
+// nome. urlDeImagem (gemas.js) só deixa passar https da Jamble ou do CDN dela.
+function figura(id, nomes, icones) {
+  const nome = nomeIcone(id, nomes);
+  const url = urlDeImagem(icones && icones[id]);
+  return url
+    ? `<img src="${esc(url)}" alt="${esc(nome)}" title="${esc(nome)}" referrerpolicy="no-referrer" loading="lazy" />`
+    : "";
+}
+// A foto de perfil de quem mandou; sem foto, a inicial num círculo colorido
+// (a cor sai do @, então a mesma pessoa tem sempre a mesma cor).
+function corDe(handle) {
+  let h = 0;
+  for (const c of String(handle)) h = (h * 31 + c.charCodeAt(0)) % 360;
+  return `hsl(${h} 45% 42%)`;
+}
+function avatar(handle, nome, fotos) {
+  const url = urlDeImagem(fotos && fotos[handle]);
+  if (url) return `<img class="avatar" src="${esc(url)}" alt="" referrerpolicy="no-referrer" loading="lazy" />`;
+  const letra = String(nome || handle || "?").trim().charAt(0).toUpperCase() || "?";
+  return `<span class="avatar letra" style="background:${corDe(handle)}">${esc(letra)}</span>`;
+}
+
+// Troca o conteúdo só quando mudou: a lista não pisca nem perde a rolagem.
+function trocarHtml(el, html) {
+  if (el.innerHTML !== html) el.innerHTML = html;
+}
+
+// Fotos de perfil (@ -> endereço): o mapa é grande e muda devagar, então é
+// lido no máximo a cada 10s.
+let fotosGuardadas = {};
+let fotosLidasEm = 0;
+async function lerFotos() {
+  if (Date.now() - fotosLidasEm < 10000) return fotosGuardadas;
+  fotosLidasEm = Date.now();
+  const g = temStorage ? await chrome.storage.local.get(["fotos"]) : window.__teste ?? {};
+  fotosGuardadas = g.fotos ?? {};
+  return fotosGuardadas;
+}
+
+// Clicar numa pílula mostra só aquele ícone na lista; clicar de novo, todos.
+let iconeFiltro = null;
+$("#emoPilulas").addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest("button[data-icone]");
+  if (!b) return;
+  iconeFiltro = iconeFiltro === b.dataset.icone ? null : b.dataset.icone;
+  pintar();
+});
+
+// ✨ Emotions: uma pílula por ícone (figurinha, nome, quantas) e a lista ao
+// vivo, do envio mais novo para o mais velho.
+function desenharEmotions(em, emocoes, eventos, nomes, icones, fotos) {
+  $("#emoTotal").textContent = em.total
+    ? `${num(em.total)} recebidas · ${num(em.gemas)} gemas`
+    : eventos.length
+      ? `${plural(eventos.length, "envio", "envios")} (pela Participação)`
+      : "";
+  if (iconeFiltro && !em.porIcone.some((i) => i.icone === iconeFiltro)) iconeFiltro = null;
+  const pilulas = em.porIcone
+    .slice()
+    .sort((a, b) => b.qtd - a.qtd || b.gemas - a.gemas)
+    .map((i) => {
+      const classe = i.icone === iconeFiltro ? "pilula ativa" : "pilula";
+      const nome = nomeIcone(i.icone, nomes);
+      return (
+        `<button type="button" class="${classe}" data-icone="${esc(i.icone)}" title="${esc(nome)}: ${num(i.gemas)} gemas">` +
+        `${figura(i.icone, nomes, icones)}${esc(nome)} <b>${num(i.qtd)}</b></button>`
+      );
+    })
+    .join("");
+  trocarHtml($("#emoPilulas"), pilulas);
+
+  // Sem emotion nenhuma, a lista cai para a diferença entre leituras da
+  // Participação (só sabe o total de gemas de cada um, não o ícone).
+  const fonte = emocoes.length ? emocoes.filter((e) => !iconeFiltro || e.icone === iconeFiltro) : eventos;
+  const linhasHtml = fonte
+    .slice(-150)
+    .reverse()
+    .map(
+      (e) =>
+        `<div class="linha-feed">${avatar(e.handle, e.nome, fotos)}` +
+        `<span class="quem" title="${esc(e.nome)}">@${esc(e.handle)}</span>` +
+        `<span class="oque">${emocoes.length ? figura(e.icone, nomes, icones) || esc(nomeIcone(e.icone, nomes)) : ""}+${num(e.gemas)}</span>` +
+        `<span class="hora">${hora(e.ts)}</span></div>`,
+    )
+    .join("");
+  trocarHtml(
+    $("#emoFeed"),
+    linhasHtml || '<div class="vazio">nenhuma emotion ainda -- elas aparecem aqui assim que chegarem</div>',
+  );
+}
+
+// 💬 Chat: o que as pessoas estão falando, da mais nova para a mais velha.
+function desenharChat(p, fotos) {
+  const ch = resumirChat(p?.chat);
+  $("#chatTotal").textContent = ch.total
+    ? `${plural(ch.total, "mensagem", "mensagens")} · ${ch.porMinuto.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/min`
+    : "";
+  const msgs = (p?.chat?.msgs ?? []).slice(-150).reverse();
+  trocarHtml(
+    $("#chatFeed"),
+    msgs
+      .map(
+        (m) =>
+          `<div class="linha-feed chat">${avatar(m.handle, m.nome, fotos)}` +
+          `<span class="quem">@${esc(m.handle)}<span class="texto">${esc(m.texto)}</span></span>` +
+          `<span class="hora">${hora(m.ts)}</span></div>`,
+      )
+      .join("") || '<div class="vazio">nenhuma mensagem ainda -- o chat aparece aqui com a página da live aberta</div>',
+  );
+}
+
+// "[carpa] ×3" -- ou "Carpa Zika ×3" enquanto a figurinha não chegou.
+function chip(id, qtd, nomes, icones) {
+  const img = figura(id, nomes, icones);
+  return img
+    ? `<span class="chip">${img}×${num(qtd)}</span>`
+    : `<span class="chip texto">${esc(nomeIcone(id, nomes))} ×${num(qtd)}</span>`;
+}
+
 const PORORDEM = {
   gemas: (a, b) => b.gemas - a.gemas,
   pontos: (a, b) => b.pontos - a.pontos,
@@ -112,7 +233,7 @@ const PORORDEM = {
 };
 
 async function desenhar(dados) {
-  const { lives, p, titulo, eventos, emocoes, tabela, nomes, eu } = dados;
+  const { lives, p, titulo, eventos, emocoes, tabela, nomes, icones, eu } = dados;
   const em = resumirEmocoes(emocoes);
   const linhasP = p?.linhas ?? [];
   // O preço da carpa vem da tabela da própria Jamble quando ela já passou por
@@ -213,19 +334,11 @@ async function desenhar(dados) {
     6,
   );
 
-  // O feed prefere as emotions: elas sabem o icone e chegam na hora do envio.
-  // Sem elas, cai para a diferenca entre leituras da participacao, que so sabe
-  // o total de gemas de cada um.
-  const temEmocoes = emocoes.length > 0;
-  linhas(
-    $("#t-feed tbody"),
-    (temEmocoes ? emocoes : eventos).slice(-60).reverse(),
-    (e) =>
-      `<tr><td>${hora(e.ts)}</td><td>${esc(e.nome)} <span class="fraco">@${esc(e.handle)}</span></td>` +
-      `<td>${temEmocoes ? esc(nomeIcone(e.icone, nomes)) : "—"}</td>` +
-      `<td class="n gema forte">+${num(e.gemas)}</td></tr>`,
-    4,
-  );
+  // Fotos de perfil: as guardadas, e as que vieram na Participação.
+  const fotos = { ...(await lerFotos()) };
+  for (const l of linhasP) if (l.handle && l.foto && !fotos[l.handle]) fotos[l.handle] = l.foto;
+  desenharEmotions(em, emocoes, eventos, nomes, icones, fotos);
+  desenharChat(p, fotos);
 
   // O resto das metricas da live. A lista e montada no gemas.js, que tem
   // teste: campo faltando ja derrubou a tela inteira uma vez.
@@ -244,11 +357,13 @@ async function desenhar(dados) {
   // O QUE cada um mandou. Funciona em qualquer live -- inclusive na de outro
   // vendedor, onde o ranking da Jamble (participação) simplesmente não existe.
   // Era por isso que snorlax "não contava": chegava, mas não tinha onde aparecer.
-  const oQueMandou = (icones) =>
-    Object.entries(icones)
+  // O que cada um mandou: a figurinha de cada ícone com a quantidade do lado,
+  // do que mais mandou para o que menos mandou.
+  const oQueMandou = (porIcone) =>
+    Object.entries(porIcone)
       .sort((a, b) => b[1] - a[1])
-      .map(([ic, q]) => `${q}x ${nomeIcone(ic, nomes)}`)
-      .join(", ");
+      .map(([ic, q]) => chip(ic, q, nomes, icones))
+      .join("");
   $("#rankingVivoTotal").textContent = em.total
     ? `${num(em.porPessoa.length)} pessoas · ${num(em.total)} envios · ${num(em.gemas)} gemas`
     : "";
@@ -257,26 +372,43 @@ async function desenhar(dados) {
     em.porPessoa.map((x, i) => ({ i: i + 1, ...x })),
     (d) =>
       `<tr${d.i <= 3 ? ' class="podio"' : ""}><td>${d.i}</td>` +
-      `<td>${esc(d.nome)} <span class="fraco">@${esc(d.handle)}</span></td>` +
-      `<td class="n gema forte">${num(d.gemas)}</td><td class="n">${num(d.qtd)}</td>` +
-      `<td class="mandou">${esc(oQueMandou(d.icones))}</td></tr>`,
-    5,
+      `<td><span class="pessoa">${avatar(d.handle, d.nome, fotos)}<span>${esc(d.nome)} <span class="fraco">@${esc(d.handle)} · ${plural(d.qtd, "envio", "envios")}</span></span></span>` +
+      `<div class="chips">${oQueMandou(d.icones)}</div></td>` +
+      `<td class="n gema forte">${num(d.gemas)}</td></tr>`,
+    3,
   );
+
+  // Ranking de compras: quem mais comprou e o que levou (analises.js).
+  // Quem levou o leilão quase sempre vem com o @; o dicionário só cobre o resto.
+  const compras = rankingDeCompras(p, extras.perfis);
+  const totalCompras = compras.reduce((s, c) => s + c.total, 0);
+  $("#comprasTotal").textContent = compras.length
+    ? `${plural(compras.length, "pessoa", "pessoas")} · ${reais(totalCompras)}`
+    : "";
+  linhas(
+    $("#t-compras tbody"),
+    compras.slice(0, 80).map((c, i) => ({ i: i + 1, ...c })),
+    (c) => {
+      const itens = c.itens.slice(0, 4).map((it) => `${it.titulo} (${reais(it.valor)})`);
+      const resto = c.itens.length > 4 ? ` e mais ${c.itens.length - 4}` : "";
+      return (
+        `<tr${c.i <= 3 ? ' class="podio"' : ""}><td>${c.i}</td>` +
+        `<td><span class="pessoa">${avatar(c.handle, c.nome, fotos)}<span>${esc(c.nome)} <span class="fraco">@${esc(c.handle)}</span></span></span>` +
+        (itens.length ? `<span class="linha2">${esc(itens.join(" · ") + resto)}</span>` : "") +
+        `</td><td class="n forte">${reais(c.total)}</td></tr>`
+      );
+    },
+    3,
+  );
+  $("#comprasNota").textContent = !p
+    ? ""
+    : (p.linhas ?? []).length
+      ? "Total de cada pessoa pela Participação da Jamble (inclui compra direta). O que levou: os leilões vistos com a página aberta."
+      : "Live de outro vendedor: só entram os leilões vistos com a página aberta. Compra direta a Jamble não diz quem comprou.";
 
   // O ranking da Jamble só existe na sua live (painel do vendedor). Em live de
   // outro vendedor ele ficaria vazio ocupando espaço -- então some.
   $("#caixa-ranking").style.display = linhasP.length ? "" : "none";
-
-  // Contagem por icone: quantos de cada um, e quanto deu em gemas.
-  $("#caixa-icones").style.display = em.porIcone.length ? "" : "none";
-  linhas(
-    $("#t-icones tbody"),
-    em.porIcone,
-    (d) =>
-      `<tr><td>${esc(nomeIcone(d.icone, nomes))} <span class="fraco">${esc(d.icone)}</span></td>` +
-      `<td class="n forte">${num(d.qtd)}</td><td class="n gema">${num(d.gemas)}</td></tr>`,
-    3,
-  );
 
   linhas(
     $("#t-sorteios tbody"),

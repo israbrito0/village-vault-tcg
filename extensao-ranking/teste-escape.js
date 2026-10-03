@@ -58,7 +58,7 @@ const DE_FORA = /\.(nome|handle|titulo|ganhador|icone|erro|message|displayName|u
 
 // Funções que escapam por dentro e por isso valem como esc(). Cada uma é
 // conferida mais abaixo: precisa mesmo passar o que recebe pelo esc().
-const ESCAPAM = ["esc(", "quem("];
+const ESCAPAM = ["esc(", "quem(", "figura(", "chip(", "avatar("];
 
 // Tira os esc(...) com os argumentos, contando parênteses -- esc(String(x))
 // tem parêntese dentro e uma regex simples pararia no lugar errado.
@@ -105,6 +105,65 @@ for (const arquivo of ["painel.js", "popup.js"]) {
     const saida = quem('<img src=x onerror="alert(1)">');
     conferir(!/<img/.test(saida) && saida.startsWith("@"), "quem() escapa o @ que recebe", saida);
     conferir(/anonimo/.test(quem(null)), "quem() sem @ mostra 'ainda sem nome'");
+  }
+}
+
+// figura() e chip() também contam como escapadas: a figurinha do emotion é um
+// endereço que vem de fora e vira <img src="...">. Rodam aqui de verdade, com
+// nome de ícone e endereço montados para atacar.
+{
+  const fonte = fs.readFileSync(path.join(__dirname, "painel.js"), "utf8").replace(/\r\n/g, "\n");
+  const defs = [/const nomeIcone = [^\n]*\n/, /function figura\([\s\S]*?\n}\n/, /function chip\([\s\S]*?\n}\n/].map(
+    (re) => (fonte.match(re) || [""])[0],
+  );
+  conferir(defs.every(Boolean), "painel.js define figura() e chip()");
+  if (defs.every(Boolean)) {
+    const { urlDeImagem } = require("./gemas.js");
+    const { figura, chip } = new Function("esc", "num", "urlDeImagem", `${defs.join("")}; return { figura, chip };`)(
+      escDe("painel.js"),
+      (n) => String(n),
+      urlDeImagem,
+    );
+    const BOA = "https://jamble-test.b-cdn.net/like_icons/magikarp_shiny.png";
+    const nomeRuim = { x: '<img src=x onerror="alert(1)">' };
+    const comNomeRuim = figura("x", nomeRuim, { x: BOA }) + chip("x", 3, nomeRuim, { x: BOA });
+    conferir(
+      (comNomeRuim.match(/<img/g) || []).length === 2 && !/onerror="/.test(comNomeRuim),
+      "nome de ícone com <img onerror> não vira código",
+      comNomeRuim.slice(0, 90),
+    );
+    conferir(figura("x", {}, { x: BOA }).includes(`src="${BOA}"`), "a figurinha de verdade aparece");
+    for (const ruim of [
+      "javascript:alert(1)",
+      'https://jamble-test.b-cdn.net/a.png" onerror="alert(1)',
+      "https://site-qualquer.com/a.png",
+      "http://jamble-test.b-cdn.net/a.png",
+      "data:image/svg+xml,<svg onload=alert(1)>",
+    ]) {
+      conferir(figura("x", {}, { x: ruim }) === "", `endereço recusado: ${ruim.slice(0, 40)}`);
+    }
+    conferir(chip("x", 2, { x: "<b>x</b>" }, {}) === '<span class="chip texto">&lt;b&gt;x&lt;/b&gt; ×2</span>', "sem figurinha, o nome entra escapado");
+  }
+}
+
+// avatar() também conta como escapada: a foto de perfil é endereço de fora, e
+// o @ e o nome são escritos pela própria pessoa.
+{
+  const fonte = fs.readFileSync(path.join(__dirname, "painel.js"), "utf8").replace(/\r\n/g, "\n");
+  const defs = [/function corDe\([\s\S]*?\n}\n/, /function avatar\([\s\S]*?\n}\n/].map((re) => (fonte.match(re) || [""])[0]);
+  conferir(defs.every(Boolean), "painel.js define avatar()");
+  if (defs.every(Boolean)) {
+    const { urlDeImagem } = require("./gemas.js");
+    const avatar = new Function("esc", "urlDeImagem", `${defs.join("")}; return avatar;`)(escDe("painel.js"), urlDeImagem);
+    const FOTO = "https://jamble.b-cdn.net/profiles/user_id=abc/profile_images/a.png";
+    conferir(avatar("ana", "Ana", { ana: FOTO }).includes(`src="${FOTO}"`), "a foto de perfil de verdade aparece");
+    const ruins = [
+      avatar("ana", "Ana", { ana: 'https://jamble.b-cdn.net/a.png" onerror="alert(1)' }),
+      avatar("ana", "Ana", { ana: "javascript:alert(1)" }),
+      avatar('"><img src=x onerror=alert(1)>', '<img src=x onerror=alert(1)>', {}),
+    ];
+    conferir(ruins.every((h) => !/onerror=|javascript:|<img src=x/.test(h)), "foto, @ e nome montados para atacar não viram código", ruins.join(" | ").slice(0, 120));
+    conferir(/^<span class="avatar letra" style="background:hsl\(\d+ 45% 42%\)">A<\/span>$/.test(avatar("ana", "Ana", {})), "sem foto: a inicial num círculo de cor fixa");
   }
 }
 

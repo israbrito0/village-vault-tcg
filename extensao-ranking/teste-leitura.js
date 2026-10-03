@@ -198,6 +198,11 @@ async function pedir(url, corpo) {
   conferir(emo.length === 1, "evento LIKE vira uma emotion", JSON.stringify(emo));
   conferir(emo[0] && emo[0].icone === "charmander", "pega o ícone", emo[0] && emo[0].icone);
   conferir(emo[0] && emo[0].gemas === 60, "pega o valor em gemas", String(emo[0] && emo[0].gemas));
+  conferir(
+    emo[0] && emo[0].iconeUrl === "https://jamble-test.b-cdn.net/like_icons/charmander.png",
+    "pega a figurinha do ícone",
+    emo[0] && emo[0].iconeUrl,
+  );
   conferir(emo[0] && emo[0].handle === "israelbrito", "pega quem mandou", emo[0] && emo[0].handle);
   conferir(emo[0] && emo[0].nome === "israel brito", "e o nome de exibição");
   conferir(
@@ -235,6 +240,18 @@ async function pedir(url, corpo) {
   conferir(
     d2 && d2.dados && d2.dados.nomes && d2.dados.nomes.magikarp_shiny === "Carpa Zika",
     "a tabela traz o nome do ícone",
+  );
+  const tab3 = await pedir(
+    "https://www.jamble.com/api/live/emojis",
+    JSON.stringify({
+      success: true,
+      emojis: [{ id: "magikarp_shiny", name: "Carpa Zika", gemPrice: 500, iconUrl: "https://jamble-test.b-cdn.net/like_icons/magikarp_shiny.png" }],
+    }),
+  );
+  const d3 = tab3.find((m) => m.tipo === "tabela-emocoes");
+  conferir(
+    d3 && d3.dados.icones.magikarp_shiny === "https://jamble-test.b-cdn.net/like_icons/magikarp_shiny.png",
+    "a tabela traz a figurinha de cada ícone",
     JSON.stringify(d2 && d2.dados && d2.dados.nomes),
   );
 
@@ -329,6 +346,37 @@ async function pedir(url, corpo) {
   const perfilEu = JSON.stringify(recebidos.filter((m) => m.tipo === "perfis").map((m) => m.dados));
   conferir(perfilEu === JSON.stringify([{ u1: "israelbrito" }]), "do perfil logado, o dicionário leva só código e @", perfilEu);
 
+  // Envio de emotion com a foto de quem mandou e o time da batalha (campos
+  // vistos numa live real em 03/10/2026).
+  recebidos.length = 0;
+  aoAbrir.emitir(
+    JSON.stringify({
+      data: {
+        events: [
+          {
+            id: "foto1",
+            event_type: "LIKE",
+            created_at: 1791050000,
+            like_icon_id: "pixel_heart",
+            like_icon_url: "https://jamble-test.b-cdn.net/like_icons/pixel_heart.png",
+            like_icon_battle_entry_count: 10,
+            battle_team: "blue",
+            user_profile_picture: "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/b.png",
+            liker_profile: {
+              id: "u9",
+              username: "diniztcg",
+              display_name: "diniz",
+              profile_image: { low: "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/a-low.png", original_url: "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/a.png" },
+            },
+          },
+        ],
+      },
+    }),
+  );
+  const comFoto = recebidos.find((m) => m.tipo === "emocao")?.dados;
+  conferir(comFoto && comFoto.foto === "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/a-low.png", "o envio leva a foto pequena de quem mandou", comFoto && comFoto.foto);
+  conferir(comFoto && comFoto.time === "blue", "e o time da batalha");
+
   // ---------- leilão, batalha, chat (live do @pokerusbr, 03/10/2026) ----------
   const SHOW = "wss://ws.jamble.com/websocket/show/RGUOtT0eUWcEn8VWsUccbNr9ygh1/SwdWTbncIqpktVHipW81";
   const GRUPO = "pPHuioR03kvou7qKTyYE";
@@ -343,8 +391,15 @@ async function pedir(url, corpo) {
     group_message_id: grupo,
     message_type: "STANDARD",
     sender_id: quem,
-    content: "texto que não pode sair daqui",
-    sender_profile: { id: quem, username: nome, display_name: nome + ".x", rating: 5, follower_count: 37 },
+    content: "texto da mensagem " + id,
+    sender_profile: {
+      id: quem,
+      username: nome,
+      display_name: nome + ".x",
+      rating: 5,
+      follower_count: 37,
+      profile_image: { id: "a.png", original_url: "https://jamble.b-cdn.net/profiles/user_id=" + quem + "/profile_images/a.png", low: "https://jamble.b-cdn.net/profiles/user_id=" + quem + "/profile_images/a-low.png" },
+    },
   });
 
   // O chat pode chegar antes de a live dizer qual é o grupo dela: espera.
@@ -411,7 +466,15 @@ async function pedir(url, corpo) {
   );
   conferir(chatLiberado && chatLiberado.grupoDaLive === GRUPO, "o grupo da live vai junto");
   const texto = JSON.stringify(chatLiberado);
-  conferir(texto.indexOf("não pode sair") < 0 && texto.indexOf("rating") < 0, "o texto da mensagem e o resto do perfil não saem", texto);
+  // O texto do chat DA LIVE passa (o painel mostra o que as pessoas falam);
+  // do perfil, só @, nome e a foto pequena.
+  conferir(chatLiberado && chatLiberado.data.messages[0].content === "texto da mensagem m1", "o texto do chat da live vai para o painel");
+  conferir(
+    chatLiberado && chatLiberado.data.messages[0].sender_profile.foto === "https://jamble.b-cdn.net/profiles/user_id=QGKb/profile_images/a-low.png",
+    "com a foto pequena de quem escreveu",
+  );
+  conferir(texto.indexOf("rating") < 0 && texto.indexOf("follower") < 0 && texto.indexOf("original_url") < 0, "o resto do perfil não sai", texto);
+  conferir(texto.indexOf("CONVERSA_PRIVADA") < 0 && texto.indexOf("amigo") < 0, "conversa privada não sai, nem o texto dela");
 
   const q = quadros.find((x) => x.data.sale);
   conferir(!!q, "o frame da live vira um quadro");
@@ -439,6 +502,16 @@ async function pedir(url, corpo) {
   wsChat.emitir(JSON.stringify({ data: { messages: [msg("m2", GRUPO, "KFjL", "vbpracima")] } }));
   const ms = de("quadro").flatMap((x) => x.data.messages || []);
   conferir(ms.length === 1 && ms[0].id === "m2", "chat da live passa uma vez; conversa privada não passa", JSON.stringify(ms.map((m) => m.id)));
+
+  // Mensagem apagada (ou editada): vai o aviso, para o painel acompanhar.
+  const antesDaEdicao = recebidos.length;
+  wsChat.emitir(JSON.stringify({ data: { updated_messages: [{ id: "m2", group_message_id: GRUPO, is_visible: false, content: "" }] } }));
+  wsPrivado.emitir(JSON.stringify({ data: { updated_messages: [{ id: "p2", group_message_id: "CONVERSA_PRIVADA", is_visible: false }] } }));
+  const mudou = recebidos
+    .slice(antesDaEdicao)
+    .filter((m) => m.tipo === "quadro")
+    .flatMap((m) => m.dados.data.updated_messages || []);
+  conferir(mudou.length === 1 && mudou[0].id === "m2" && mudou[0].is_visible === false, "mensagem apagada no chat da live avisa; da conversa privada, não", JSON.stringify(mudou));
 
   // Dicionário de perfis: o par código → @ de quem apareceu, uma vez só.
   const perfisVistos = Object.assign({}, ...recebidos.filter((m) => m.tipo === "perfis").map((m) => m.dados));

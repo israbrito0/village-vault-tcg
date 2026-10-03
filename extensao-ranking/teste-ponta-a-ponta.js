@@ -433,7 +433,10 @@ function montarBackground() {
     );
     const c = A.resumirChat(live?.chat, 1791049000 * 1000 + 60000);
     conferir(c.total === 3 && c.top[0].handle === "samantaavila" && c.top[0].mensagens === 2, "aba Chat: quem mais fala");
-    conferir(!JSON.stringify(guardado).includes('"oi"'), "o texto das mensagens não foi guardado");
+    // O texto do chat da live fica guardado (as últimas mensagens), para o
+    // painel mostrar o que as pessoas estão falando.
+    const ultimas = live?.chat?.msgs ?? [];
+    conferir(ultimas.length === 3 && ultimas.every((m) => m.texto === "oi"), "as mensagens do chat ficam com o texto", JSON.stringify(ultimas[0]));
     // A aba Clientes junta o histórico guardado com as lives abertas, na hora.
     const cl = A.clientes(A.historicoComLives(guardado.historico, guardado.lives, guardado.perfis), "israelbrito");
     const vb = cl.find((x) => x.handle === "vbpracima");

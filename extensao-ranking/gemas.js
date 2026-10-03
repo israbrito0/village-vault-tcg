@@ -273,8 +273,19 @@
     return /^\/(live|seller\/dashboard\/lives)\//.test(String(caminho || ""));
   }
 
+  // Endereços de imagem que vêm nos dados da Jamble: a figurinha de cada
+  // emotion (https://jamble-test.b-cdn.net/like_icons/<icone>.png) e a foto de
+  // perfil (https://jamble.b-cdn.net/profiles/user_id=<id>/profile_images/...).
+  // Como entram numa <img> do painel, só passa https da própria Jamble ou do
+  // CDN dela, sem aspas, espaço ou nada que possa sair do atributo.
+  function urlDeImagem(url) {
+    const u = String(url ?? "");
+    return /^https:\/\/[\w.-]+\.(b-cdn\.net|jamble\.com)\/[\w./%=-]+$/.test(u) ? u : null;
+  }
+
   const api = {
     GEMAS_POR_CARPA,
+    urlDeImagem,
     porPessoa,
     diffGemas,
     resumirGemas,

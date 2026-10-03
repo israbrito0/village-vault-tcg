@@ -165,6 +165,67 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
   conferir(/@vbpracima/.test(p.el("#t-clientes tbody").innerHTML), "Clientes: lista de clientes");
   conferir(!p.botoes[1].innerHTML.includes("bolinha"), "sem venda rolando, a aba Leilões fica sem bolinha", p.botoes[1].innerHTML);
 
+  // ---------- Emotions e Chat no estilo da referência ----------
+  // Emotions e mensagens como as que chegam numa live, com figurinha e foto.
+  {
+    const CDN = "https://jamble-test.b-cdn.net/like_icons/";
+    const comEmotions = JSON.parse(JSON.stringify(dados));
+    const live = comEmotions.lives[LIVE];
+    const envio = (id, handle, icone, gemas, seg) => ({ id, handle, nome: handle, icone, gemas, ts: 1791050000000 + seg * 1000 });
+    live.emocoes = [
+      envio("e1", "diniztcg", "magikarp_shiny", 500, 1),
+      envio("e2", "diniztcg", "pixel_heart", 10, 2),
+      envio("e3", "diniztcg", "pixel_heart", 10, 3),
+      envio("e4", "ana", "pixel_heart", 10, 4),
+      envio("e5", "ana", "charmander", 60, 5),
+    ];
+    live.chat.msgs = [
+      { id: "c1", handle: "samantaavila", nome: "samanta", texto: "boa noite!", ts: 1791050010000 },
+      { id: "c2", handle: "massaruokada", nome: "massaru", texto: "<b>quanto</b> o lote?", ts: 1791050020000 },
+    ];
+    comEmotions.iconesEmocoes = { magikarp_shiny: CDN + "magikarp_shiny.png", pixel_heart: CDN + "pixel_heart.png" };
+    comEmotions.nomesEmocoes = { magikarp_shiny: "Carpa Zika" };
+    comEmotions.fotos = { diniztcg: "https://jamble.b-cdn.net/profiles/user_id=u9/profile_images/a.png" };
+
+    const q = abrirPainel({ busca: `?embutido=1&live=${LIVE}`, dados: comEmotions });
+    await q.espera();
+    q.ctx.mostrarAba("vivo");
+    await q.espera();
+    conferir(q.el("#aviso").textContent === "", "Ao vivo com emotions e chat: desenha sem erro", q.el("#aviso").textContent);
+    conferir(/^5 recebidas/.test(q.texto("#emoTotal")), "Emotions: quantas recebidas", q.texto("#emoTotal"));
+
+    const pilulas = q.el("#emoPilulas").innerHTML;
+    const ordem = [...pilulas.matchAll(/data-icone="(\w+)"/g)].map((m) => m[1]);
+    conferir(ordem.join() === "pixel_heart,magikarp_shiny,charmander", "uma pílula por ícone, do mais mandado para o menos", ordem.join());
+    conferir(pilulas.includes(`src="${CDN}pixel_heart.png"`) && /pixel_heart <b>3<\/b>/.test(pilulas), "a pílula tem a figurinha e a quantidade", pilulas.slice(0, 160));
+    conferir(/Carpa Zika <b>1<\/b>/.test(pilulas), "com o nome bonito quando a Jamble manda");
+
+    const feed = q.el("#emoFeed").innerHTML;
+    const linhasFeed = feed.split('class="linha-feed"').length - 1;
+    conferir(linhasFeed === 5, "a lista ao vivo tem uma linha por envio", String(linhasFeed));
+    conferir(feed.indexOf("@ana") < feed.indexOf("@diniztcg"), "o envio mais novo vem primeiro");
+    conferir(feed.includes('class="avatar" src="https://jamble.b-cdn.net/profiles/user_id=u9'), "com a foto de quem mandou");
+    conferir(feed.includes('class="avatar letra"'), "sem foto, a inicial no lugar");
+
+    // Clicar na pílula do coração mostra só os corações.
+    q.el("#emoPilulas").ouvintes.click[0]({ target: { closest: () => ({ dataset: { icone: "pixel_heart" } }) } });
+    await q.espera();
+    const filtrado = q.el("#emoFeed").innerHTML;
+    conferir(filtrado.split('class="linha-feed"').length - 1 === 3, "clicar numa pílula filtra a lista por aquele ícone");
+    conferir(/class="pilula ativa" data-icone="pixel_heart"/.test(q.el("#emoPilulas").innerHTML), "e a pílula escolhida fica destacada");
+    q.el("#emoPilulas").ouvintes.click[0]({ target: { closest: () => ({ dataset: { icone: "pixel_heart" } }) } });
+    await q.espera();
+    conferir(q.el("#emoFeed").innerHTML.split('class="linha-feed"').length - 1 === 5, "clicar de novo volta a mostrar todos");
+
+    const chat = q.el("#chatFeed").innerHTML;
+    conferir(chat.indexOf("quanto") < chat.indexOf("boa noite"), "Chat: a mensagem mais nova vem primeiro");
+    conferir(chat.includes("boa noite!") && chat.includes("@samantaavila"), "Chat: o que a pessoa escreveu, com o @");
+    conferir(chat.includes("&lt;b&gt;quanto&lt;/b&gt;") && !chat.includes("<b>quanto"), "Chat: o texto entra escapado");
+    conferir(/21 mensagens/.test(q.texto("#chatTotal")), "Chat: quantas mensagens", q.texto("#chatTotal"));
+    conferir(/vbpracima/.test(q.el("#t-compras tbody").innerHTML) && /750/.test(q.el("#t-compras tbody").innerHTML), "Ranking de compras: quem levou e quanto");
+    conferir(/pixel_heart\.png/.test(q.el("#t-ranking-vivo tbody").innerHTML) && /×2/.test(q.el("#t-ranking-vivo tbody").innerHTML), "Ranking de gemas: a figurinha com a quantidade do lado");
+  }
+
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);
 })();

@@ -133,13 +133,15 @@
     if (!Array.isArray(dados?.emojis)) return;
     const tabela = {};
     const nomes = {};
+    const icones = {}; // a figurinha de cada um, para o painel mostrar
     for (const e of dados.emojis) {
       if (typeof e?.id !== "string" || typeof e?.gemPrice !== "number") continue;
       tabela[e.id] = e.gemPrice;
       if (typeof e.name === "string") nomes[e.id] = e.name;
+      if (typeof e.iconUrl === "string") icones[e.id] = e.iconUrl;
     }
     if (!Object.keys(tabela).length) return;
-    avisar("tabela-emocoes", { tabela, nomes });
+    avisar("tabela-emocoes", { tabela, nomes, icones });
   }
 
   // O ranking por pessoa vem pronto em /api/seller/show-participation: cada
@@ -161,6 +163,7 @@
         gastou: Number(r.spent) || 0,
         gemas: Number(r.gems) || 0,
         mensagens: Number(r.messages) || 0,
+        foto: typeof r.avatarUrl === "string" ? r.avatarUrl : null,
       })),
     });
   }
@@ -172,6 +175,13 @@
   //
   // Antes eu tinha concluído que isso não existia -- estava errado: na live em
   // que testei ninguém mandou emotion nenhuma, então nunca passou um LIKE.
+  // A foto pequena do perfil: profile_image.low (ou a original, se não houver).
+  const fotoDe = (perfil) => {
+    const img = perfil?.profile_image;
+    const url = typeof img === "string" ? img : img?.low || img?.medium || img?.original_url;
+    return typeof url === "string" ? url : null;
+  };
+
   function guardarEventos(dados, origem) {
     const lista = dados?.data?.events;
     if (!Array.isArray(lista)) return;
@@ -189,6 +199,12 @@
         // A Jamble chama de "battle_entry_count", mas é o preço em gemas:
         // bateu com a tabela de /api/live/emojis nos ícones testados.
         gemas: Number(e.like_icon_battle_entry_count) || 0,
+        // A figurinha, caso a tabela de preços ainda não tenha passado.
+        iconeUrl: typeof e.like_icon_url === "string" ? e.like_icon_url : null,
+        // A foto de quem mandou, para a lista ao vivo do painel.
+        foto: fotoDe(p) || (typeof e.user_profile_picture === "string" ? e.user_profile_picture : null),
+        // Em batalha, para qual time foi ("red" / "blue").
+        time: typeof e.battle_team === "string" ? e.battle_team : null,
         ts: e.created_at ? Math.round(Number(e.created_at) * 1000) : Date.now(),
         origem,
       });
@@ -399,12 +415,17 @@
           created_at: m.created_at ?? null,
           message_type: m.message_type ?? null,
           group_message_id: m.group_message_id || grupoDaUrl,
-          // Só quem mandou. O texto da mensagem não sai daqui.
+          is_visible: m.is_visible !== false,
+          // O texto vai junto: é o chat público da live, e o painel mostra o
+          // que as pessoas estão falando. Conversa privada não sai daqui (o
+          // filtro do grupo, logo abaixo).
+          content: typeof m.content === "string" ? m.content.slice(0, 500) : "",
           sender_profile: m.sender_profile?.username
             ? {
                 id: m.sender_profile.id ?? null,
                 username: m.sender_profile.username,
                 display_name: m.sender_profile.display_name ?? null,
+                foto: fotoDe(m.sender_profile),
               }
             : null,
         });
@@ -412,6 +433,20 @@
       // Conversa privada (outro grupo) não sai daqui.
       if (grupoDaLive) mandarChat(novas.filter((m) => m.group_message_id === grupoDaLive));
       else chatEsperando = chatEsperando.concat(novas).slice(-500);
+    }
+
+    // Mensagem editada ou apagada pela moderação: o painel acompanha (e some
+    // com a apagada, em vez de continuar mostrando).
+    if (Array.isArray(d.updated_messages) && grupoDaLive) {
+      const mudadas = d.updated_messages
+        .filter((m) => m?.id && m.group_message_id === grupoDaLive)
+        .map((m) => ({
+          id: String(m.id),
+          group_message_id: m.group_message_id,
+          is_visible: m.is_visible !== false,
+          content: typeof m.content === "string" ? m.content.slice(0, 500) : "",
+        }));
+      if (mudadas.length) avisar("quadro", { grupoDaLive, data: { updated_messages: mudadas } });
     }
 
     if (d.sale?.id) leilaoAtual = String(d.sale.id);

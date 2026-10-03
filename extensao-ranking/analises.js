@@ -152,6 +152,48 @@
     };
   }
 
+  // Quem mais comprou na live, e o quê. Duas fontes:
+  //   - a Participação da Jamble (só na live dela): o total que cada pessoa
+  //     gastou, contado pela Jamble -- inclui compra direta;
+  //   - os leilões vistos com a página aberta (qualquer live): quem levou o
+  //     quê e por quanto. Compra direta a Jamble não diz quem comprou.
+  // O total é o maior dos dois: a Participação é lida de tempos em tempos e
+  // pode estar uns segundos atrás de um leilão que acabou de fechar.
+  function rankingDeCompras(live, perfis) {
+    const pessoas = new Map();
+    const pessoa = (handle, nome) => {
+      const p = pessoas.get(handle) || { handle, nome: nome || handle, daJamble: null, itens: [] };
+      if (nome && p.nome === handle) p.nome = nome;
+      pessoas.set(handle, p);
+      return p;
+    };
+    for (const l of live?.linhas || []) {
+      if (l?.handle && n(l.gastou) > 0) pessoa(l.handle, l.nome).daJamble = n(l.gastou);
+    }
+    for (const l of Object.values(live?.leiloes || {})) {
+      if (ehDireta(l) || !l.vendido || l.cancelado) continue;
+      const handle = l.vencedor || nomeDe(l.vencedorId, perfis);
+      if (!handle) continue;
+      pessoa(handle).itens.push({
+        titulo: l.titulo || "item sem nome",
+        valor: n(l.totalVendido || l.vendidoPor || l.melhor),
+        quando: n(l.fim || l.inicio),
+      });
+    }
+    return [...pessoas.values()]
+      .map((p) => {
+        const dosLeiloes = p.itens.reduce((s, i) => s + i.valor, 0);
+        return {
+          handle: p.handle,
+          nome: p.nome,
+          total: Math.max(n(p.daJamble), dosLeiloes),
+          itens: p.itens.sort((a, b) => b.valor - a.valor),
+        };
+      })
+      .filter((p) => p.total > 0)
+      .sort((a, b) => b.total - a.total || b.itens.length - a.itens.length);
+  }
+
   // Quem deu lance e não levou: cliente quente para a próxima live.
   function quemDisputou(leiloes, perfis) {
     const pessoas = new Map();
@@ -234,7 +276,25 @@
         handle: m.sender_profile.username.replace(/^@/, ""),
         nome: m.sender_profile.display_name || m.sender_profile.username,
         tipo: String(m.message_type || "STANDARD"),
+        // O que a pessoa escreveu (chat público da live), para o painel mostrar.
+        texto: typeof m.content === "string" ? m.content.slice(0, 500) : "",
+        visivel: m.is_visible !== false,
+        foto: m.sender_profile.foto || null,
         ts: ms(m.created_at) || Date.now(),
+      }));
+  }
+
+  // Mensagem editada ou apagada (pela moderação ou por quem escreveu).
+  function edicoesDoFrame(dados) {
+    const lista = dados?.data?.updated_messages;
+    const grupo = dados?.grupoDaLive;
+    if (!Array.isArray(lista) || !grupo) return [];
+    return lista
+      .filter((m) => m && m.id && m.group_message_id === grupo)
+      .map((m) => ({
+        id: String(m.id),
+        visivel: m.is_visible !== false,
+        texto: typeof m.content === "string" ? m.content.slice(0, 500) : "",
       }));
   }
 
@@ -497,9 +557,11 @@
     mesclarLeilao,
     resumirLeiloes,
     quemDisputou,
+    rankingDeCompras,
     batalhaDoFrame,
     resumirBatalha,
     mensagensDoFrame,
+    edicoesDoFrame,
     resumirChat,
     rankingDaResposta,
     regrasDoRanking,

@@ -109,15 +109,22 @@ nao da para recuperar.
 
 O que ele mostra
 ----------------
-  RANKING AO VIVO: quem mandou mais gemas, quantos envios e O QUE cada um
-    mandou ("5x Sono Pesado", "2x Carpa Zika, 3x Alma da Festa"). Funciona
-    em qualquer live, inclusive na de outro vendedor
+  EMOTIONS: uma pilula por icone, com a figurinha e quantos chegaram
+    (carpa 117, coracao 113...). Clicar numa pilula mostra so aquele icone
+    na lista; clicar de novo volta tudo. Embaixo, a lista ao vivo: foto de
+    quem mandou, @, a figurinha, quanto valeu e a hora
+  RANKING DE GEMAS: quem mandou mais gemas, com a foto e a figurinha de
+    cada icone que mandou com a quantidade do lado ([carpa] x3 [coracao] x5).
+    Funciona em qualquer live, inclusive na de outro vendedor
+  RANKING DE COMPRAS: quem mais comprou e o que levou. Na sua live o total
+    vem da Participacao da Jamble (inclui compra direta); em live de outro
+    vendedor, so os leiloes que a pessoa ganhou com a pagina aberta
+  CHAT: o que as pessoas estao falando, com foto, @ e hora, a mais nova em
+    cima. Mensagem apagada pela moderacao some daqui tambem
   FATURAMENTO e POS TAXAS, vendas, compradores, espectadores
   GEMAS ENVIADAS, CARPAS e quanto entrou nos ULTIMOS 5 MINUTOS
   META DE CARPAS: escreva quantas voce quer e a barra mostra o que falta, em
     gemas e em carpas. O cartao pisca quando chega carpa nova
-  QUEM MANDOU O QUE, AO VIVO: hora, pessoa, icone e quanto valeu em gemas
-  EMOTIONS POR ICONE: quantas carpas, quantos coracoes, quantas masterballs
   RANKING DA JAMBLE (so na sua live): pessoa a pessoa com o que comprou,
     ordenavel por gemas, pontos ou quanto comprou
   METRICAS DA LIVE: ticket medio, gasto por comprador, frete, faturamento por
@@ -312,15 +319,17 @@ Dali sai so o @ e o nome de exibicao, que e o que o painel precisa para poder
 tirar voce do proprio sorteio. E o arquivo de depuracao esconde esses campos
 antes de gravar.
 
-Do chat sai so quem mandou e a hora -- o texto das mensagens nao e lido para
-nada nem guardado. Mensagem de conversa privada (outro grupo) nao sai nem da
-pagina. O dicionario codigo -> @ guarda so isso: o codigo e o @ publico.
+Do chat publico da live o painel guarda as ultimas 300 mensagens com o texto,
+para mostrar o que as pessoas estao falando -- so neste computador. Mensagem
+de conversa privada (outro grupo) nao sai nem da pagina. Do perfil de cada
+pessoa saem so o @, o nome e a foto pequena. O dicionario codigo -> @ guarda
+so isso: o codigo e o @ publico.
 
 Testes
 ------
   node extensao-ranking/teste.js
 
-Roda as dez suites, mais de 530 casos:
+Roda as dez suites, quase 600 casos:
   manifest e ligacoes entre os arquivos (arquivo que falta, ordem errada,
     funcao chamada que nao existe, aba sem secao)
   leitura dos payloads da Jamble (vendas, emotions, metricas, participacao,
