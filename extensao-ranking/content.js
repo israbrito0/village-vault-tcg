@@ -48,7 +48,77 @@
     "perfis",
     "ranking-mensal",
     "amostra",
+    "vendidos",
+    "batalha-participantes",
   ]);
+
+  // ---------- histórico desde o começo da live ----------
+  // Quem entra depois que a live começou não recebe o que já passou. Mas a
+  // própria página da live guarda duas listas que cobrem a live inteira, e
+  // busca cada uma quando a aba dela é aberta:
+  //   "Vendidos" (coluna dos produtos)  -> tudo que saiu, com quem comprou
+  //   "Batalha"  (coluna do chat)       -> os pontos de cada pessoa
+  // Aqui a extensão abre essas abas como ela faria, aperta "Carregar Mais" até
+  // acabar, e volta para a aba onde ela estava. O inject.js lê as respostas no
+  // caminho, como sempre -- nenhuma chamada por fora.
+  const espera = (ms) => new Promise((r) => setTimeout(r, ms));
+  const textoDe = (el) => (el.textContent || "").trim();
+  const porTexto = (re) => [...document.querySelectorAll("button,[role=tab]")].find((b) => re.test(textoDe(b)));
+  const ABA_PRODUTOS = /^(Disponíveis|Vendidos|Não vendido|Available|Sold|Unsold)\b/i;
+  const ATIVA_PRODUTOS = /bg-\[var\(--bg-inverse\)\]/;
+
+  async function carregarMais() {
+    for (let i = 0; i < 30; i++) {
+      const mais = porTexto(/^(Carregar Mais|Load More)$/i);
+      if (!mais || mais.disabled) return;
+      mais.click();
+      await espera(1500);
+    }
+  }
+
+  let carregando = false;
+  async function carregarHistorico() {
+    if (carregando || !/^\/live\//.test(location.pathname)) return { ok: false, feito: [] };
+    carregando = true;
+    const feito = [];
+    try {
+      // Vendidos: abre, carrega tudo, volta para a aba que estava.
+      const vendidos = porTexto(/^(Vendidos|Sold)\b/i);
+      if (vendidos) {
+        const grupo = [...document.querySelectorAll("button")].filter((b) => ABA_PRODUTOS.test(textoDe(b)));
+        const estava = grupo.find((b) => ATIVA_PRODUTOS.test(String(b.className)));
+        vendidos.click();
+        await espera(1500);
+        await carregarMais();
+        // Volta para a aba onde ela estava. Se já estava nos Vendidos, fica;
+        // se não deu para saber, vai para Disponíveis (a que a página abre).
+        if (estava !== vendidos) (estava ?? porTexto(/^(Disponíveis|Available)\b/i))?.click();
+        feito.push("vendidos");
+      }
+      // Batalha: abre a aba (se já estiver nela, passa por outra para buscar
+      // de novo), carrega tudo e volta.
+      const abas = [...document.querySelectorAll('[role="tab"]')];
+      const batalha = abas.find((b) => /^(Batalha|Battle)$/i.test(textoDe(b)));
+      if (batalha) {
+        const estava = abas.find((b) => b.getAttribute("aria-selected") === "true");
+        if (estava === batalha) {
+          abas.find((b) => b !== batalha)?.click();
+          await espera(600);
+        }
+        batalha.click();
+        await espera(1800);
+        await carregarMais();
+        // Se ela já estava na Batalha, fica nela; senão volta (ou vai para o Chat).
+        if (estava !== batalha) (estava ?? abas.find((b) => /^Chat$/i.test(textoDe(b))))?.click();
+        feito.push("batalha");
+      }
+    } finally {
+      carregando = false;
+    }
+    return { ok: feito.length > 0, feito };
+  }
+  // O overlay.js (mesmo mundo isolado) chama ao abrir o painel e no ↻.
+  self.vvCarregarHistorico = carregarHistorico;
 
   window.addEventListener("message", (e) => {
     if (e.source !== window || e.data?.marca !== MARCA) return;
@@ -74,13 +144,24 @@
         responder({ ok: false });
         return true;
       }
+      // O botão troca a coluna do chat para a aba Ranking: depois de ler,
+      // volta para a aba onde ela estava.
+      const estava = [...document.querySelectorAll('[role="tab"]')].find((b) => b.getAttribute("aria-selected") === "true");
       botao.click();
       setTimeout(() => {
         if (document.querySelector('[role="dialog"]')) {
           document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
         }
+        const agora = [...document.querySelectorAll('[role="tab"]')].find((b) => b.getAttribute("aria-selected") === "true");
+        if (estava && agora && agora !== estava) estava.click();
         responder({ ok: true });
       }, 1500);
+      return true;
+    }
+
+    // O painel pede o histórico desde o começo da live (botão ↻).
+    if (msg?.tipo === "carregar-historico") {
+      carregarHistorico().then((r) => responder(r));
       return true;
     }
 

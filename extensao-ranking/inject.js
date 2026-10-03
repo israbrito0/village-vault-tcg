@@ -473,6 +473,53 @@
     avisar("quadro", { leilaoAtual, grupoDaLive, data: q });
   }
 
+  // Tudo que a live já vendeu, desde o começo: a aba "Vendidos" da página
+  // pede /api/live/products?section=sold (20 por vez; "Carregar Mais" traz o
+  // resto). Cada item diz o que foi, por quanto, quantas unidades e QUEM
+  // comprou -- inclusive na compra direta, que o ao vivo não conta. Visto numa
+  // live real em 03/10/2026: o leilão vem com o mesmo saleId do WebSocket.
+  function guardarVendidos(dados) {
+    if (!Array.isArray(dados?.items)) return;
+    const itens = dados.items
+      .filter((i) => i?.sold?.saleId)
+      .map((i) => ({
+        saleId: String(i.sold.saleId),
+        titulo: typeof i.title === "string" ? i.title : "",
+        tipo: typeof i.saleType === "string" ? i.saleType : null,
+        inicial: Number(i.startingPrice) || 0,
+        unidades: Number(i.soldCount) || 1,
+        preco: Number(i.sold.soldPrice) || 0,
+        total: Number(i.sold.totalSoldPrice) || 0,
+        comprador: String(i.sold.buyerUsername ?? "").replace(/^@/, ""),
+        compradorId: typeof i.sold.buyerId === "string" ? i.sold.buyerId : null,
+        foto: typeof i.sold.buyerAvatarUrl === "string" ? i.sold.buyerAvatarUrl : null,
+        cancelado: i.sold.isCanceled === true,
+        quando: i.sold.createdAt ? Math.round(Number(i.sold.createdAt) * 1000) : null,
+      }));
+    if (itens.length) avisar("vendidos", { quando: Date.now(), itens });
+  }
+
+  // O ranking da batalha (aba "Batalha" da live): os pontos de cada pessoa
+  // desde o começo da batalha, com o time. As regras vêm junto (hoje: 15
+  // pontos por real gasto e 1 por gema).
+  function guardarParticipantesBatalha(dados) {
+    if (!Array.isArray(dados?.participants)) return;
+    avisar("batalha-participantes", {
+      quando: Date.now(),
+      regras: Array.isArray(dados.rules) ? dados.rules.map((r) => ({ icon: r?.icon ?? null, entryPoints: r?.entryPoints ?? null })) : [],
+      temMais: dados.hasNextPage === true,
+      participantes: dados.participants.map((p) => ({
+        id: typeof (p?.userId ?? p?.id) === "string" ? p.userId ?? p.id : null,
+        handle: String(p?.username ?? "").replace(/^@/, ""),
+        foto: typeof p?.avatarUrl === "string" ? p.avatarUrl : null,
+        time: p?.team === "red" || p?.team === "blue" ? p.team : null,
+        posicao: Number(p?.rank) || 0,
+        pontos: Number(p?.points) || 0,
+        premio: typeof p?.rewardLabel === "string" ? p.rewardLabel : null,
+      })),
+    });
+  }
+
   // O ranking mensal de vendedores, quando a página pede (o botão "Ranking do
   // vendedor: #N" da live). A resposta traz o top 20, o dono da live à parte
   // (mesmo fora do top 20) e as regras de pontos da Jamble. Sai só posição,
@@ -506,6 +553,8 @@
     guardarPerfis(dados);
     guardarQuadro(dados, origem);
     if (origem.includes("/api/live/seller-ranking")) guardarRankingMensal(dados);
+    if (origem.includes("/api/live/products")) guardarVendidos(dados);
+    if (origem.includes("/api/live/battle-participants")) guardarParticipantesBatalha(dados);
     if (/show-summary|show-dashboard/.test(origem)) guardarMetricas(dados, origem);
     if (origem.includes("/api/live/emojis")) guardarTabela(dados);
     // Dois endereços dão a mesma coisa: o do painel do vendedor e o da

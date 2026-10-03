@@ -472,6 +472,49 @@ const live = (id, doPainel = true) => ({
     conferir(guardado.fotos?.bia?.endsWith("/p.png"), "a foto de quem fala no chat fica guardada");
   }
 
+  // ---------- histórico desde o começo: lista Vendidos e ranking da batalha ----------
+  {
+    const { guardado, mandar } = montar();
+    const ctx = live("HIST", false);
+    // Um anúncio de compra direta rolando ao vivo, com 3 vendidas.
+    await mandar({
+      tipo: "quadro",
+      dados: {
+        leilaoAtual: "BIN1",
+        data: { sale: { id: "BIN1", created_at: 1791049297, status: "STARTED", settings: { type: "BUY_IT_NOW", starting_price: 149 }, sold_count: 3, available_count: 6, price: 149 } },
+      },
+      contexto: ctx,
+    });
+    const item = (saleId, comprador, compradorId, total) => ({
+      saleId,
+      titulo: "Batalha 30 anos EUA",
+      tipo: "BUY_IT_NOW",
+      unidades: 1,
+      preco: total,
+      total,
+      comprador,
+      compradorId,
+      foto: "https://jamble.b-cdn.net/profiles/user_id=" + compradorId + "/profile_images/a.png",
+      cancelado: false,
+      quando: 1791049300000,
+    });
+    await mandar({ tipo: "vendidos", dados: { quando: 1791054100000, itens: [item("s1", "sixsauwer", "uPGH", 149), item("s2", "noxentcg", "zorj", 149)] }, contexto: ctx });
+    await mandar({ tipo: "vendidos", dados: { quando: 1791054200000, itens: [item("s2", "noxentcg", "zorj", 149), item("s3", "colecionar_164", "d1DX", 298)] }, contexto: ctx });
+    await mandar({
+      tipo: "batalha-participantes",
+      dados: { quando: 1791054300000, regras: [{ icon: "shop", entryPoints: 15 }], temMais: true, participantes: [{ id: "d1DX", handle: "colecionar_164", foto: "https://jamble.b-cdn.net/profiles/user_id=d1DX/profile_images/b.png", time: "red", posicao: 1, pontos: 44520 }] },
+      contexto: ctx,
+    });
+    await esperar(1800);
+    const l = guardado.lives.HIST;
+    conferir(Object.keys(l.vendidos ?? {}).sort().join() === "s1,s2,s3", "as leituras da lista Vendidos se juntam pelo código da venda", Object.keys(l.vendidos ?? {}).join());
+    conferir(l.vendidosEm === 1791054200000, "guarda quando a lista foi lida");
+    conferir(l.leiloes.BIN1.vendidasNaHistoria === 3, "o anúncio de compra direta anota quantas já estavam na lista");
+    conferir(guardado.perfis?.uPGH === "sixsauwer" && guardado.perfis?.d1DX === "colecionar_164", "o código de cada comprador entra no dicionário de nomes");
+    conferir(guardado.fotos?.noxentcg?.endsWith("/a.png"), "e a foto de quem comprou");
+    conferir(l.batalhaRanking?.lista?.[0]?.pontos === 44520 && l.batalhaRanking.temMais === true, "guarda o ranking da batalha");
+  }
+
   // ---------- ranking mensal e amostras ----------
   {
     const { guardado, mandar } = montar();

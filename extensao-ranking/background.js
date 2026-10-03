@@ -252,6 +252,30 @@ function descarregar() {
       } else if (tipo === "quadro") {
         juntarQuadro(live, dados);
         for (const m of dados?.data?.messages ?? []) anotarFoto(m?.sender_profile?.username, m?.sender_profile?.foto);
+      } else if (tipo === "vendidos") {
+        juntarVendidos(live, dados);
+        // De brinde, o par código -> @ de cada comprador.
+        for (const i of dados?.itens ?? []) {
+          anotarFoto(i?.comprador, i?.foto);
+          if (i?.compradorId && i?.comprador && perfis[i.compradorId] !== i.comprador) {
+            perfis[i.compradorId] = i.comprador;
+            perfisNovos++;
+          }
+        }
+      } else if (tipo === "batalha-participantes") {
+        live.batalhaRanking = {
+          quando: Number(dados?.quando) || Date.now(),
+          regras: Array.isArray(dados?.regras) ? dados.regras : [],
+          temMais: !!dados?.temMais,
+          lista: (dados?.participantes ?? []).filter((p) => p?.handle),
+        };
+        for (const p of live.batalhaRanking.lista) {
+          anotarFoto(p.handle, p.foto);
+          if (p.id && perfis[p.id] !== p.handle) {
+            perfis[p.id] = p.handle;
+            perfisNovos++;
+          }
+        }
       }
     }
 
@@ -295,6 +319,31 @@ function juntarEmocao(live, evento) {
 
 const semVazios = (o) => Object.fromEntries(Object.entries(o).filter(([, v]) => v != null));
 
+// A lista "Vendidos" da live (tudo que saiu desde o começo, com quem
+// comprou). Cada leitura junta por cima da anterior, pelo saleId.
+//
+// A compra direta é o caso chato: ao vivo ela aparece como UM anúncio com
+// "quantas saíram", e na lista Vendidos cada compra vem separada, com outro
+// código. Para não contar a mesma unidade duas vezes, cada anúncio de compra
+// direta anota quantas já tinham saído quando a lista foi lida: do ao vivo só
+// contam as que saírem depois disso.
+function juntarVendidos(live, dados) {
+  const vendidos = (live.vendidos = live.vendidos ?? {});
+  for (const i of dados?.itens ?? []) {
+    if (!i?.saleId) continue;
+    vendidos[i.saleId] = { ...(vendidos[i.saleId] ?? {}), ...semVazios(i) };
+  }
+  const ids = Object.keys(vendidos);
+  if (ids.length > 1500) {
+    ids.sort((a, b) => (vendidos[a].quando || 0) - (vendidos[b].quando || 0));
+    for (const id of ids.slice(0, ids.length - 1500)) delete vendidos[id];
+  }
+  live.vendidosEm = Number(dados?.quando) || Date.now();
+  for (const l of Object.values(live.leiloes ?? {})) {
+    if (l.tipo === "BUY_IT_NOW") l.vendidasNaHistoria = Number(l.vendidas) || 0;
+  }
+}
+
 // Quantas mensagens do chat (com o texto) cada live guarda para o painel.
 const CHAT_GUARDADAS = 300;
 // Fotos de perfil (@ -> endereço), para a lista ao vivo. Acima disso, saem as
@@ -309,7 +358,14 @@ function juntarQuadro(live, q) {
   const leilao = leilaoDoFrame(q, q?.leilaoAtual);
   if (leilao) {
     const leiloes = (live.leiloes = live.leiloes ?? {});
+    const novo = !leiloes[leilao.id];
     leiloes[leilao.id] = mesclarLeilao(leiloes[leilao.id], leilao);
+    // Compra direta vista pela primeira vez depois de a lista Vendidos ser
+    // lida, mas que já estava rolando antes: o que já tinha saído está lá.
+    const l = leiloes[leilao.id];
+    if (novo && l.tipo === "BUY_IT_NOW" && live.vendidosEm && (l.inicio || 0) < live.vendidosEm) {
+      l.vendidasNaHistoria = Number(l.vendidas) || 0;
+    }
     const ids = Object.keys(leiloes);
     if (ids.length > 400) {
       ids.sort((a, b) => (leiloes[a].inicio || 0) - (leiloes[b].inicio || 0));
@@ -465,7 +521,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
       responder({ ok: true });
       return;
     }
-    if (msg?.tipo === "emocao" || msg?.tipo === "quadro" || msg?.tipo === "perfis") {
+    if (["emocao", "quadro", "perfis", "vendidos", "batalha-participantes"].includes(msg?.tipo)) {
       enfileirar(msg.tipo, msg.dados, msg.contexto);
       responder({ ok: true });
       return;
@@ -571,6 +627,24 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     }
     // Pedido do painel: o ranking mensal. Basta uma aba de live apertar o
     // botão -- a lista é a mesma em todas.
+    // Pedido do painel (botão de atualizar da aba separada): cada aba de live
+    // busca o histórico da sua live.
+    if (msg?.tipo === "carregar-historico") {
+      let ok = false;
+      try {
+        const abas = await chrome.tabs.query({ url: "https://*.jamble.com/live/*" });
+        for (const aba of abas) {
+          try {
+            const r = await chrome.tabs.sendMessage(aba.id, { tipo: "carregar-historico" });
+            if (r?.ok) ok = true;
+          } catch {
+            // Aba sem o content script ainda: recarregar a pagina resolve.
+          }
+        }
+      } catch {}
+      responder({ ok });
+      return;
+    }
     if (msg?.tipo === "atualizar-ranking-mensal") {
       let ok = false;
       try {

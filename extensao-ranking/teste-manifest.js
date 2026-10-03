@@ -88,7 +88,7 @@ const ESPERADAS = {
   ],
   "painel.js": [
     painelJsTexto,
-    ["resumirLeiloes", "quemDisputou", "resumirBatalha", "resumirChat", "resumirOfertas", "minhaPosicao", "pontosDaLive", "historicoComLives", "clientes"],
+    ["resumirVendas", "rankingDeCompras", "gemasPelaBatalha", "juntarGemas", "quemDisputou", "resumirBatalha", "resumirChat", "resumirOfertas", "minhaPosicao", "pontosDaLive", "historicoComLives", "clientes"],
   ],
 };
 for (const [arquivo, [texto, funcoes]] of Object.entries(ESPERADAS)) {

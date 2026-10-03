@@ -90,45 +90,48 @@
 
   const ehDireta = (l) => l.tipo === "BUY_IT_NOW";
 
-  // A lista para a tela e os números de resumo.
-  function resumirLeiloes(leiloes, perfis) {
-    const lista = Object.values(leiloes || {})
-      .map((l) => {
-        const direta = ehDireta(l);
-        const vendidas = n(l.vendidas) || (l.vendido ? 1 : 0);
-        // Leilão: o lance que levou. Compra direta: o preço de cada unidade.
-        const final = direta ? n(l.preco) : n(l.vendidoPor || l.melhor);
-        const situacao = l.cancelado
-          ? "cancelado"
-          : l.vendido || (direta && acabou(l) && vendidas > 0)
-            ? "vendido"
-            : acabou(l)
-              ? "sem venda"
-              : "rolando";
-        // Quanto entrou: o total da Jamble, quando ela manda; senão a conta.
-        const total = l.cancelado
-          ? 0
-          : n(l.totalVendido) || (direta ? final * vendidas : situacao === "vendido" ? final : 0);
-        return {
-          id: l.id,
-          titulo: l.titulo || "item sem nome",
-          tipo: direta ? "compra direta" : "leilão",
-          inicial: n(l.inicial),
-          final,
-          total,
-          vendidas,
-          restam: l.restam ?? null,
-          multiplicador: !direta && l.inicial > 0 && final > 0 ? final / l.inicial : null,
-          lances: n(l.lances),
-          disputaram: (l.disputantes || []).length,
-          // Com o leilão rolando, é quem está na frente; depois, quem levou.
-          vencedor: direta ? null : l.vencedor || nomeDe(l.vencedorId, perfis),
-          situacao,
-          inicio: l.inicio,
-        };
-      })
-      .sort((a, b) => n(b.inicio) - n(a.inicio));
+  // Uma linha por venda vista ao vivo (WebSocket).
+  function linhasDoAoVivo(leiloes, perfis) {
+    return Object.values(leiloes || {}).map((l) => {
+      const direta = ehDireta(l);
+      const vendidas = n(l.vendidas) || (l.vendido ? 1 : 0);
+      // Leilão: o lance que levou. Compra direta: o preço de cada unidade.
+      const final = direta ? n(l.preco) : n(l.vendidoPor || l.melhor);
+      const situacao = l.cancelado
+        ? "cancelado"
+        : l.vendido || (direta && acabou(l) && vendidas > 0)
+          ? "vendido"
+          : acabou(l)
+            ? "sem venda"
+            : "rolando";
+      // Quanto entrou: o total da Jamble, quando ela manda; senão a conta.
+      const total = l.cancelado
+        ? 0
+        : n(l.totalVendido) || (direta ? final * vendidas : situacao === "vendido" ? final : 0);
+      return {
+        id: l.id,
+        titulo: l.titulo || "item sem nome",
+        tipo: direta ? "compra direta" : "leilão",
+        inicial: n(l.inicial),
+        final,
+        total,
+        vendidas,
+        restam: l.restam ?? null,
+        multiplicador: !direta && l.inicial > 0 && final > 0 ? final / l.inicial : null,
+        lances: n(l.lances),
+        disputaram: (l.disputantes || []).length,
+        // Com o leilão rolando, é quem está na frente; depois, quem levou.
+        vencedor: direta ? null : l.vencedor || nomeDe(l.vencedorId, perfis),
+        situacao,
+        inicio: l.inicio,
+        fonte: "ao vivo",
+      };
+    });
+  }
 
+  // Os números de resumo de uma lista de vendas.
+  function resumoDasLinhas(linhas) {
+    const lista = linhas.slice().sort((a, b) => n(b.inicio) - n(a.inicio));
     // Só uma venda roda por vez: a mais nova. Uma mais antiga que ficou
     // "rolando" é uma cujo fim não passou por aqui (a aba fechou no meio, por
     // exemplo). Unidade de compra direta que saiu é venda de verdade; o resto,
@@ -137,7 +140,6 @@
       if (l.situacao !== "rolando") continue;
       l.situacao = l.tipo === "compra direta" && l.vendidas > 0 ? "vendido" : "fim não visto";
     }
-
     const vendidos = lista.filter((l) => l.situacao === "vendido");
     const mults = vendidos.map((l) => l.multiplicador).filter((m) => m != null);
     return {
@@ -152,13 +154,69 @@
     };
   }
 
-  // Quem mais comprou na live, e o quê. Duas fontes:
+  // A lista para a tela e os números de resumo, só do que passou ao vivo.
+  function resumirLeiloes(leiloes, perfis) {
+    return resumoDasLinhas(linhasDoAoVivo(leiloes, perfis));
+  }
+
+  // Tudo que a live vendeu: a lista "Vendidos" da Jamble (desde o começo, com
+  // quem comprou) junto com o que passou ao vivo depois dela, sem contar nada
+  // duas vezes.
+  //   - leilão: o mesmo saleId nas duas -- fica a linha da lista, com os
+  //     lances e quem disputou que só o ao vivo sabe;
+  //   - compra direta: na lista, cada compra é uma linha com quem comprou; ao
+  //     vivo é um anúncio só. Do anúncio entram apenas as unidades que saíram
+  //     depois da última leitura da lista (vendidasNaHistoria, no background).
+  function resumirVendas(live, perfis) {
+    const aoVivo = linhasDoAoVivo(live?.leiloes, perfis);
+    const historia = Object.values(live?.vendidos || {});
+    if (!historia.length) return { ...resumoDasLinhas(aoVivo), desdeInicio: false, lidoEm: null };
+
+    const doAoVivo = new Map(aoVivo.map((l) => [l.id, l]));
+    const linhas = historia.map((h) => {
+      const ws = doAoVivo.get(h.saleId);
+      const direta = h.tipo === "BUY_IT_NOW";
+      const final = n(h.preco);
+      const unidades = n(h.unidades) || 1;
+      return {
+        id: h.saleId,
+        titulo: h.titulo || ws?.titulo || "item sem nome",
+        tipo: direta ? "compra direta" : "leilão",
+        inicial: n(h.inicial),
+        final,
+        total: h.cancelado ? 0 : n(h.total) || final * unidades,
+        vendidas: unidades,
+        restam: null,
+        multiplicador: !direta && n(h.inicial) > 0 && final > 0 ? final / n(h.inicial) : null,
+        lances: ws?.lances ?? 0,
+        disputaram: ws?.disputaram ?? 0,
+        vencedor: h.comprador || null,
+        situacao: h.cancelado ? "cancelado" : "vendido",
+        inicio: h.quando ?? ws?.inicio ?? null,
+        fonte: "jamble",
+      };
+    });
+    const naHistoria = new Set(historia.map((h) => h.saleId));
+    for (const l of aoVivo) {
+      if (naHistoria.has(l.id)) continue;
+      if (l.tipo !== "compra direta") {
+        linhas.push(l);
+        continue;
+      }
+      const depois = Math.max(0, l.vendidas - n(live.leiloes?.[l.id]?.vendidasNaHistoria));
+      if (l.situacao !== "rolando" && !depois) continue;
+      linhas.push({ ...l, vendidas: depois, total: depois * l.final });
+    }
+    return { ...resumoDasLinhas(linhas), desdeInicio: true, lidoEm: n(live.vendidosEm) || null };
+  }
+
+  // Quem mais comprou na live, e o quê. Fontes, da mais certa para a menos:
   //   - a Participação da Jamble (só na live dela): o total que cada pessoa
-  //     gastou, contado pela Jamble -- inclui compra direta;
-  //   - os leilões vistos com a página aberta (qualquer live): quem levou o
-  //     quê e por quanto. Compra direta a Jamble não diz quem comprou.
-  // O total é o maior dos dois: a Participação é lida de tempos em tempos e
-  // pode estar uns segundos atrás de um leilão que acabou de fechar.
+  //     gastou, contado pela Jamble;
+  //   - as vendas da live (resumirVendas): a lista "Vendidos" desde o começo,
+  //     com quem comprou, mais os leilões que fecharam ao vivo depois dela.
+  // O total é o maior: a Participação é lida de tempos em tempos e pode estar
+  // uns segundos atrás de um leilão que acabou de fechar.
   function rankingDeCompras(live, perfis) {
     const pessoas = new Map();
     const pessoa = (handle, nome) => {
@@ -170,28 +228,87 @@
     for (const l of live?.linhas || []) {
       if (l?.handle && n(l.gastou) > 0) pessoa(l.handle, l.nome).daJamble = n(l.gastou);
     }
-    for (const l of Object.values(live?.leiloes || {})) {
-      if (ehDireta(l) || !l.vendido || l.cancelado) continue;
-      const handle = l.vencedor || nomeDe(l.vencedorId, perfis);
-      if (!handle) continue;
-      pessoa(handle).itens.push({
-        titulo: l.titulo || "item sem nome",
-        valor: n(l.totalVendido || l.vendidoPor || l.melhor),
-        quando: n(l.fim || l.inicio),
+    for (const v of resumirVendas(live, perfis).lista) {
+      if (v.situacao !== "vendido" || !v.vencedor || v.total <= 0) continue;
+      pessoa(v.vencedor).itens.push({
+        titulo: v.titulo,
+        valor: v.total,
+        unidades: v.vendidas,
+        tipo: v.tipo,
+        quando: n(v.inicio),
       });
     }
     return [...pessoas.values()]
       .map((p) => {
-        const dosLeiloes = p.itens.reduce((s, i) => s + i.valor, 0);
+        const dasVendas = p.itens.reduce((s, i) => s + i.valor, 0);
         return {
           handle: p.handle,
           nome: p.nome,
-          total: Math.max(n(p.daJamble), dosLeiloes),
+          total: Math.max(n(p.daJamble), dasVendas),
           itens: p.itens.sort((a, b) => b.valor - a.valor),
         };
       })
       .filter((p) => p.total > 0)
       .sort((a, b) => b.total - a.total || b.itens.length - a.itens.length);
+  }
+
+  // Gemas de cada pessoa desde o começo, numa live de outro vendedor: não há
+  // Participação, mas há o ranking da batalha, que dá pontos por gema e por
+  // real gasto (as regras vêm na resposta: hoje 1 por gema, 15 por real).
+  // Tirando o que a pessoa comprou desde que a batalha começou (lista
+  // Vendidos), sobra o que veio de gema. É estimativa: só vale com a lista
+  // Vendidos lida, e cobre quem está no ranking da batalha.
+  function gemasPelaBatalha(live) {
+    const ranking = live?.batalhaRanking;
+    if (!ranking?.lista?.length || !live?.vendidosEm) return [];
+    const regras = regrasDoRanking({ rules: ranking.regras });
+    if (!regras || !regras.porGema) return [];
+    const batalha = Object.values(live.batalhas || {}).sort((a, b) => n(b.visto) - n(a.visto))[0];
+    const comecou = n(batalha?.comecou);
+    const gasto = new Map();
+    for (const v of Object.values(live.vendidos || {})) {
+      if (v.cancelado || !v.comprador || (comecou && n(v.quando) < comecou)) continue;
+      gasto.set(v.comprador, (gasto.get(v.comprador) || 0) + n(v.total));
+    }
+    return ranking.lista
+      .map((p) => ({
+        handle: p.handle,
+        time: p.time,
+        pontos: n(p.pontos),
+        gemas: Math.max(0, Math.round((n(p.pontos) - n(regras.porReal) * (gasto.get(p.handle) || 0)) / regras.porGema)),
+      }))
+      .filter((p) => p.gemas > 0);
+  }
+
+  // O ranking de gemas: as emotions vistas (sabem o ícone, mas só desde que a
+  // página abriu) com o total desde o começo, quando existe -- a Participação
+  // na live dela (exato) ou a estimativa pela batalha na de outro vendedor.
+  function juntarGemas(porPessoaEmocoes, linhas, estimadas) {
+    const m = new Map();
+    for (const p of porPessoaEmocoes || []) {
+      m.set(p.handle, { ...p, icones: { ...(p.icones || {}) }, vistas: n(p.gemas), desdeInicio: null });
+    }
+    const pega = (handle, nome) => {
+      if (!m.has(handle)) m.set(handle, { handle, nome: nome || handle, qtd: 0, gemas: 0, icones: {}, vistas: 0, desdeInicio: null });
+      return m.get(handle);
+    };
+    const temParticipacao = (linhas || []).some((l) => n(l.gemas) > 0);
+    for (const l of linhas || []) {
+      if (!l?.handle || n(l.gemas) <= 0) continue;
+      const p = pega(l.handle, l.nome);
+      p.desdeInicio = "jamble";
+      p.gemas = Math.max(p.vistas, n(l.gemas));
+    }
+    if (!temParticipacao) {
+      for (const e of estimadas || []) {
+        const p = pega(e.handle);
+        if (e.gemas > p.vistas) {
+          p.gemas = e.gemas;
+          p.desdeInicio = "estimado";
+        }
+      }
+    }
+    return [...m.values()].sort((a, b) => b.gemas - a.gemas || b.qtd - a.qtd);
   }
 
   // Quem deu lance e não levou: cliente quente para a próxima live.
@@ -234,6 +351,7 @@
       status: b.status || null,
       acabou: b.is_over === true,
       tier: b.tier || null,
+      comecou: ms(b.started_at),
       termina: ms(b.ending_at),
       vermelho: time("red"),
       azul: time("blue"),
@@ -406,17 +524,20 @@
     if (!temParticipacao) {
       for (const [h, v] of Object.entries(live?.chat?.porPessoa || {})) p(h).mensagens += n(v.n);
     }
+    // Quem disputou: só o ao vivo sabe (os códigos de quem deu lance).
     for (const l of Object.values(live?.leiloes || {})) {
-      if (!acabou(l) || ehDireta(l)) continue; // compra direta não diz quem comprou
+      if (!acabou(l) || ehDireta(l)) continue;
       for (const id of l.disputantes || []) {
         const h = nomeDe(id, perfis);
         if (h) p(h).disputou++;
       }
-      const venc = l.vendido ? l.vencedor || nomeDe(l.vencedorId, perfis) : null;
-      if (venc) {
-        p(venc).ganhou++;
-        if (!temParticipacao) p(venc).gastou += n(l.totalVendido || l.vendidoPor || l.melhor);
-      }
+    }
+    // Quem levou e quanto gastou: as vendas da live, desde o começo quando a
+    // lista Vendidos já foi lida (inclui compra direta).
+    for (const v of resumirVendas(live, perfis).lista) {
+      if (v.situacao !== "vendido" || !v.vencedor) continue;
+      if (v.tipo === "leilão") p(v.vencedor).ganhou++;
+      if (!temParticipacao) p(v.vencedor).gastou += n(v.total);
     }
     return {
       titulo: live?.titulo || "",
@@ -558,6 +679,9 @@
     resumirLeiloes,
     quemDisputou,
     rankingDeCompras,
+    resumirVendas,
+    gemasPelaBatalha,
+    juntarGemas,
     batalhaDoFrame,
     resumirBatalha,
     mensagensDoFrame,

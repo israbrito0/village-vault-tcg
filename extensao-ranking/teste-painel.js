@@ -226,6 +226,60 @@ function abrirPainel({ busca = "", guardado = {}, dados = null } = {}) {
     conferir(/pixel_heart\.png/.test(q.el("#t-ranking-vivo tbody").innerHTML) && /×2/.test(q.el("#t-ranking-vivo tbody").innerHTML), "Ranking de gemas: a figurinha com a quantidade do lado");
   }
 
+  // ---------- histórico desde o começo da live ----------
+  // A lista Vendidos e o ranking da batalha de verdade (amostras-historico.js),
+  // como o background guarda.
+  {
+    const H = require("./amostras-historico.js");
+    const comHist = JSON.parse(JSON.stringify(dados));
+    const live = comHist.lives[LIVE];
+    live.vendidos = {};
+    for (const i of [...H.VENDIDOS_PAGINA_1.items, ...H.VENDIDOS_PAGINA_2.items]) {
+      live.vendidos[i.sold.saleId] = {
+        saleId: i.sold.saleId,
+        titulo: i.title,
+        tipo: i.saleType,
+        inicial: i.startingPrice,
+        unidades: i.soldCount,
+        preco: i.sold.soldPrice,
+        total: i.sold.totalSoldPrice,
+        comprador: i.sold.buyerUsername,
+        cancelado: false,
+        quando: Math.round(i.sold.createdAt * 1000),
+      };
+    }
+    live.vendidosEm = 1791054100000;
+    Object.values(live.batalhas)[0].comecou = 1791047426702;
+    live.batalhaRanking = {
+      quando: 1791054100000,
+      regras: H.BATALHA_PARTICIPANTES.rules.map((r) => ({ icon: r.icon, entryPoints: r.entryPoints })),
+      lista: H.BATALHA_PARTICIPANTES.participants.map((x) => ({ handle: x.username, pontos: x.points, time: x.team, posicao: x.rank, premio: x.rewardLabel })),
+    };
+    const q = abrirPainel({ busca: `?embutido=1&live=${LIVE}`, dados: comHist });
+    await q.espera();
+    q.ctx.mostrarAba("vivo");
+    await q.espera();
+    conferir(q.el("#aviso").textContent === "", "com histórico: desenha sem erro", q.el("#aviso").textContent);
+    const compras = q.el("#t-compras tbody").innerHTML;
+    conferir(/@colecionar_164/.test(compras) && compras.indexOf("@colecionar_164") < compras.indexOf("@vbpracima"), "Compras desde o começo: quem mais comprou em cima");
+    conferir(/@leozinthewise/.test(compras), "Compras: compra direta com quem comprou");
+    conferir(/lida às/.test(q.texto("#comprasNota")), "diz de quando é a lista Vendidos", q.texto("#comprasNota"));
+    const gemas = q.el("#t-ranking-vivo tbody").innerHTML;
+    conferir(/≈ 8\.505/.test(gemas) && /@colecionar_164/.test(gemas), "Ranking de gemas: estimativa desde o começo, marcada com ≈", gemas.slice(0, 200));
+    conferir(/pela batalha/.test(q.texto("#rankingVivoTotal")), "e diz que é pela batalha", q.texto("#rankingVivoTotal"));
+
+    q.ctx.mostrarAba("leiloes");
+    await q.espera();
+    conferir(/desde o começo/.test(q.texto("#l-total")), "Leilões: as vendas desde o começo", q.texto("#l-total"));
+    conferir(/@leozinthewise/.test(q.el("#t-leiloes tbody").innerHTML), "Leilões: compra direta com quem comprou");
+
+    q.ctx.mostrarAba("batalha");
+    await q.espera();
+    const rb = q.el("#t-batalha-ranking tbody").innerHTML;
+    conferir(q.el("#caixa-batalha-ranking").style.display === "", "Batalha: aparece o ranking desde o começo");
+    conferir(/@colecionar_164/.test(rb) && /44\.520/.test(rb) && /vermelho/.test(rb) && /R\$ 25/.test(rb), "com pontos, time e prêmio", rb.slice(0, 200));
+  }
+
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);
 })();

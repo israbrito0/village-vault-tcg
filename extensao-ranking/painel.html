@@ -413,6 +413,16 @@
         </div>
       </div>
 
+      <div class="painel" id="caixa-batalha-ranking" style="display:none">
+        <h2><span>Ranking da batalha · desde o começo</span><span class="fraco" id="bRankingLido"></span></h2>
+        <div class="lista">
+          <table id="t-batalha-ranking">
+            <thead><tr><th>#</th><th>Pessoa · time</th><th class="n">Pontos</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
       <div class="cartoes">
         <div class="cartao"><div class="rotulo">Mensagens no chat</div><div class="valor" id="ch-total">0</div></div>
         <div class="cartao"><div class="rotulo">Por minuto · últimos 5 min</div><div class="valor" id="ch-ritmo">0</div></div>
@@ -490,6 +500,7 @@
       <button class="secundario" id="transmitir">Modo transmissão</button>
       <button class="secundario" id="planilha">Baixar planilha (CSV)</button>
       <button class="secundario" id="imprimir">Salvar relatório em PDF</button>
+      <button class="secundario" id="buscarHistorico">Buscar desde o começo</button>
       <button class="secundario" id="zerarAoVivo">Zerar o "ao vivo" desta live</button>
     </div>
     <button id="sairTransmissao">sair do modo transmissão (Esc)</button>

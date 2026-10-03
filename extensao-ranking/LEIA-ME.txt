@@ -103,6 +103,36 @@ lembra o tamanho e se estava aberto.
 
 Preferindo em aba separada: icone da extensao -> "Painel da live".
 
+Trocou de live (sem recarregar a pagina)? O painel passa sozinho para a live
+da tela. O botao ↻, no topo do painel ao lado do X, recarrega o painel na
+live da tela e busca de novo tudo desde o comeco dela.
+
+Desde o comeco da live, mesmo entrando depois
+---------------------------------------------
+Na primeira vez que o painel abre em cada live (e a cada ↻), a extensao abre
+duas abas da propria pagina da live, como voce faria, e volta para onde voce
+estava:
+  "Vendidos" (coluna dos produtos): aperta "Carregar Mais" ate acabar. Traz
+    TODAS as vendas desde o comeco, com quem comprou -- inclusive compra
+    direta. Alimenta o ranking de compras, a aba Leiloes e os clientes.
+  "Batalha" (coluna do chat): os pontos de cada pessoa desde o comeco da
+    batalha, com o time e o premio.
+A coluna pisca por uns segundos enquanto isso acontece.
+
+O que vem desde o comeco, e o que nao vem:
+  vendas e compras de cada pessoa ........ sim, em qualquer live
+  pontos da batalha de cada pessoa ....... sim, quando a live tem batalha
+  gemas de cada pessoa ................... na sua live, exato (Participacao);
+                                           na de outro vendedor, estimado pela
+                                           batalha (pontos - 15 x o que gastou),
+                                           marcado com "≈"
+  chat ................................... as 20 ultimas mensagens de quando
+                                           a pagina abriu
+  QUAL emotion cada um mandou ............ nao: a Jamble nao manda as de antes
+                                           para quem entra depois. As
+                                           figurinhas contam a partir de quando
+                                           a pagina abriu
+
 Abra o painel JUNTO com a live, antes de comecar. O "quem mandou o que" so
 enxerga as emotions que passarem com a aba aberta -- o que aconteceu antes
 nao da para recuperar.

@@ -7,6 +7,7 @@
   const ID = "vv-painel-ao-lado";
   const BOTAO = "vv-painel-botao";
   const CAPA = "vv-painel-capa";
+  const ATUALIZAR = "vv-painel-atualizar";
   const PADRAO = 400;
   const MIN = 300;
   // Nunca mais do que metade da janela: a página da live encolhe para dar
@@ -135,8 +136,23 @@
     `;
     fechar.addEventListener("click", () => mostrar(false));
 
+    // ↻ Atualizar: recarrega o painel na live que está na tela agora e busca
+    // de novo o histórico dela desde o começo (vendas e batalha).
+    const atualizar = document.createElement("button");
+    atualizar.type = "button";
+    atualizar.id = ATUALIZAR;
+    atualizar.textContent = "↻";
+    atualizar.title = "Atualizar: mostra a live da tela e busca de novo tudo desde o começo dela";
+    atualizar.style.cssText = `
+      position: absolute; top: 8px; right: 42px; z-index: 2;
+      height: 26px; padding: 0 10px; border: 1px solid #2f2760;
+      border-radius: 999px; background: #1e1940; color: #ffc83d;
+      font: 700 14px/1 system-ui, sans-serif; cursor: pointer;
+    `;
+    atualizar.addEventListener("click", () => atualizarTudo());
+
     // O painel em si só é carregado quando ela abre -- ver `mostrar`.
-    caixa.append(pegador, fechar);
+    caixa.append(pegador, fechar, atualizar);
 
     // Durante o arrasto, o iframe engole o mouse -- a capa resolve.
     let arrastando = false;
@@ -213,6 +229,41 @@
     return a;
   }
 
+  // ---------- trocar de live e buscar o histórico ----------
+  // A Jamble troca de live sem recarregar a página: o painel acompanha a live
+  // da tela. E quem chega no meio da live não recebe o que já passou -- então,
+  // na primeira vez que o painel abre em cada live, a extensão busca as vendas
+  // e a batalha desde o começo (content.js, vvCarregarHistorico).
+  let liveDoQuadro = null;
+  const historicoFeito = new Set();
+  let buscando = false;
+
+  async function buscarHistorico(forcar) {
+    const live = idDaLive(location.pathname);
+    if (!live || buscando || (!forcar && historicoFeito.has(live))) return;
+    if (typeof self.vvCarregarHistorico !== "function") return;
+    historicoFeito.add(live);
+    buscando = true;
+    const b = document.getElementById(ATUALIZAR);
+    if (b) b.textContent = "…";
+    try {
+      await self.vvCarregarHistorico();
+    } catch {
+      // Página mudou no meio: o próximo ↻ tenta de novo.
+    } finally {
+      buscando = false;
+      if (b) b.textContent = "↻";
+    }
+  }
+
+  function atualizarTudo() {
+    const caixa = document.getElementById(ID);
+    caixa?.querySelector("iframe")?.remove();
+    liveDoQuadro = null;
+    mostrar(true);
+    buscarHistorico(true);
+  }
+
   // ---------- liga e desliga ----------
 
   function mostrar(ligar) {
@@ -229,8 +280,14 @@
       // Fechado, a página não carrega nada e volta a ser uma página comum --
       // o que também devolve ao Claude a capacidade de olhar a aba, que o
       // Chrome bloqueia enquanto existe o quadro de outra extensão aqui.
-      const jaTem = caixa.querySelector("iframe");
+      let jaTem = caixa.querySelector("iframe");
       const aviso = document.getElementById(AVISO);
+      // Trocou de live na mesma página: o painel passa para a live nova.
+      const daTela = idDaLive(location.pathname);
+      if (aberto && jaTem && daTela && liveDoQuadro && daTela !== liveDoQuadro) {
+        jaTem.remove();
+        jaTem = null;
+      }
       if (aberto && !jaTem) {
         let endereco = null;
         try {
@@ -249,6 +306,10 @@
           quadro.src = endereco + "?embutido=1" + (daPagina ? "&live=" + encodeURIComponent(daPagina) : "");
           quadro.style.cssText = "width: 100%; height: 100%; border: 0; display: block;";
           caixa.appendChild(quadro);
+          liveDoQuadro = daPagina;
+          // Primeira vez nesta live: busca o histórico, depois de a página
+          // assentar (as abas da Jamble precisam existir).
+          if (daPagina && !historicoFeito.has(daPagina)) setTimeout(() => buscarHistorico(false), 4000);
         }
       } else if (!aberto) {
         jaTem?.remove();

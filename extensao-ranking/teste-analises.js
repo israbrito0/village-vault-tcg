@@ -9,6 +9,9 @@ const {
   resumirLeiloes,
   quemDisputou,
   rankingDeCompras,
+  resumirVendas,
+  gemasPelaBatalha,
+  juntarGemas,
   edicoesDoFrame,
   batalhaDoFrame,
   resumirBatalha,
@@ -265,6 +268,82 @@ conferir(quemDisputou({ a: rolandoAinda }, perfis).length === 0, "leilão roland
   const atrasada = rankingDeCompras({ linhas: [{ handle: "vbpracima", gastou: 100 }], leiloes }, perfis);
   conferir(atrasada[0].total === 750, "Participação atrás do leilão: fica o maior", String(atrasada[0].total));
   conferir(rankingDeCompras(undefined).length === 0, "sem live: lista vazia");
+}
+
+// ---------- histórico desde o começo (lista Vendidos + ao vivo) ----------
+{
+  const H = require("./amostras-historico.js");
+  const comoBackground = (resposta) =>
+    Object.fromEntries(
+      resposta.items.map((i) => [
+        i.sold.saleId,
+        {
+          saleId: i.sold.saleId,
+          titulo: i.title,
+          tipo: i.saleType,
+          inicial: i.startingPrice,
+          unidades: i.soldCount,
+          preco: i.sold.soldPrice,
+          total: i.sold.totalSoldPrice,
+          comprador: i.sold.buyerUsername,
+          cancelado: false,
+          quando: Math.round(i.sold.createdAt * 1000),
+        },
+      ]),
+    );
+  const vendidos = { ...comoBackground(H.VENDIDOS_PAGINA_1), ...comoBackground(H.VENDIDOS_PAGINA_2) };
+  // O ao vivo viu o leilão do vbpracima (o mesmo saleId da lista) e um
+  // anúncio de compra direta que vendeu 3 antes da lista ser lida e mais 2
+  // depois.
+  const anuncio = { ...cd, vendidas: 5, vendidasNaHistoria: 3 };
+  const live = { vendidos, vendidosEm: 1791054100000, leiloes: { [l.id]: l, [anuncio.id]: anuncio } };
+  const rv = resumirVendas(live, perfis);
+  conferir(rv.desdeInicio === true && rv.lidoEm === 1791054100000, "sabe que tem o histórico desde o começo");
+  const leilaoVb = rv.lista.filter((x) => x.id === "VyNc5TTB4S9JDJKlllcU");
+  conferir(leilaoVb.length === 1, "o leilão que está nas duas fontes aparece uma vez só", String(leilaoVb.length));
+  conferir(leilaoVb[0].lances === 51 && leilaoVb[0].vencedor === "vbpracima", "com os lances do ao vivo e o comprador da lista");
+  const doAnuncio = rv.lista.find((x) => x.id === anuncio.id);
+  conferir(doAnuncio && doAnuncio.vendidas === 2 && doAnuncio.total === 298, "da compra direta ao vivo, só as unidades depois da lista", JSON.stringify(doAnuncio));
+  const soma = 38 + 190 + 2401 + 447 + 750 + 131 + 298;
+  conferir(rv.faturado === soma, "faturado = lista Vendidos + o que saiu depois", `${rv.faturado} x ${soma}`);
+  conferir(rv.lista.find((x) => x.vencedor === "leozinthewise")?.tipo === "compra direta", "compra direta da lista vem com quem comprou");
+  conferir(resumirVendas({ leiloes: { [l.id]: l } }, perfis).desdeInicio === false, "sem a lista, é só o que passou ao vivo");
+
+  // Ranking de compras desde o começo, inclusive compra direta.
+  const rc = rankingDeCompras(live, perfis);
+  const col = rc.find((x) => x.handle === "colecionar_164");
+  conferir(rc[0].handle === "colecionar_164" && col.total === 2401, "quem mais comprou desde o começo", JSON.stringify(rc[0]));
+  conferir(rc.find((x) => x.handle === "leozinthewise")?.total === 190, "compra direta entra com quem comprou");
+  conferir(rc.find((x) => x.handle === "vbpracima")?.total === 750, "o leilão que está nas duas fontes conta uma vez só");
+  conferir(rc.find((x) => x.handle === "sixsauwer")?.itens[0].unidades === 3, "quantas unidades cada um levou");
+
+  // Gemas estimadas pela batalha: pontos − 15 × o que gastou desde que a
+  // batalha começou.
+  const comBatalha = {
+    ...live,
+    batalhas: { C1: { comecou: 1791047426702, visto: 1 } },
+    batalhaRanking: {
+      regras: H.BATALHA_PARTICIPANTES.rules.map((r) => ({ icon: r.icon, entryPoints: r.entryPoints })),
+      lista: H.BATALHA_PARTICIPANTES.participants.map((p) => ({ handle: p.username, pontos: p.points, time: p.team })),
+    },
+  };
+  const est = gemasPelaBatalha(comBatalha);
+  const estCol = est.find((x) => x.handle === "colecionar_164");
+  conferir(estCol && estCol.gemas === 44520 - 15 * 2401, "colecionar_164: 44.520 pontos − 15 × R$ 2.401 = 8.505 gemas", JSON.stringify(estCol));
+  conferir(est.find((x) => x.handle === "vbpracima")?.gemas === 20775 - 15 * 750, "vbpracima: 20.775 − 15 × R$ 750");
+  conferir(est.find((x) => x.handle === "samantaavila")?.gemas === 1960, "quem não comprou: os pontos são todos de gema");
+  conferir(gemasPelaBatalha({ ...comBatalha, vendidosEm: null }).length === 0, "sem a lista Vendidos não estima (os pontos de compra iam contar como gema)");
+
+  // Ranking de gemas: emotions vistas + total desde o começo.
+  const vistas = [{ handle: "samantaavila", nome: "samanta", qtd: 2, gemas: 1000, icones: { magikarp_shiny: 2 } }];
+  const g1 = juntarGemas(vistas, [], est);
+  const sam = g1.find((x) => x.handle === "samantaavila");
+  conferir(sam.gemas === 1960 && sam.desdeInicio === "estimado" && sam.icones.magikarp_shiny === 2, "estimativa maior que o visto: vale a estimativa, com as figurinhas vistas");
+  conferir(g1.find((x) => x.handle === "colecionar_164")?.gemas === 8505 && g1[0].handle === "vbpracima", "quem só aparece na batalha entra no ranking também, na ordem das gemas", g1.map((x) => x.handle + ":" + x.gemas).join(" "));
+  const g2 = juntarGemas(vistas, [{ handle: "samantaavila", nome: "samanta", gemas: 3000 }, { handle: "x", gemas: 0 }], est);
+  conferir(g2.find((x) => x.handle === "samantaavila").desdeInicio === "jamble" && g2.find((x) => x.handle === "samantaavila").gemas === 3000, "na live dela, a Participação manda");
+  conferir(!g2.some((x) => x.handle === "colecionar_164"), "com Participação, a estimativa da batalha não entra");
+  conferir(juntarGemas(vistas, [], []).find((x) => x.handle === "samantaavila").desdeInicio === null, "sem nada desde o começo: só o visto");
 }
 
 // ---------- batalha ----------

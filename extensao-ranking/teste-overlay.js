@@ -17,6 +17,7 @@ function conferir(ok, nome, detalhe = "") {
 // precisa recuar para o painel não cobrir o chat.
 function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false, aberto = false } = {}) {
   const gravacoes = [];
+  const historicos = [];
   let recarregou = 0;
   let relogio = null;
 
@@ -124,8 +125,14 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
       relogio = fn;
       return 1;
     },
-    setTimeout,
+    // A busca do histórico espera a página assentar (4s): aqui, quase nada.
+    setTimeout: (fn, ms) => setTimeout(fn, Math.min(ms, 10)),
     clearTimeout,
+    // O content.js põe isto no mesmo mundo do overlay; aqui, um de mentira.
+    vvCarregarHistorico: async () => {
+      historicos.push(janela.location.pathname);
+      return { ok: true };
+    },
     console,
   };
   janela.window = janela;
@@ -151,6 +158,7 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
     paginaJamble,
     tick: () => relogio && relogio(),
     recarregou: () => recarregou,
+    historicos,
     // Simula a extensão sendo atualizada com esta página aberta.
     desligar: () => {
       janela.chrome.runtime = {
@@ -273,6 +281,35 @@ function abrirPagina(caminho, larguraJanela = 1400, { comPaginaDaJamble = false,
     await p.espera();
     p.tick();
     conferir(p.paginaJamble.style.right === "0px", "com o painel fechado a pagina fica intacta", p.paginaJamble.style.right);
+  }
+
+  // ---------- trocar de live e o botão ↻ ----------
+  {
+    const p = abrirPagina("/live/pokerusbr/AAA", 1400, { aberto: true });
+    await p.espera();
+    const caixa = p.acha("vv-painel-ao-lado");
+    const src = () => caixa.querySelector("iframe")?.src || "";
+    conferir(/live=AAA/.test(src()), "o painel abre na live da tela", src());
+    await p.espera();
+    conferir(p.historicos.join() === "/live/pokerusbr/AAA", "na primeira vez nesta live, busca o histórico desde o começo", p.historicos.join());
+    p.tick();
+    await p.espera();
+    conferir(p.historicos.length === 1, "e não busca de novo a cada conferência");
+
+    // A Jamble troca de live sem recarregar a página.
+    p.janela.location.pathname = "/live/outro/BBB";
+    p.tick();
+    conferir(/live=BBB/.test(src()), "trocou de live: o painel passa para a live nova", src());
+    conferir(caixa.children.filter((c) => c.tagName === "IFRAME").length === 1, "com um painel só");
+    await p.espera();
+    conferir(p.historicos.join() === "/live/pokerusbr/AAA,/live/outro/BBB", "e busca o histórico da live nova", p.historicos.join());
+
+    // ↻: recarrega o painel e busca de novo, mesmo já tendo buscado.
+    const atualizar = p.acha("vv-painel-atualizar");
+    conferir(!!atualizar && atualizar.textContent === "↻", "tem o botão ↻ no topo do painel");
+    atualizar.click();
+    await p.espera();
+    conferir(p.historicos.length === 3 && /live=BBB/.test(src()), "↻ busca de novo e mantém a live da tela", p.historicos.join());
   }
 
   // ---------- extensão atualizada com a página aberta ----------

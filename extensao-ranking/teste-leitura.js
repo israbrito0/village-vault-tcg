@@ -537,6 +537,29 @@ async function pedir(url, corpo) {
   conferir(rm && rm.seller?.username === "pokerusbr" && rm.seller.rank === 125, "traz o dono da live, mesmo fora do top 20");
   conferir(rm && rm.rules?.[0]?.entryPoints === 3 && rm.rules[0].icon === "shop", "e as regras de pontos");
 
+  // ---------- histórico desde o começo da live ----------
+  const H = require("./amostras-historico.js");
+  const vend = await pedir("https://www.jamble.com/api/live/products?seller_id=x&show_id=y&section=sold", JSON.stringify(H.VENDIDOS_PAGINA_1));
+  const vh = vend.find((m) => m.tipo === "vendidos")?.dados;
+  conferir(vh && vh.itens.length === 3, "lê a lista Vendidos da live", JSON.stringify(vh && vh.itens.length));
+  const leo = vh && vh.itens.find((i) => i.comprador === "leozinthewise");
+  conferir(
+    leo && leo.tipo === "BUY_IT_NOW" && leo.unidades === 5 && leo.total === 190 && leo.preco === 38,
+    "compra direta com quem comprou, quantas e quanto",
+    JSON.stringify(leo),
+  );
+  conferir(leo && leo.saleId === "uBLkp73qrYHnuqHeIYbu" && leo.quando === 1791054004696, "com o código da venda e a hora");
+  conferir(leo && leo.foto.startsWith("https://jamble.b-cdn.net/profiles/"), "e a foto de quem comprou");
+  const aVenda = await pedir("https://www.jamble.com/api/live/products?section=upcoming", JSON.stringify({ success: true, items: [{ id: "p", title: "à venda", sold: null }] }));
+  conferir(!aVenda.some((m) => m.tipo === "vendidos"), "produto ainda à venda não vira venda");
+
+  const bat = await pedir("https://www.jamble.com/api/live/battle-participants?show_id=y", JSON.stringify(H.BATALHA_PARTICIPANTES));
+  const bp = bat.find((m) => m.tipo === "batalha-participantes")?.dados;
+  conferir(bp && bp.participantes.length === 4 && bp.participantes[0].handle === "colecionar_164", "lê o ranking da batalha");
+  conferir(bp && bp.participantes[0].pontos === 44520 && bp.participantes[0].time === "red" && bp.participantes[0].premio === "R$ 25", "pontos, time e prêmio de cada um");
+  conferir(bp && bp.regras.some((r) => r.icon === "shop" && r.entryPoints === 15), "e as regras de pontos da batalha");
+  conferir(!bat.some((m) => m.tipo === "ranking-mensal"), "ranking da batalha não é confundido com o ranking mensal");
+
   // Campo novo, nunca visto com dado: vai uma amostra, sem dado pessoal.
   recebidos.length = 0;
   wsShow.emitir(

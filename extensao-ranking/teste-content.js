@@ -46,7 +46,8 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       addEventListener() {},
       // A busca real e "button,[role=tab]"; aqui qualquer selecao que fale de
       // botao devolve os botoes de mentira.
-      querySelectorAll: (sel) => (String(sel).includes("button") ? botoes : []),
+      querySelectorAll: (sel) =>
+        String(sel) === '[role="tab"]' ? botoes.filter((b) => b.role === "tab") : String(sel).includes("button") ? botoes : [],
       querySelector: (sel) => (String(sel).includes("dialog") ? dialogo : null),
       dispatchEvent: (ev) => teclas.push(ev.key),
     },
@@ -72,8 +73,9 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
       },
     },
     console,
-    // O content.js espera entre um clique e outro nas abas da Jamble.
-    setTimeout,
+    // O content.js espera entre um clique e outro nas abas da Jamble; aqui
+    // a espera vira quase nada, para o teste não demorar.
+    setTimeout: (fn, ms) => setTimeout(fn, Math.min(ms, 5)),
     clearTimeout,
   };
   janela.window = janela;
@@ -103,18 +105,25 @@ function abrirPagina(caminho, titulo = "Minha live | Jamble") {
   return { enviadas, daPagina, daExtensao, botoes, teclas, abrirDialogo: () => (dialogo = {}) };
 }
 
-const botaoFalso = (texto, rotulo = null) => {
+const botaoFalso = (texto, rotulo = null, { role = null, selecionado = false, classe = "", aoClicar = null, log = null } = {}) => {
   let cliques = 0;
-  return {
+  const b = {
     textContent: texto,
-    getAttribute: (nome) => (nome === "aria-label" ? rotulo : null),
+    role,
+    className: classe,
+    selecionado,
+    getAttribute: (nome) =>
+      nome === "aria-label" ? rotulo : nome === "aria-selected" ? (role === "tab" ? String(b.selecionado) : null) : nome === "role" ? role : null,
     click() {
       cliques++;
+      log?.push(texto);
+      aoClicar?.(b);
     },
     get cliques() {
       return cliques;
     },
   };
+  return b;
 };
 
 (async () => {
@@ -273,6 +282,74 @@ const botaoFalso = (texto, rotulo = null) => {
     p.botoes.push(botaoFalso("Seguir"));
     const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
     conferir(r?.ok === false, "sem o botão do ranking, responde que não achou");
+  }
+
+  // ---------- histórico desde o começo: abre Vendidos e Batalha e volta ----------
+  {
+    const p = abrirPagina("/live/pokerusbr/SwdWTbncIqpktVHipW81");
+    const log = [];
+    const abas = [];
+    const selecionar = (aba) => abas.forEach((a) => (a.selecionado = a === aba));
+    const disp = botaoFalso("Disponíveis (8)", null, { classe: "rounded-full bg-[var(--bg-inverse)] ", log });
+    const vend = botaoFalso("Vendidos (59)", null, { classe: "rounded-full bg-[var(--bg-tertiary)]", log });
+    let paginas = 2;
+    const mais = botaoFalso("Carregar Mais", null, {
+      log,
+      aoClicar: (b) => {
+        if (--paginas === 0) p.botoes.splice(p.botoes.indexOf(b), 1);
+      },
+    });
+    const chat = botaoFalso("Chat", null, { role: "tab", selecionado: true, log, aoClicar: (b) => selecionar(b) });
+    const batalha = botaoFalso("Batalha", null, { role: "tab", log, aoClicar: (b) => selecionar(b) });
+    abas.push(chat, batalha);
+    p.botoes.push(disp, vend, mais, chat, batalha);
+    const r = await p.daExtensao({ tipo: "carregar-historico" });
+    conferir(r?.ok === true && r.feito.join() === "vendidos,batalha", "busca a lista Vendidos e o ranking da batalha", JSON.stringify(r));
+    conferir(log.join(" > ") === "Vendidos (59) > Carregar Mais > Carregar Mais > Disponíveis (8) > Batalha > Chat", "abre, carrega tudo e volta para onde ela estava", log.join(" > "));
+    conferir(chat.selecionado && !batalha.selecionado, "no fim, a coluna do chat está de novo no Chat");
+  }
+  {
+    // Ela estava olhando os Vendidos: volta para os Vendidos.
+    const p = abrirPagina("/live/x/y");
+    const log = [];
+    const vend = botaoFalso("Vendidos (3)", null, { classe: "bg-[var(--bg-inverse)]", log });
+    p.botoes.push(botaoFalso("Disponíveis (1)", null, { classe: "bg-[var(--bg-tertiary)]", log }), vend);
+    await p.daExtensao({ tipo: "carregar-historico" });
+    conferir(log.join(" > ") === "Vendidos (3)", "se ela já estava nos Vendidos, fica nos Vendidos", log.join(" > "));
+  }
+  {
+    // Ela estava na aba Batalha: passa por outra para buscar de novo e fica na Batalha.
+    const p = abrirPagina("/live/x/y");
+    const log = [];
+    const abas = [];
+    const selecionar = (aba) => abas.forEach((a) => (a.selecionado = a === aba));
+    const chat = botaoFalso("Chat", null, { role: "tab", log, aoClicar: (b) => selecionar(b) });
+    const batalha = botaoFalso("Batalha", null, { role: "tab", selecionado: true, log, aoClicar: (b) => selecionar(b) });
+    abas.push(chat, batalha);
+    p.botoes.push(chat, batalha);
+    await p.daExtensao({ tipo: "carregar-historico" });
+    conferir(log.join(" > ") === "Chat > Batalha" && batalha.selecionado, "se ela já estava na Batalha, fica na Batalha", log.join(" > "));
+  }
+  {
+    // Fora da página da live, não mexe em nada.
+    const p = abrirPagina("/seller/dashboard/lives/ABC");
+    const vend = botaoFalso("Vendidos (3)");
+    p.botoes.push(vend);
+    const r = await p.daExtensao({ tipo: "carregar-historico" });
+    conferir(r?.ok === false && vend.cliques === 0, "fora da página da live, não clica em nada");
+  }
+  {
+    // O botão do ranking mensal troca a coluna do chat para Ranking: volta.
+    const p = abrirPagina("/live/x/y");
+    const abas = [];
+    const selecionar = (aba) => abas.forEach((a) => (a.selecionado = a === aba));
+    const chat = botaoFalso("Chat", null, { role: "tab", selecionado: true, aoClicar: (b) => selecionar(b) });
+    const ranking = botaoFalso("Ranking", null, { role: "tab", aoClicar: (b) => selecionar(b) });
+    abas.push(chat, ranking);
+    const botao = botaoFalso("#7", "Ranking do vendedor: #7", { aoClicar: () => selecionar(ranking) });
+    p.botoes.push(botao, chat, ranking);
+    const r = await p.daExtensao({ tipo: "atualizar-ranking-mensal" });
+    conferir(r?.ok === true && chat.selecionado, "depois de ler o ranking mensal, a coluna volta para o Chat");
   }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");

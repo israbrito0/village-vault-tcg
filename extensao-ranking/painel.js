@@ -364,17 +364,33 @@ async function desenhar(dados) {
       .sort((a, b) => b[1] - a[1])
       .map(([ic, q]) => chip(ic, q, nomes, icones))
       .join("");
-  $("#rankingVivoTotal").textContent = em.total
-    ? `${num(em.porPessoa.length)} pessoas · ${num(em.total)} envios · ${num(em.gemas)} gemas`
+  // O total desde o começo da live: a Participação (live dela, exato) ou a
+  // estimativa pela batalha (live de outro vendedor). As figurinhas só contam
+  // desde que a página abriu -- a Jamble não manda as de antes.
+  const gemasPorPessoa = juntarGemas(em.porPessoa, linhasP, gemasPelaBatalha(p));
+  const totalGemas = gemasPorPessoa.reduce((s, x) => s + x.gemas, 0);
+  const algumDesdeInicio = gemasPorPessoa.find((x) => x.desdeInicio);
+  $("#rankingVivoTotal").textContent = gemasPorPessoa.length
+    ? `${plural(gemasPorPessoa.length, "pessoa", "pessoas")} · ${num(totalGemas)} gemas` +
+      (algumDesdeInicio?.desdeInicio === "jamble"
+        ? " · desde o começo (Participação)"
+        : algumDesdeInicio
+          ? " · ≈ desde o começo (pela batalha)"
+          : "")
     : "";
   linhas(
     $("#t-ranking-vivo tbody"),
-    em.porPessoa.map((x, i) => ({ i: i + 1, ...x })),
-    (d) =>
-      `<tr${d.i <= 3 ? ' class="podio"' : ""}><td>${d.i}</td>` +
-      `<td><span class="pessoa">${avatar(d.handle, d.nome, fotos)}<span>${esc(d.nome)} <span class="fraco">@${esc(d.handle)} · ${plural(d.qtd, "envio", "envios")}</span></span></span>` +
-      `<div class="chips">${oQueMandou(d.icones)}</div></td>` +
-      `<td class="n gema forte">${num(d.gemas)}</td></tr>`,
+    gemasPorPessoa.map((x, i) => ({ i: i + 1, ...x })),
+    (d) => {
+      const marca = d.desdeInicio === "estimado" ? "≈ " : "";
+      const envios = d.qtd ? ` · ${plural(d.qtd, "envio", "envios")} vistos` : "";
+      return (
+        `<tr${d.i <= 3 ? ' class="podio"' : ""}><td>${d.i}</td>` +
+        `<td><span class="pessoa">${avatar(d.handle, d.nome, fotos)}<span>${esc(d.nome)} <span class="fraco">@${esc(d.handle)}${envios}</span></span></span>` +
+        `<div class="chips">${oQueMandou(d.icones)}</div></td>` +
+        `<td class="n gema forte" title="${d.desdeInicio === "estimado" ? "estimado pelos pontos da batalha" : ""}">${marca}${num(d.gemas)}</td></tr>`
+      );
+    },
     3,
   );
 
@@ -400,11 +416,14 @@ async function desenhar(dados) {
     },
     3,
   );
+  const desdeInicio = p?.vendidosEm
+    ? `Desde o começo da live: lista "Vendidos" da Jamble lida às ${horaCurta(p.vendidosEm)} (${plural(Object.keys(p.vendidos ?? {}).length, "venda", "vendas")}), mais o que vendeu ao vivo depois.`
+    : 'Ainda sem o histórico desde o começo: clique em ↻ no topo do painel (ou em "Buscar desde o começo") para a extensão abrir a lista "Vendidos" da live.';
   $("#comprasNota").textContent = !p
     ? ""
     : (p.linhas ?? []).length
-      ? "Total de cada pessoa pela Participação da Jamble (inclui compra direta). O que levou: os leilões vistos com a página aberta."
-      : "Live de outro vendedor: só entram os leilões vistos com a página aberta. Compra direta a Jamble não diz quem comprou.";
+      ? "Total de cada pessoa pela Participação da Jamble. " + desdeInicio
+      : desdeInicio;
 
   // O ranking da Jamble só existe na sua live (painel do vendedor). Em live de
   // outro vendedor ele ficaria vazio ocupando espaço -- então some.
@@ -553,7 +572,7 @@ function marcarAbaLeiloes(rolando) {
 }
 
 function desenharLeiloes(p, perfis) {
-  const r = resumirLeiloes(p?.leiloes, perfis);
+  const r = resumirVendas(p, perfis);
   const disputas = quemDisputou(p?.leiloes, perfis);
   $("#l-faturado").textContent = r.lista.length ? reais(r.faturado) : "—";
   $("#l-vendidos").textContent = num(r.unidades);
@@ -575,7 +594,9 @@ function desenharLeiloes(p, perfis) {
     $("#agoraLances").textContent = direta ? "cada" : `${num(a.lances)} lances · ${num(a.disputaram)} disputando`;
   }
 
-  $("#l-total").textContent = r.lista.length ? `${num(r.lista.length)} na live` : "";
+  $("#l-total").textContent = r.lista.length
+    ? `${num(r.lista.length)} na live` + (r.desdeInicio ? ` · desde o começo (lido às ${horaCurta(r.lidoEm)})` : " · desde que a página abriu")
+    : "";
   linhas(
     $("#t-leiloes tbody"),
     r.lista.slice(0, 150),
@@ -621,7 +642,7 @@ function desenharLeiloes(p, perfis) {
     : "";
 }
 
-function desenharBatalha(p, perfis) {
+function desenharBatalha(p, perfis, perfisFotos = {}) {
   const atual = Object.values(p?.batalhas ?? {}).sort((x, y) => (y.visto || 0) - (x.visto || 0))[0];
   const b = resumirBatalha(atual, perfis);
   $("#b-vazio").style.display = b ? "none" : "";
@@ -660,6 +681,25 @@ function desenharBatalha(p, perfis) {
         ? `termina às ${horaCurta(b.termina)} · faltam ${restante(b.termina - Date.now())}`
         : "";
   }
+
+  // Ranking da batalha (aba Batalha da live): pontos de cada um desde o começo.
+  const rb = p?.batalhaRanking;
+  $("#caixa-batalha-ranking").style.display = rb?.lista?.length ? "" : "none";
+  $("#bRankingLido").textContent = rb?.quando ? `lido às ${horaCurta(rb.quando)}` : "";
+  linhas(
+    $("#t-batalha-ranking tbody"),
+    (rb?.lista ?? []).slice(0, 60),
+    (x) => {
+      const cor = x.time === "red" ? "vermelho" : x.time === "blue" ? "azul" : "";
+      return (
+        `<tr><td>${num(x.posicao)}</td>` +
+        `<td><span class="pessoa">${avatar(x.handle, x.handle, perfisFotos)}<span>@${esc(x.handle)}` +
+        `<span class="linha2">${cor}${x.premio ? " · prêmio " + esc(x.premio) : ""}</span></span></span></td>` +
+        `<td class="n forte">${num(x.pontos)}</td></tr>`
+      );
+    },
+    3,
+  );
 
   const ch = resumirChat(p?.chat);
   $("#ch-total").textContent = num(ch.total);
@@ -810,13 +850,26 @@ function desenharClientes(historicoGuardado, lives, perfis, rankingMensal, eu, p
 async function desenharAba(dados) {
   const { p, eu } = dados;
   // A bolinha vale para qualquer aba aberta.
-  marcarAbaLeiloes(!!resumirLeiloes(p?.leiloes, {}).rolando);
+  marcarAbaLeiloes(!!resumirVendas(p, {}).rolando);
   if (aba === "vivo") return;
   const { perfis, historico, rankingMensal } = await lerExtras();
   if (aba === "leiloes") desenharLeiloes(p, perfis);
-  else if (aba === "batalha") desenharBatalha(p, perfis);
+  else if (aba === "batalha") desenharBatalha(p, perfis, await lerFotos());
   else if (aba === "clientes") desenharClientes(historico, dados.lives, perfis, rankingMensal, eu, p);
 }
+
+// Busca de novo o histórico desde o começo da live (vendas e batalha), na
+// aba da Jamble onde a live está aberta.
+$("#buscarHistorico").addEventListener("click", async () => {
+  const b = $("#buscarHistorico");
+  b.disabled = true;
+  b.textContent = "buscando…";
+  const r = temStorage ? await chrome.runtime.sendMessage({ tipo: "carregar-historico" }).catch(() => null) : null;
+  b.disabled = false;
+  b.textContent = "Buscar desde o começo";
+  if (!r?.ok) $("#aviso").textContent = "Não achei a página da live aberta para buscar o histórico. Abra a live na Jamble e tente de novo.";
+  pintar();
+});
 
 $("#filtroClientes").addEventListener("change", () => pintar());
 $("#buscaCliente").addEventListener("input", () => pintar());
