@@ -65,6 +65,7 @@ const RESPOSTA_CRUA = JSON.stringify({
 // ---------- 1) inject.js lê a resposta como a página faria ----------
 
 const recebidas = [];
+let aberto = null; // o WebSocket que o inject.js abriu
 let proximaResposta = "";
 function respostaFalsa(corpo) {
   const r = { headers: { get: () => "application/json" }, clone: () => r, text: async () => corpo };
@@ -75,7 +76,16 @@ const paginaDaJamble = {
   addEventListener: () => {},
   postMessage: (msg) => recebidas.push(msg),
   WebSocket: class {
-    addEventListener() {}
+    constructor() {
+      this.ouvintes = [];
+      aberto = this;
+    }
+    addEventListener(tipo, fn) {
+      if (tipo === "message") this.ouvintes.push(fn);
+    }
+    emitir(texto) {
+      for (const fn of this.ouvintes) fn({ data: texto });
+    }
   },
   fetch: async () => respostaFalsa(proximaResposta),
   XMLHttpRequest: function () {},
@@ -192,6 +202,104 @@ function montarBackground() {
   conferir(live2.eventos.length === 1, "a carpa nova virou um envio no feed", JSON.stringify(live2.eventos));
   conferir(live2.eventos[0].handle === "jakolino" && live2.eventos[0].gemas === 500, "de quem e de quanto");
   conferir(resumirGemas(live2.linhas).gemas === somaTela(3) + 500, "e o total subiu 500");
+
+
+  // ---------- live de outro vendedor: do WebSocket ate os numeros ----------
+  // E o caso de acompanhar amigo ou concorrente: nao tem painel do vendedor,
+  // entao tudo vem do WebSocket da propria live.
+  {
+    const { guardado, mandar } = montarBackground();
+    const ctxAlheia = { liveId: "ALHEIA", showId: "ALHEIA", doPainel: false, titulo: "Batalha 30 Anos" };
+
+    // o inject.js precisa ter aberto um WebSocket para podermos emitir nele
+    new ctxPagina.WebSocket("wss://ws.jamble.com/websocket/show/x/ALHEIA");
+    if (!aberto) throw new Error("o inject.js nao embrulhou o WebSocket");
+
+    // 1) o objeto show, com os campos reais da live do @coutotcg
+    recebidas.length = 0;
+    aberto.emitir(
+      JSON.stringify({
+        data: {
+          show: {
+            id: "ALHEIA",
+            title: "Batalha 30 Anos",
+            started_at: 1791000000,
+            is_over: false,
+            audience_count: 29,
+            available_product_count: 5,
+            sold_product_count: 0,
+            total_product_count: 5,
+            share_count: 1,
+            like_count: 15,
+            sold_sale_count: 35,
+            total_sale_product_price: 3731,
+          },
+        },
+      }),
+    );
+    const met = recebidas.find((m) => m.tipo === "metricas");
+    conferir(!!met, "o inject.js reconheceu o objeto show");
+    await mandar({ tipo: "metricas", dados: met.dados, contexto: ctxAlheia });
+
+    // 2) tres emotions, com icones diferentes
+    const like = (id, icone, gemas, quem) =>
+      JSON.stringify({
+        data: {
+          events: [
+            {
+              id,
+              event_type: "LIKE",
+              created_at: 1791000100,
+              like_icon_id: icone,
+              like_icon_battle_entry_count: gemas,
+              liker_profile: { username: quem, display_name: quem },
+            },
+          ],
+        },
+      });
+    recebidas.length = 0;
+    aberto.emitir(like("k1", "magikarp_shiny", 500, "jako"));
+    aberto.emitir(like("k2", "magikarp_shiny", 500, "bruno"));
+    aberto.emitir(like("h1", "pixel_heart", 10, "ana"));
+    const emos = recebidas.filter((m) => m.tipo === "emocao");
+    conferir(emos.length === 3, "tres emotions reconhecidas", String(emos.length));
+    for (const e of emos) await mandar({ tipo: "emocao", dados: e.dados, contexto: ctxAlheia });
+    await new Promise((r) => setTimeout(r, 1100)); // o lote descarrega
+
+    // 3) os numeros que o painel mostraria
+    const { resumirEmocoes, listaDeMetricas, quemMandou } = require("./gemas.js");
+    const live = guardado.lives.ALHEIA;
+    conferir(!!live, "a live alheia foi guardada");
+    conferir(live.doPainel === false, "marcada como de outro vendedor");
+    conferir(live.metricas.faturamento === 3731, "faturamento chegou ao painel", String(live.metricas?.faturamento));
+    conferir(live.metricas.vendas === 35, "vendas tambem");
+    conferir(live.emocoes.length === 3, "as tres emotions guardadas", String(live.emocoes?.length));
+
+    const em = resumirEmocoes(live.emocoes);
+    conferir(em.gemas === 1010, "gemas somadas pelo preco de cada icone", String(em.gemas));
+    conferir(em.porIcone[0].icone === "magikarp_shiny" && em.porIcone[0].qtd === 2, "duas carpas no topo");
+    conferir(Math.round(em.gemas / 500) === 2, "duas carpas equivalentes");
+
+    const fmt = {
+      num: (n) => String(Math.round(Number(n))),
+      reais: (n) => "R$ " + Number(n).toFixed(2),
+      tempo: (s) => Math.round(s) + "s",
+      pct: (v) => (v * 100).toFixed(0) + "%",
+    };
+    const lista = listaDeMetricas(live.metricas, fmt);
+    const nomes = lista.map(([k]) => k);
+    conferir(nomes.includes("Assistindo agora"), "o painel mostra quem esta assistindo");
+    conferir(nomes.includes("Ticket medio") || nomes.includes("Ticket médio"), "e o ticket medio calculado");
+    conferir(
+      lista.find(([k]) => k.startsWith("Ticket"))[1] === "R$ " + (3731 / 35).toFixed(2),
+      "com o valor certo",
+      lista.find(([k]) => k.startsWith("Ticket"))[1],
+    );
+
+    // 4) o sorteio de carpa so pega quem mandou carpa
+    const carpeiros = quemMandou(live.emocoes, "magikarp_shiny").map((c) => c.handle).sort();
+    conferir(carpeiros.join(",") === "bruno,jako", "sorteio de carpa pega so quem mandou carpa", carpeiros.join(","));
+  }
 
   console.log(falhas ? `\n${falhas} falha(s)` : "\ntudo certo");
   process.exit(falhas ? 1 : 0);
