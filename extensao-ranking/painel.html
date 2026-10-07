@@ -291,6 +291,26 @@
 
       /* Número não pode vazar do cartão em largura nenhuma. */
       .cartao .valor, .ganhador { overflow-wrap: anywhere; }
+
+      /* Roleta do sorteio: os nomes de quem concorre, uma luz passando de um
+         em um cada vez mais devagar, e para no ganhador. Cobre o painel todo. */
+      .roleta { position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center; padding: 12px; background: color-mix(in srgb, var(--fundo) 84%, transparent); backdrop-filter: blur(3px); }
+      .roleta[hidden], .roleta [hidden] { display: none !important; }
+      .roleta-caixa { width: min(560px, 100%); max-height: 100%; overflow: auto; background: var(--caixa); border: 1px solid var(--borda); border-radius: 16px; padding: 16px; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+      .roleta-titulo { font-size: 20px; font-weight: 800; color: var(--destaque); }
+      .roleta-sub { color: var(--fraco); font-size: 12px; margin: 2px 0 12px; }
+      .roleta-nomes { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; max-height: 46vh; overflow: auto; padding: 4px; }
+      .roleta-nome { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 4px; border-radius: 999px; background: color-mix(in srgb, var(--texto) 7%, transparent); border: 1px solid var(--borda); font-size: 13px; transition: transform .08s, background-color .08s, opacity .3s; }
+      .roleta-nome .avatar { width: 22px; height: 22px; }
+      .roleta-nome.acesa { background: var(--destaque); color: var(--botao-texto); border-color: var(--destaque); transform: scale(1.08); }
+      .roleta.fim .roleta-nome:not(.vencedor) { opacity: .3; }
+      .roleta-nome.vencedor { box-shadow: 0 0 0 3px color-mix(in srgb, var(--destaque) 45%, transparent), 0 0 24px var(--destaque); }
+      .roleta-mais { color: var(--fraco); font-size: 12px; align-self: center; }
+      .roleta-barra { height: 8px; border-radius: 999px; background: color-mix(in srgb, var(--texto) 10%, transparent); margin: 14px 0 6px; overflow: hidden; }
+      .roleta-barra div { height: 100%; width: 0; background: linear-gradient(90deg, var(--gema), var(--destaque)); }
+      .roleta-status { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--fraco); font-weight: 700; }
+      .roleta-ganhador { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: clamp(22px, 5vw, 34px); font-weight: 800; color: var(--destaque); margin: 6px 0 12px; overflow-wrap: anywhere; animation: vvPulso .6s ease 2; }
+      .roleta-ganhador .avatar { width: 44px; height: 44px; }
     </style>
   </head>
   <body>
@@ -376,6 +396,7 @@
         <label><input type="checkbox" id="peso" /> quem mandou mais, mais chance</label>
         <label><input type="checkbox" id="semRepetir" checked /> não repetir ganhador</label>
         <label><input type="checkbox" id="semEu" checked /><span id="rotuloSemEu"> não me incluir</span></label>
+        <label><input type="checkbox" id="comRoleta" checked /> mostrar a roleta</label>
         <button id="sortear">Sortear</button>
         <button class="secundario" id="limparSorteios">Limpar</button>
       </div>
@@ -655,6 +676,18 @@
     <button id="sairTransmissao">sair do modo transmissão (Esc)</button>
     <div class="rodape" id="rodape"></div>
     <div class="rodape" id="versao" style="margin-top:4px;opacity:.7"></div>
+
+    <div id="roleta" class="roleta" hidden role="dialog" aria-modal="true" aria-labelledby="roletaTitulo">
+      <div class="roleta-caixa">
+        <div class="roleta-titulo" id="roletaTitulo">🎁 Sorteio</div>
+        <div class="roleta-sub" id="roletaSub"></div>
+        <div class="roleta-nomes" id="roletaNomes"></div>
+        <div class="roleta-barra"><div id="roletaBarra"></div></div>
+        <div class="roleta-status" id="roletaStatus">Sorteando…</div>
+        <div class="roleta-ganhador" id="roletaGanhador" hidden></div>
+        <button class="secundario" id="roletaFechar" type="button" hidden>Fechar</button>
+      </div>
+    </div>
 
     <script src="gemas.js"></script>
     <script src="analises.js"></script>

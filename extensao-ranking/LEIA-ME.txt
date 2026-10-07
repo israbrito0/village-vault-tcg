@@ -179,6 +179,15 @@ Mais tres interruptores:
 
 No modo transmissao a BARRA DE ESPACO sorteia, sem precisar clicar.
 
+Roleta do sorteio (2.14): com "mostrar a roleta" marcado, o Sortear abre
+um quadro com os nomes (e fotos) de quem esta concorrendo, uma luz passando
+de um em um, rapida no comeco e freando, a barra de "Sorteando..." enchendo,
+e para no ganhador com a fanfarra. O ganhador ja e sorteado e guardado antes;
+a roleta so mostra. Cabem 60 nomes na tela (o ganhador sempre aparece). Esc ou
+"Fechar" fecha. "quem enviou gemas" agora junta a Participacao com as
+emotions vistas: funciona mesmo quando a pagina da live nao pediu a
+Participacao.
+
 Botoes do fim
 -------------
   Som de venda           um "plim" toda vez que alguem compra (vaga de batalha

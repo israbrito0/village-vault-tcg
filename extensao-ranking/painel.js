@@ -1260,6 +1260,7 @@ $("#qualLive").addEventListener("change", () => {
 // ---------- sorteio ----------
 
 async function sortear() {
+  if (roletaRodando) return;
   const { p, emocoes, tabela, nomes, eu } = await ler();
   const porCarpa = Number(tabela?.magikarp_shiny) || GEMAS_POR_CARPA;
   const escolha = $("#quemSorteia").value || "gemas";
@@ -1277,13 +1278,19 @@ async function sortear() {
     candidatos = quemMandou(emocoes, icone).map((c) => ({ ...c, rotulo: `${c.qtd}x` }));
     peso = (c) => c.qtd;
     descricaoFonte = icone ? `quem mandou ${nomeIcone(icone, nomes)}` : "quem mandou emotion";
-  } else {
-    const soGemas = escolha === "gemas";
-    candidatos = (p?.linhas ?? [])
-      .filter((l) => l.handle && (!soGemas || l.gemas > 0))
+  } else if (escolha === "gemas") {
+    // Quem mandou gemas: a Participação (na live dela, desde o começo) junto
+    // com as emotions vistas. Antes só valia a Participação, e o sorteio ficava
+    // vazio quando a página da live não tinha pedido ela.
+    candidatos = juntarGemas(resumirEmocoes(emocoes).porPessoa, p?.linhas ?? [], gemasPelaBatalha(p))
+      .filter((l) => l.handle && l.gemas > 0)
       .map((l) => ({ ...l, rotulo: `${num(l.gemas)} gemas` }));
     peso = (c) => Math.max(1, Math.round(c.gemas / porCarpa));
-    descricaoFonte = soGemas ? "quem enviou gemas" : "todo mundo da live";
+    descricaoFonte = "quem enviou gemas";
+  } else {
+    candidatos = (p?.linhas ?? []).filter((l) => l.handle).map((l) => ({ ...l, rotulo: `${num(l.gemas)} gemas` }));
+    peso = (c) => Math.max(1, Math.round(c.gemas / porCarpa));
+    descricaoFonte = "todo mundo da live";
   }
 
   // Voce manda emotion para testar: sem isso, ganharia o proprio sorteio.
@@ -1302,7 +1309,9 @@ async function sortear() {
     $("#detalheSorteio").textContent =
       escolha.startsWith("icone:") || escolha === "emotion"
         ? "Ninguém mandou essa emotion enquanto o painel esteve aberto."
-        : "Ainda não tenho a participação desta live.";
+        : escolha === "gemas"
+          ? "Ninguém mandou gemas ainda, ou o painel ainda não leu. Clique em ↻ no topo e tente de novo."
+          : "Ainda não tenho a participação desta live.";
     return;
   }
 
@@ -1317,6 +1326,9 @@ async function sortear() {
     sorteio: { ts: Date.now(), ganhador: ganho.handle, entre: candidatos.length, fonte: descricaoFonte, comPeso },
   });
 
+  // O ganhador já está decidido e guardado; a roleta só mostra.
+  if ($("#comRoleta").checked) await rodarRoleta(candidatos, ganho, descricaoFonte);
+
   $("#ganhador").textContent = "@" + ganho.handle;
   $("#detalheSorteio").textContent =
     `${ganho.rotulo} · sorteado entre ${candidatos.length} (${descricaoFonte})` +
@@ -1326,6 +1338,110 @@ async function sortear() {
 }
 
 $("#sortear").addEventListener("click", sortear);
+
+// ---------- roleta do sorteio ----------
+// Na tela da live: os nomes de quem concorre, uma luz passando de um em um,
+// rápida no começo e cada vez mais devagar, a barra enchendo, e para no
+// ganhador com a fanfarra. Quem decide é o sorteio acima; a roleta só mostra.
+const MAX_NA_ROLETA = 60;
+let roletaRodando = false;
+
+function somDeTique(ctx) {
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator();
+    const vol = ctx.createGain();
+    const t0 = ctx.currentTime;
+    osc.type = "square";
+    osc.frequency.value = 1400;
+    vol.gain.setValueAtTime(0.0001, t0);
+    vol.gain.exponentialRampToValueAtTime(0.05, t0 + 0.005);
+    vol.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.05);
+    osc.connect(vol);
+    vol.connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + 0.06);
+  } catch {}
+}
+
+const embaralhar = (lista) => {
+  const a = lista.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+};
+
+async function rodarRoleta(candidatos, ganho, fonte) {
+  roletaRodando = true;
+  try {
+    const fotos = await lerFotos();
+    // O ganhador sempre aparece; dos outros, os que couberem, misturados.
+    const outros = embaralhar(candidatos.filter((c) => c.handle !== ganho.handle)).slice(0, MAX_NA_ROLETA - 1);
+    const lista = embaralhar([ganho, ...outros]);
+    const fora = candidatos.length - lista.length;
+    const nomeDe = (c) => `<span class="roleta-nome">${avatar(c.handle, c.nome, fotos)}<b>@${esc(c.handle)}</b></span>`;
+    $("#roletaSub").textContent = `${plural(candidatos.length, "pessoa concorrendo", "pessoas concorrendo")} · ${fonte}`;
+    $("#roletaNomes").innerHTML = lista.map(nomeDe).join("") + (fora > 0 ? `<span class="roleta-mais">e mais ${num(fora)}</span>` : "");
+    $("#roletaGanhador").hidden = true;
+    $("#roletaFechar").hidden = true;
+    $("#roletaStatus").textContent = "Sorteando…";
+    $("#roletaBarra").style.width = "0%";
+    const caixa = $("#roleta");
+    caixa.classList.remove("fim");
+    caixa.hidden = false;
+
+    let ctx = null;
+    try {
+      audioDoPainel = audioDoPainel || new AudioContext();
+      audioDoPainel.resume?.();
+      ctx = audioDoPainel;
+    } catch {}
+
+    const els = [...$("#roletaNomes").querySelectorAll(".roleta-nome")];
+    const alvo = lista.indexOf(ganho);
+    const calmo = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    const duracao = calmo ? 1200 : 6000;
+    const t0 = performance.now();
+    let atual = -1;
+    for (;;) {
+      const passou = performance.now() - t0;
+      if (passou >= duracao) break;
+      const prog = passou / duracao;
+      $("#roletaBarra").style.width = (prog * 100).toFixed(1) + "%";
+      let prox = Math.floor(Math.random() * els.length);
+      if (els.length > 1 && prox === atual) prox = (prox + 1) % els.length;
+      els[atual]?.classList.remove("acesa");
+      els[prox].classList.add("acesa");
+      atual = prox;
+      somDeTique(ctx);
+      // Começa a cada 50 ms e freia até uns 450 ms.
+      await new Promise((r) => setTimeout(r, 50 + 400 * prog * prog));
+    }
+    els[atual]?.classList.remove("acesa");
+    els[alvo].classList.add("acesa", "vencedor");
+    els[alvo].scrollIntoView?.({ block: "nearest" });
+    $("#roletaBarra").style.width = "100%";
+    caixa.classList.add("fim");
+    $("#roletaStatus").textContent = "Ganhador";
+    $("#roletaGanhador").innerHTML = `${avatar(ganho.handle, ganho.nome, fotos)}<span>@${esc(ganho.handle)}</span>`;
+    $("#roletaGanhador").hidden = false;
+    $("#roletaFechar").hidden = false;
+    $("#roletaGanhador").scrollIntoView?.({ block: "nearest" });
+    tocarSom(ctx, "batalha");
+  } finally {
+    roletaRodando = false;
+  }
+}
+
+$("#roletaFechar").addEventListener("click", () => {
+  $("#roleta").hidden = true;
+});
+// Esc também fecha, menos no meio do giro.
+globalThis.addEventListener?.("keydown", (e) => {
+  if (e.key === "Escape" && !roletaRodando && !$("#roleta").hidden) $("#roleta").hidden = true;
+});
 
 $("#limparSorteios").addEventListener("click", async () => {
   const { p } = await ler();
