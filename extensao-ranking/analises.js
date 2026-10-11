@@ -128,6 +128,7 @@
         situacao,
         inicio: l.inicio,
         fonte: "ao vivo",
+        tipoJamble: l.tipo || null,
       };
     });
   }
@@ -197,6 +198,11 @@
         situacao: h.cancelado ? "cancelado" : "vendido",
         inicio: h.quando ?? ws?.inicio ?? null,
         fonte: "jamble",
+        // Para o Dash: o tipo como a Jamble escreve, pago, foto e imagem.
+        tipoJamble: h.tipo || null,
+        pago: typeof h.pago === "boolean" ? h.pago : null,
+        foto: h.foto || null,
+        imagem: h.imagem || null,
       };
     });
     const naHistoria = new Set(historia.map((h) => h.saleId));

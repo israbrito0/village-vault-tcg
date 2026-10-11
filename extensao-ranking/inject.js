@@ -494,6 +494,10 @@
         compradorId: typeof i.sold.buyerId === "string" ? i.sold.buyerId : null,
         foto: typeof i.sold.buyerAvatarUrl === "string" ? i.sold.buyerAvatarUrl : null,
         cancelado: i.sold.isCanceled === true,
+        // Se o comprador já pagou (o Dash separa pago de pendente) e a foto do
+        // produto. null quando a Jamble não manda: não vira "não pago".
+        pago: typeof i.sold.isPaid === "boolean" ? i.sold.isPaid : null,
+        imagem: typeof i.imageUrl === "string" ? i.imageUrl : null,
         quando: i.sold.createdAt ? Math.round(Number(i.sold.createdAt) * 1000) : null,
       }));
     if (itens.length) avisar("vendidos", { quando: Date.now(), itens });

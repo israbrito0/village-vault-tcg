@@ -19,6 +19,15 @@ sorteia.
 O painel avisa na tela quando falta alguma fonte de dado. Detalhes de tudo
 isso no fim deste arquivo, em PAINEL DA LIVE.
 
+DASH VILLAGE (no site, desde a versao 2.15.0)
+---------------------------------------------
+Tudo o que a extensao ve na live vai tambem para www.villagetcg.com.br/dash
+(entre com a conta do site): painel ao vivo, sorteios com roleta, metas,
+telas para o OBS, lives passadas com PDF e clientes. Abre no celular.
+Basta a live (ou o painel do vendedor) estar aberta no Edge com a extensao
+ligada -- ela manda sozinha a cada poucos segundos. A live que estava
+guardada aqui antes da atualizacao vai inteira no primeiro envio.
+
 O que ela faz
 -------------
 Enquanto a live da Jamble estiver aberta numa aba do Chrome, a extensão lê as

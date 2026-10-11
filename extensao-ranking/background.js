@@ -294,6 +294,7 @@ function descarregar() {
     if (tocadas.size) {
       await gravarLives(lives, [...tocadas]);
       await sincronizarETB(lives, [...tocadas], perfis);
+      agendarDash();
     }
   });
 }
@@ -441,8 +442,11 @@ function juntarQuadro(live, q) {
     if (!msgs) break;
     const i = msgs.findIndex((m) => m.id === e.id);
     if (i < 0) continue;
-    if (!e.visivel) msgs.splice(i, 1);
-    else if (e.texto) msgs[i].texto = e.texto;
+    if (!e.visivel) {
+      msgs.splice(i, 1);
+      // O Dash também tira do chat dele.
+      live.chat.apagadas = (live.chat.apagadas ?? []).concat(e.id).slice(-200);
+    } else if (e.texto) msgs[i].texto = e.texto;
   }
 
   const sorteio = sorteioJambleDoFrame(q);
@@ -535,6 +539,239 @@ async function enviar() {
   }
 }
 
+// ---------- Dash Village (villagetcg.com.br/dash) ----------
+//
+// Manda para o site o que as lives guardadas aqui têm: a live (título,
+// audiência, métricas, leilão, batalha), emotions e chat novos, as vendas e o
+// ranking mensal. Só vai o que mudou desde o último envio (o cursor de cada
+// live fica em "dashCursor"); o site grava pelo id da Jamble, então mandar de
+// novo não conta duas vezes. Uma live que nunca foi mandada vai inteira.
+const ESPERA_DASH_MS = 3000;
+const DASH_POR_ENVIO = 2000; // emotions ou mensagens por envio
+let agendadoDash = null;
+
+let enviandoDash = false;
+
+function agendarDash(ms = ESPERA_DASH_MS) {
+  if (!agendadoDash) agendadoDash = setTimeout(() => sincronizarDash().catch(() => {}), ms);
+}
+
+function enderecoDash(cfg) {
+  try {
+    return new URL("/api/dash/coleta", cfg.endpoint).toString();
+  } catch {
+    return "https://www.villagetcg.com.br/api/dash/coleta";
+  }
+}
+
+// Uma "impressão digital" curta de um texto, para saber se algo mudou sem
+// guardar o texto inteiro.
+function marca(texto) {
+  let h = 5381;
+  for (let i = 0; i < texto.length; i++) h = ((h << 5) + h + texto.charCodeAt(i)) | 0;
+  return `${texto.length}:${h >>> 0}`;
+}
+
+function leilaoParaDash(live, perfis) {
+  const r = resumirLeiloes(live.leiloes, perfis);
+  const l = r.rolando || r.lista[0];
+  if (!l) return null;
+  const cru = live.leiloes?.[l.id] ?? {};
+  return {
+    id: l.id,
+    titulo: l.titulo,
+    tipo: cru.tipo || null,
+    inicial: l.inicial,
+    melhor: l.final,
+    vencedor: l.vencedor || null,
+    lances: l.lances,
+    disputaram: l.disputaram,
+    restam: l.restam,
+    vendidas: l.vendidas,
+    situacao: l.situacao,
+    inicio: l.inicio || null,
+    termina: cru.fim && cru.fim > Date.now() ? cru.fim : null,
+  };
+}
+
+function batalhaParaDash(live, perfis) {
+  const b = Object.values(live.batalhas ?? {}).sort((x, y) => (y.visto || 0) - (x.visto || 0))[0];
+  const r = resumirBatalha(b, perfis);
+  if (!r) return null;
+  const time = (t) => ({ pessoas: t.pessoas, pontos: t.pontos, topNomes: (t.topNomes || []).slice(0, 5) });
+  return { lider: r.lider, diferenca: r.diferenca, vermelho: time(r.vermelho), azul: time(r.azul), acabou: r.acabou, termina: r.termina ?? null, tier: r.tier ?? null };
+}
+
+// O que a live vendeu, no formato do Dash. Fica de fora o leilão que ainda
+// está rolando (ele vai como "leilão agora") e o que acabou sem venda.
+function vendasParaDash(live, perfis, fotos) {
+  return resumirVendas(live, perfis)
+    .lista.filter(
+      (l) => l.situacao === "vendido" || l.situacao === "cancelado" || (l.situacao === "rolando" && l.tipo === "compra direta" && l.vendidas > 0),
+    )
+    .map((l) => ({
+      id: String(l.id),
+      titulo: l.titulo,
+      imagem: l.imagem || null,
+      comprador: l.vencedor || null,
+      foto: l.foto || (l.vencedor ? fotos[l.vencedor] : null) || null,
+      preco: l.final,
+      quantidade: l.vendidas,
+      total: l.total,
+      tipo: l.tipoJamble || (l.tipo === "compra direta" ? "BUY_IT_NOW" : "AUCTION"),
+      pago: typeof l.pago === "boolean" ? l.pago : null,
+      cancelado: l.situacao === "cancelado",
+      ts: l.inicio || live.quando || Date.now(),
+    }));
+}
+
+// Monta um envio. Devolve o pacote, o cursor que vale se ele der certo e se
+// ainda sobrou coisa para mandar.
+function pacoteDash(g, agora = Date.now()) {
+  const cursor = g.dashCursor ?? {};
+  const novo = { ...cursor, lives: { ...(cursor.lives ?? {}) } };
+  const perfis = g.perfis ?? {};
+  const fotos = g.fotos ?? {};
+  const pacote = { lives: [] };
+  let sobrou = false;
+
+  for (const live of Object.values(g.lives ?? {})) {
+    if (!live?.id || live.id === "sem-live") continue;
+    const c = cursor.lives?.[live.id] ?? {};
+    const item = { showId: live.id };
+    const prox = { ...c };
+    const m = live.metricas ?? {};
+
+    const sobre = {
+      vendedor: live.vendedor || undefined,
+      titulo: live.titulo || m.titulo || undefined,
+      aoVivo: typeof live.aoVivo === "boolean" ? live.aoVivo : typeof m.acabou === "boolean" ? !m.acabou : undefined,
+      inicio: m.comecouEm || undefined,
+      audiencia: m.audienciaAgora ?? undefined,
+      pico: m.pico ?? undefined,
+      likes: m.likes ?? undefined,
+      metricas: m,
+      participacao: (live.linhas ?? []).slice(0, 3000),
+      leilao: leilaoParaDash(live, perfis),
+      batalha: batalhaParaDash(live, perfis),
+    };
+    const marcaSobre = marca(JSON.stringify(sobre));
+    if (marcaSobre !== c.sobre) {
+      Object.assign(item, sobre);
+      prox.sobre = marcaSobre;
+    }
+
+    // Emotions e chat: só o que veio depois do último enviado. Os ids do
+    // último instante ficam anotados, para dois envios no mesmo milissegundo
+    // não se perderem nem irem de novo.
+    const depois = (lista, ate, ids) =>
+      lista.filter((x) => (x.ts || 0) > (ate || 0) || ((x.ts || 0) === ate && !(ids || []).includes(x.id))).sort((a, b) => a.ts - b.ts);
+    const fim = (lote) => {
+      const ts = lote[lote.length - 1].ts;
+      return { ts, ids: lote.filter((x) => x.ts === ts).map((x) => x.id) };
+    };
+
+    const emocoes = depois(live.emocoes ?? [], c.e, c.eIds);
+    if (emocoes.length) {
+      const lote = emocoes.slice(0, DASH_POR_ENVIO);
+      if (emocoes.length > lote.length) sobrou = true;
+      item.emocoes = lote.map((e) => ({ ...e, foto: fotos[e.handle] || null }));
+      const f = fim(lote);
+      prox.e = f.ts;
+      prox.eIds = f.ts === c.e ? [...new Set([...(c.eIds || []), ...f.ids])] : f.ids;
+    }
+
+    const msgs = depois(live.chat?.msgs ?? [], c.c, c.cIds);
+    if (msgs.length) {
+      const lote = msgs.slice(0, DASH_POR_ENVIO);
+      if (msgs.length > lote.length) sobrou = true;
+      item.chat = lote.map((x) => ({ ...x, foto: fotos[x.handle] || null }));
+      const f = fim(lote);
+      prox.c = f.ts;
+      prox.cIds = f.ts === c.c ? [...new Set([...(c.cIds || []), ...f.ids])] : f.ids;
+    }
+
+    const apagadas = live.chat?.apagadas ?? [];
+    const marcaApagadas = marca(apagadas.join());
+    if (apagadas.length && marcaApagadas !== c.apagadas) {
+      item.chatApagadas = apagadas;
+      prox.apagadas = marcaApagadas;
+    }
+
+    const vendas = vendasParaDash(live, perfis, fotos);
+    const marcaVendas = marca(JSON.stringify(vendas));
+    if (marcaVendas !== c.vendas) {
+      item.vendas = vendas;
+      item.vendasCompletas = true;
+      prox.vendas = marcaVendas;
+    }
+
+    if (Object.keys(item).length > 1) {
+      pacote.lives.push(item);
+      novo.lives[live.id] = { ...prox, quando: agora };
+    }
+  }
+
+  // Cursores de lives que já saíram do balde não servem mais.
+  for (const id of Object.keys(novo.lives)) {
+    if (!g.lives?.[id] && agora - (novo.lives[id].quando || 0) > 7 * 86400000) delete novo.lives[id];
+  }
+
+  const r = g.rankingMensal;
+  if (r?.quando && r.quando !== cursor.ranking && r.lista?.length) {
+    pacote.ranking = { ts: r.quando, mes: r.titulo || "", lista: r.lista, regras: r.regras ?? null };
+    novo.ranking = r.quando;
+  }
+
+  const icones = g.iconesEmocoes ?? {};
+  const marcaIcones = marca(JSON.stringify([icones, g.nomesEmocoes ?? {}, g.tabelaEmocoes ?? {}]));
+  if (Object.keys(icones).length && marcaIcones !== cursor.icones) {
+    pacote.icones = icones;
+    pacote.nomesEmocoes = g.nomesEmocoes ?? {};
+    pacote.tabelaEmocoes = g.tabelaEmocoes ?? {};
+    novo.icones = marcaIcones;
+  }
+
+  const vazio = !pacote.lives.length && !pacote.ranking && !pacote.icones;
+  return { pacote: vazio ? null : pacote, cursor: novo, sobrou };
+}
+
+async function sincronizarDash() {
+  agendadoDash = null;
+  // Um envio por vez; o que chegar enquanto isso vai no próximo.
+  if (enviandoDash) return agendarDash();
+  const cfg = await config();
+  if (!cfg.token || !cfg.ativo || cfg.dash === false) return;
+  // Lê na fila das gravações (para não pegar uma live pela metade), mas manda
+  // fora dela: a internet lenta não pode segurar as emotions chegando.
+  const g = await emOrdem(() =>
+    ler(["lives", "perfis", "fotos", "dashCursor", "rankingMensal", "iconesEmocoes", "nomesEmocoes", "tabelaEmocoes", "statsDash"]),
+  );
+  const { pacote, cursor, sobrou } = pacoteDash(g);
+  if (!pacote) return;
+  enviandoDash = true;
+  const stats = g.statsDash ?? {};
+  try {
+    const r = await fetch(enderecoDash(cfg), {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: `Bearer ${cfg.token}` },
+      body: JSON.stringify(pacote),
+    });
+    const resposta = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(resposta?.erro || `HTTP ${r.status}`);
+    await chrome.storage.local.set({
+      dashCursor: cursor,
+      statsDash: { ultimoEnvio: Date.now(), ultimoErro: "", enviosOk: (stats.enviosOk || 0) + 1 },
+    });
+    if (sobrou) agendarDash(500);
+  } catch (e) {
+    // O cursor não anda: tenta de novo daqui a pouco, sem perder nada.
+    await chrome.storage.local.set({ statsDash: { ...stats, ultimoErro: String(e.message || e), quandoErro: Date.now() } });
+  } finally {
+    enviandoDash = false;
+  }
+}
+
 chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
   (async () => {
     if (msg?.tipo === "venda") {
@@ -544,6 +781,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     }
     if (msg?.tipo === "metricas") {
       await guardarMetricas(msg.dados, msg.contexto);
+      agendarDash();
       responder({ ok: true });
       return;
     }
@@ -566,6 +804,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
             },
           }),
         );
+        agendarDash();
       }
       responder({ ok: !!lista?.length });
       return;
@@ -591,6 +830,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
     }
     if (msg?.tipo === "participacao") {
       await guardarParticipacao(msg.dados, msg.contexto);
+      agendarDash();
       responder({ ok: true });
       return;
     }
@@ -615,6 +855,7 @@ chrome.runtime.onMessage.addListener((msg, _remetente, responder) => {
           iconesEmocoes: icones,
         });
       });
+      agendarDash();
       responder({ ok: true });
       return;
     }
@@ -789,6 +1030,8 @@ chrome.alarms.onAlarm.addListener((a) => {
   if (a.name === "enviar") {
     enviar();
     darSinal("rotina");
+    // O que ficou para trás (internet caiu, navegador fechou no meio) vai agora.
+    agendarDash(0);
   }
 });
 

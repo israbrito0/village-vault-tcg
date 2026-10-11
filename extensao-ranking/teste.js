@@ -13,6 +13,7 @@ const testes = [
   ["contas de gemas", "teste-gemas.js"],
   ["contas de leilão, batalha, chat e clientes", "teste-analises.js"],
   ["o que o background guarda", "teste-background.js"],
+  ["o envio para o Dash Village (site)", "teste-dash.js"],
   ["nome de fora não vira código", "teste-escape.js"],
   ["da resposta crua da Jamble até os números do painel", "teste-ponta-a-ponta.js"],
 ];
