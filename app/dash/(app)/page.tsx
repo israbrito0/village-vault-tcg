@@ -27,6 +27,7 @@ function LinhaLive({ live, monitor, onParar, onReligar }: { live?: LiveInfo; mon
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{live?.titulo || monitor?.titulo || "Live"}</p>
           <p className="truncate text-xs text-d-ink3">
+            {live?.aoVivo && <span className="font-semibold text-d-bad sm:hidden">ao vivo · </span>}
             {vendedor ? `@${vendedor} · ` : ""}
             {live?.audiencia != null && live.aoVivo ? `${inteiro(live.audiencia)} assistindo · ` : ""}
             {monitor
@@ -42,7 +43,12 @@ function LinhaLive({ live, monitor, onParar, onReligar }: { live?: LiveInfo; mon
           </p>
         </div>
       </Link>
-      {live && <StatusLive aoVivo={live.aoVivo} />}
+      {/* No celular o selo não cabe ao lado do título: "ao vivo" vai na linha de baixo. */}
+      {live && (
+        <span className="hidden sm:block">
+          <StatusLive aoVivo={live.aoVivo} />
+        </span>
+      )}
       {monitor &&
         (ligado ? (
           <button type="button" className="d-btn d-btn-sm d-btn-ghost" onClick={onParar} title="O robô para de acompanhar esta live">
