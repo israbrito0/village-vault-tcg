@@ -71,3 +71,19 @@ $$);
 -- O sinal de vida da extensão (o robô também grava lives, então a hora da
 -- última live vista não diz mais se a extensão está ligada).
 alter table dash_config add column if not exists extensao_em timestamptz;
+
+-- dash_14_emocoes_somadas (relatórios em PDF)
+create or replace function dash_emocoes_somadas(p_shows text[])
+returns table(handle text, icone text, qtd bigint, gemas bigint)
+language sql stable security definer set search_path = public as $$
+  select e.handle, e.icone, count(*)::bigint, coalesce(sum(e.gemas), 0)::bigint
+  from dash_emocoes e
+  where e.show_id = any(p_shows)
+  group by e.handle, e.icone
+$$;
+revoke all on function dash_emocoes_somadas(text[]) from public, anon, authenticated;
+grant execute on function dash_emocoes_somadas(text[]) to service_role;
+
+-- dash_15_monitor_comeca_em
+-- Live agendada colada no Dash: o robô só entra a partir de 10 min antes.
+alter table dash_monitores add column if not exists comeca_em timestamptz;
