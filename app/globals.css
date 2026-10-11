@@ -14,3 +14,28 @@ body {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Dash Village: "ocultar valores" borra o dinheiro na tela (para compartilhar
+   a tela sem mostrar quanto vendeu). */
+.dash-ocultar .dash-valor {
+  filter: blur(7px);
+  user-select: none;
+}
+
+@media print {
+  .dash-sem-impressao {
+    display: none !important;
+  }
+  .dash-impressao {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+}
+
+@keyframes dashEntrar {
+  0% { opacity: 0; transform: translateY(-6px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.dash-entrar {
+  animation: dashEntrar 0.35s ease-out;
+}

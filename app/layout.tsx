@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Montserrat } from "next/font/google";
 import "./globals.css";
 import Footer from "@/components/Footer";
+import SoForaDoDash from "@/components/SoForaDoDash";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { SHARE_IMAGE, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "@/lib/site";
 
@@ -47,8 +48,10 @@ export default function RootLayout({
     <html lang="pt-BR" className={`${montserrat.variable} ${inter.variable}`}>
       <body className="font-sans">
         {children}
-        <Footer />
-        <WhatsAppButton />
+        <SoForaDoDash>
+          <Footer />
+          <WhatsAppButton />
+        </SoForaDoDash>
       </body>
     </html>
   );

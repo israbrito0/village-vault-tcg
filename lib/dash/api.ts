@@ -1,0 +1,308 @@
+import type { Emocao, Mensagem, Venda } from "@/lib/dash/calculos";
+
+// O formato das respostas da API do Dash, usado pelas telas e pelas rotas.
+// As linhas do banco viram os tipos de calculos.ts (datas em milissegundos).
+
+type Linha = Record<string, unknown>;
+const ms = (v: unknown) => (v ? new Date(String(v)).getTime() : 0);
+const semLive = (id: unknown) => String(id ?? "").replace(/^[^:]+:/, "");
+
+export function emocaoDaLinha(r: Linha): Emocao {
+  return {
+    id: String(r.id),
+    handle: String(r.handle ?? ""),
+    nome: (r.nome as string) ?? null,
+    foto: (r.foto as string) ?? null,
+    icone: String(r.icone ?? ""),
+    gemas: Number(r.gemas) || 0,
+    time: (r.time as string) ?? null,
+    ts: ms(r.ts),
+  };
+}
+
+export function mensagemDaLinha(r: Linha): Mensagem {
+  return {
+    id: String(r.id),
+    handle: String(r.handle ?? ""),
+    nome: (r.nome as string) ?? null,
+    foto: (r.foto as string) ?? null,
+    texto: String(r.texto ?? ""),
+    ts: ms(r.ts),
+  };
+}
+
+export function vendaDaLinha(r: Linha): Venda {
+  return {
+    id: semLive(r.id),
+    titulo: String(r.titulo ?? ""),
+    imagem: (r.imagem as string) ?? null,
+    comprador: (r.comprador as string) ?? null,
+    foto: (r.foto as string) ?? null,
+    preco: Number(r.preco) || 0,
+    quantidade: Number(r.quantidade) || 0,
+    total: Number(r.total) || 0,
+    tipo: (r.tipo as string) ?? null,
+    pago: (r.pago as boolean | null) ?? null,
+    cancelado: r.cancelado === true,
+    ts: ms(r.ts),
+  };
+}
+
+export type LiveInfo = {
+  showId: string;
+  vendedor: string | null;
+  titulo: string | null;
+  capa: string | null;
+  inicio: number | null;
+  fim: number | null;
+  aoVivo: boolean;
+  audiencia: number | null;
+  pico: number | null;
+  likes: number | null;
+  metricas: Record<string, number | string | boolean | null>;
+  participacao: { handle: string; nome?: string; pontos?: number; gastou?: number; gemas?: number; mensagens?: number; foto?: string | null }[];
+  leilao: Leilao | null;
+  batalha: Batalha | null;
+  vistoEm: number;
+};
+
+export type Leilao = {
+  id: string;
+  titulo?: string;
+  tipo?: string;
+  inicial?: number;
+  melhor?: number;
+  vencedor?: string | null;
+  lances?: number;
+  disputaram?: number;
+  restam?: number | null;
+  vendidas?: number;
+  situacao?: string;
+  inicio?: number | null;
+  termina?: number | null;
+};
+
+export type Batalha = {
+  lider: string;
+  diferenca: number;
+  vermelho: { pessoas: number; pontos: number; topNomes?: (string | null)[] };
+  azul: { pessoas: number; pontos: number; topNomes?: (string | null)[] };
+  acabou: boolean;
+  termina?: number | null;
+};
+
+export function liveDaLinha(r: Linha): LiveInfo {
+  return {
+    showId: String(r.show_id),
+    vendedor: (r.vendedor as string) ?? null,
+    titulo: (r.titulo as string) ?? null,
+    capa: (r.capa_url as string) ?? null,
+    inicio: r.inicio ? ms(r.inicio) : null,
+    fim: r.fim ? ms(r.fim) : null,
+    aoVivo: r.ao_vivo === true,
+    audiencia: (r.audiencia as number) ?? null,
+    pico: (r.audiencia_pico as number) ?? null,
+    likes: (r.likes as number) ?? null,
+    metricas: (r.metricas as LiveInfo["metricas"]) ?? {},
+    participacao: (r.participacao as LiveInfo["participacao"]) ?? [],
+    leilao: (r.leilao as Leilao) ?? null,
+    batalha: (r.batalha as Batalha) ?? null,
+    vistoEm: ms(r.visto_em),
+  };
+}
+
+export type Sorteio = {
+  id: string;
+  nome: string;
+  premio: string | null;
+  fonte: string;
+  peso: "quantidade" | "igual";
+  repetir: boolean;
+  excluirSuspeitos: boolean;
+  excluir: string[];
+  modo: "livre" | "meta";
+  aCada: number | null;
+  ativo: boolean;
+  ordem: number;
+  criadoEm: number;
+  ganhadores: Ganhador[];
+};
+
+export type Ganhador = {
+  id: string;
+  handle: string;
+  foto: string | null;
+  bilhetes: number;
+  totalBilhetes: number;
+  participantes: number;
+  marco: number | null;
+  status: "valido" | "ausente" | "resorteado";
+  ts: number;
+};
+
+export function sorteioDaLinha(r: Linha, ganhadores: Linha[]): Sorteio {
+  return {
+    id: String(r.id),
+    nome: String(r.nome ?? ""),
+    premio: (r.premio as string) ?? null,
+    fonte: String(r.fonte),
+    peso: r.peso === "igual" ? "igual" : "quantidade",
+    repetir: r.repetir !== false,
+    excluirSuspeitos: r.excluir_suspeitos !== false,
+    excluir: (r.excluir as string[]) ?? [],
+    modo: r.modo === "meta" ? "meta" : "livre",
+    aCada: (r.a_cada as number) ?? null,
+    ativo: r.ativo !== false,
+    ordem: Number(r.ordem) || 0,
+    criadoEm: ms(r.criado_em),
+    ganhadores: ganhadores
+      .filter((g) => g.sorteio_id === r.id)
+      .map((g) => ({
+        id: String(g.id),
+        handle: String(g.handle),
+        foto: (g.foto as string) ?? null,
+        bilhetes: Number(g.bilhetes) || 0,
+        totalBilhetes: Number(g.total_bilhetes) || 0,
+        participantes: Number(g.participantes) || 0,
+        marco: (g.marco as number) ?? null,
+        status: (g.status as Ganhador["status"]) ?? "valido",
+        ts: ms(g.ts),
+      }))
+      .sort((a, b) => a.ts - b.ts),
+  };
+}
+
+export type Meta = {
+  id: string;
+  nome: string;
+  tipo: string;
+  escopo: "live" | "pessoa";
+  alvo: number;
+  premio: string | null;
+  ativo: boolean;
+  batidaEm: number | null;
+  criadoEm: number;
+};
+
+export function metaDaLinha(r: Linha): Meta {
+  return {
+    id: String(r.id),
+    nome: String(r.nome ?? ""),
+    tipo: String(r.tipo),
+    escopo: r.escopo === "pessoa" ? "pessoa" : "live",
+    alvo: Number(r.alvo) || 0,
+    premio: (r.premio as string) ?? null,
+    ativo: r.ativo !== false,
+    batidaEm: r.batida_em ? ms(r.batida_em) : null,
+    criadoEm: ms(r.criado_em),
+  };
+}
+
+export type Ranking = {
+  ts: number;
+  mes: string;
+  pontos: number | null;
+  posicao: number | null;
+  acima: { handle: string; posicao: number; pontos: number } | null;
+  abaixo: { handle: string; posicao: number; pontos: number } | null;
+  lista: { handle: string; posicao: number; pontos: number }[];
+  regras: { porReal?: number | null; porGema?: number | null } | null;
+};
+
+export function rankingDaLinha(r: Linha | null): Ranking | null {
+  if (!r) return null;
+  return {
+    ts: ms(r.ts),
+    mes: String(r.mes ?? ""),
+    pontos: (r.pontos as number) ?? null,
+    posicao: (r.posicao as number) ?? null,
+    acima: (r.acima as Ranking["acima"]) ?? null,
+    abaixo: (r.abaixo as Ranking["abaixo"]) ?? null,
+    lista: (r.lista as Ranking["lista"]) ?? [],
+    regras: (r.regras as Ranking["regras"]) ?? null,
+  };
+}
+
+export type Icone = { url: string | null; nome: string | null; gemas: number | null };
+
+export type RespostaEu = {
+  membro: { email: string; conta: string; papel: string; recursos: string[] };
+  config: { telaChave: string; termosCarpa: string; preferencias: Record<string, unknown> };
+  live: LiveInfo | null;
+  outras: LiveInfo[];
+  ranking: Ranking | null;
+  extensaoVistaEm: number | null;
+};
+
+export type RespostaLive = {
+  live: LiveInfo;
+  emocoes: Emocao[];
+  chat: Mensagem[];
+  vendas: Venda[] | null;
+  vendasSig: string;
+  ranking: Ranking | null;
+  sorteios: Sorteio[];
+  metas: Meta[];
+  termos: string;
+  icones: Record<string, Icone>;
+  souVendedor: boolean;
+  conta: string;
+  agora: number;
+};
+
+export type LiveResumo = {
+  showId: string;
+  titulo: string | null;
+  vendedor: string | null;
+  inicio: number;
+  aoVivo: boolean;
+  total: number;
+  pago: number;
+  itens: number;
+  vendas: number;
+  compradores: number;
+  emocoes: number;
+  gemas: number;
+  ganhadores: number;
+};
+
+export type Cliente = {
+  comprador: string;
+  foto: string | null;
+  total: number;
+  pago: number;
+  pendente: number;
+  itens: number;
+  compras: number;
+  lives: number;
+  primeira: number;
+  ultima: number;
+};
+
+export type RespostaTela = {
+  conta: string;
+  live: Pick<LiveInfo, "showId" | "titulo" | "vendedor" | "aoVivo" | "audiencia" | "likes" | "leilao" | "batalha"> | null;
+  totais: { gemas: number; carpas: number; emocoes: number; faturamento: number; itens: number; compradores: number; pontosLive: number };
+  ranking: Pick<Ranking, "posicao" | "pontos" | "acima" | "ts"> | null;
+  sorteios: (Omit<Sorteio, "excluir"> & {
+    unidade: string;
+    nomeFonte: string;
+    totalFonte: number;
+    marcos: { liberados: number; disponiveis: number; faltaParaProximo: number; progresso: number } | null;
+    participantes: { handle: string; nome: string; foto: string | null; bilhetes: number }[];
+    totalParticipantes: number;
+    totalBilhetes: number;
+  })[];
+  metas: (Meta & {
+    atual: number;
+    falta: number | null;
+    progresso: number;
+    batida: boolean;
+    unidade: string;
+    bateram?: { handle: string; foto: string | null; atual: number }[];
+    perto?: { handle: string; foto: string | null; atual: number }[];
+  })[];
+  topCarpas: { handle: string; nome: string; foto: string | null; n: number }[];
+  topCompradores: { handle: string; foto: string | null; itens: number; total: number }[];
+  agora: number;
+};
