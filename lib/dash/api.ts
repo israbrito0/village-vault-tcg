@@ -282,7 +282,28 @@ export type RespostaLive = {
   podeEditar: boolean;
   conta: string;
   agora: number;
+  visual: VisualDoSorteio;
 };
+
+// Como o sorteio roda (escolha da conta, vale no painel e na tela do OBS):
+// o tambor do "Pião" ou a fita de rostos, e a música enquanto gira.
+export type VisualDoSorteio = {
+  estilo: "piao" | "fita";
+  musica: "padrao" | "arquivo" | "nenhuma";
+  musicaUrl: string | null;
+  musicaNome: string | null;
+};
+
+export function visualDoSorteio(preferencias: Record<string, unknown> | null | undefined): VisualDoSorteio {
+  const s = (preferencias?.sorteio ?? {}) as Partial<VisualDoSorteio>;
+  const url = typeof s.musicaUrl === "string" && s.musicaUrl.startsWith("https://") ? s.musicaUrl : null;
+  return {
+    estilo: s.estilo === "fita" ? "fita" : "piao",
+    musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
+    musicaUrl: url,
+    musicaNome: typeof s.musicaNome === "string" ? s.musicaNome.slice(0, 120) : null,
+  };
+}
 
 export type LiveResumo = {
   showId: string;

@@ -5,7 +5,7 @@ import { useContext, useState } from "react";
 import { ArrowLeft, Ticket, Volume2, VolumeX } from "lucide-react";
 import { DashContexto, inteiro, useLiveDash, usePreferencia } from "@/lib/dash/cliente";
 import { Chat, Emotions, Leiloeiro, PontosPorUsuario, RankingCarpas, useAvisos, useContasLive, useRecados } from "@/components/dash/blocos";
-import { CartaoSorteio, Palco, useSortear } from "@/components/dash/Sorteios";
+import { CartaoSorteio, duracaoDoGiro, Palco, useSortear } from "@/components/dash/Sorteios";
 import { Logo } from "@/components/dash/DashShell";
 import { Avatar, Kpi, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
@@ -101,7 +101,7 @@ function SorteiosDaTela({
   setMudo: (v: boolean) => void;
 }) {
   const [palco, setPalco] = useState(false);
-  const { giro, erro, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume);
+  const { giro, erro, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, duracaoDoGiro(d.visual));
   const lista = c.sorteios.filter((s) => s.ativo);
   return (
     <section className="space-y-3">
@@ -123,7 +123,7 @@ function SorteiosDaTela({
       {lista.length ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {lista.map((s) => (
-            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} podeEditar={podeEditar} volume={mudo ? 0 : volume} />
+            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} podeEditar={podeEditar} volume={mudo ? 0 : volume} visual={d.visual} />
           ))}
         </div>
       ) : (

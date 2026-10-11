@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import type { Emocao, Mensagem, Venda } from "@/lib/dash/calculos";
-import type { Icone, LiveInfo, Meta, Ranking, RespostaEu, RespostaLive, Sorteio } from "@/lib/dash/api";
+import { visualDoSorteio, type Icone, type LiveInfo, type Meta, type Ranking, type RespostaEu, type RespostaLive, type Sorteio, type VisualDoSorteio } from "@/lib/dash/api";
 
 // O lado do navegador do Dash: quem está logado (contexto) e a live carregada
 // aos poucos -- na primeira vez vem tudo, depois só o que é novo.
@@ -52,6 +52,7 @@ export type LiveCarregada = {
   souVendedor: boolean;
   podeEditar: boolean;
   conta: string;
+  visual: VisualDoSorteio;
   atualizadoEm: number;
 };
 
@@ -100,6 +101,7 @@ export function useLiveDash(showId: string, intervalo = 3000, chave?: string) {
         souVendedor: r.souVendedor,
         podeEditar: r.podeEditar,
         conta: r.conta,
+        visual: r.visual ?? visualDoSorteio(null),
         atualizadoEm: Date.now(),
       };
       atual.current = novo;
@@ -121,7 +123,7 @@ export function useLiveDash(showId: string, intervalo = 3000, chave?: string) {
   }, [buscar]);
 
   // Resposta de uma ação (sortear, criar meta...) já traz a lista nova.
-  const trocar = useCallback((mudar: Partial<Pick<LiveCarregada, "sorteios" | "metas" | "termos">>) => {
+  const trocar = useCallback((mudar: Partial<Pick<LiveCarregada, "sorteios" | "metas" | "termos" | "visual">>) => {
     if (!atual.current) return;
     atual.current = { ...atual.current, ...mudar };
     setDados(atual.current);

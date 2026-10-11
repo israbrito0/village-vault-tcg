@@ -3,7 +3,8 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { DashContexto, useLiveDash, usePreferencia } from "@/lib/dash/cliente";
 import { useContasLive } from "@/components/dash/blocos";
-import { Palco, useSortear } from "@/components/dash/Sorteios";
+import { duracaoDoGiro, Palco, useSortear } from "@/components/dash/Sorteios";
+import { DURACAO_PIAO } from "@/components/dash/Piao";
 
 // Um sorteio sozinho, em 16:9 ou 9:16, para o OBS (fonte Navegador ou captura
 // de janela). Abre com o link com a chave; quando alguém sorteia no painel,
@@ -17,7 +18,8 @@ export function TelaSorteio({ showId, sorteioId, chave }: { showId: string; sort
   const c = useContasLive(d);
   const [volume] = usePreferencia("volume", 1);
   const [mudo, setMudo] = usePreferencia("sorteio-mudo", false);
-  const { giro: meuGiro, sortear } = useSortear(showId, trocar, mudo ? 0 : volume);
+  const duracao = d ? duracaoDoGiro(d.visual) : DURACAO_PIAO;
+  const { giro: meuGiro, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, duracao);
   const [giroDeFora, setGiroDeFora] = useState<{ chave: string; sorteioId: string; ganhador: Pessoa; lista: Pessoa[]; premio: string | null; nome: string } | null>(null);
   const vistos = useRef<Set<string> | null>(null);
 
@@ -41,9 +43,10 @@ export function TelaSorteio({ showId, sorteioId, chave }: { showId: string; sort
         premio: novo.s.premio,
         nome: novo.s.nome,
       });
-      setTimeout(() => setGiroDeFora(null), 16000);
+      // O giro, o ganhador na tela e a música terminando.
+      setTimeout(() => setGiroDeFora(null), duracao + 7500);
     }
-  }, [c, sorteioId, meuGiro?.chave]);
+  }, [c, sorteioId, meuGiro?.chave, duracao]);
 
   if (!d || !c) {
     return (

@@ -1,12 +1,15 @@
 "use client";
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Maximize2, Pencil, Plus, Sparkles, Target, Timer, Users, Volume2, VolumeX, X } from "lucide-react";
+import { Check, ChevronDown, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
 import { descreverRegra, mensagemDeGanhador, regraPadrao, type Regra } from "@/lib/dash/calculos";
-import type { Meta, Sorteio } from "@/lib/dash/api";
+import type { Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
-import { tocar } from "@/lib/dash/som";
+import { destravarAudio, tocar } from "@/lib/dash/som";
+import { tocarMusica, type Tocando } from "@/lib/dash/musica";
+import { supabaseNavegador } from "@/lib/supabase-navegador";
 import Roleta from "@/components/dash/Roleta";
+import Piao, { DURACAO_PIAO } from "@/components/dash/Piao";
 import { Emotions, MensagensChat, useAvisos, useContasLive, useRecados, type Contas, type SorteioCalculado } from "@/components/dash/blocos";
 import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
@@ -17,6 +20,26 @@ import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@
 type Pessoa = { handle: string; foto: string | null; bilhetes: number };
 type Giro = { chave: string; sorteioId: string; ganhador: Pessoa; lista: Pessoa[]; premio: string | null; nome: string };
 type Acao = (corpo: Record<string, unknown>) => Promise<{ sorteios: Sorteio[]; ganhador?: Pessoa & { id: string }; roleta?: Pessoa[] } | null>;
+
+// Quanto tempo o giro dura em cada estilo (o pião gira mais, com a música).
+export const duracaoDoGiro = (v: VisualDoSorteio) => (v.estilo === "fita" ? 6500 : DURACAO_PIAO);
+
+// O giro do sorteio no estilo que a conta escolheu: o pião (padrão) ou a fita.
+function GiroDoSorteio({ giro, visual, volume, grande = false }: { giro: Giro; visual: VisualDoSorteio; volume: number; grande?: boolean }) {
+  return visual.estilo === "fita" ? (
+    <Roleta key={giro.chave} participantes={giro.lista} ganhador={giro.ganhador} premio={giro.premio} volume={volume} grande={grande} />
+  ) : (
+    <Piao
+      key={giro.chave}
+      participantes={giro.lista}
+      ganhador={giro.ganhador}
+      premio={giro.premio}
+      volume={volume}
+      musica={{ tipo: visual.musica, url: visual.musicaUrl }}
+      grande={grande}
+    />
+  );
+}
 
 const MODELOS: { rotulo: string; nome: string; regra: Partial<Regra> }[] = [
   { rotulo: "Compradores", nome: "Sorteio para compradores", regra: { quem: "compra", liberacao: "livre", chance: "quantidade" } },
@@ -370,6 +393,7 @@ export function CartaoSorteio({
   editar,
   podeEditar,
   volume,
+  visual,
 }: {
   s: SorteioCalculado;
   showId: string;
@@ -379,6 +403,7 @@ export function CartaoSorteio({
   editar?: () => void;
   podeEditar: boolean;
   volume: number;
+  visual: VisualDoSorteio;
 }) {
   const chave = useContext(DashContexto)?.eu.config.telaChave;
   const individual = s.regra.tipo === "individual";
@@ -459,7 +484,7 @@ export function CartaoSorteio({
             <Situacao s={s} />
             <div className="mt-5 flex min-h-32 flex-col items-center justify-center gap-2">
               {meuGiro ? (
-                <Roleta key={meuGiro.chave} participantes={meuGiro.lista} ganhador={meuGiro.ganhador} premio={meuGiro.premio} volume={volume} />
+                <GiroDoSorteio giro={meuGiro} visual={visual} volume={volume} />
               ) : (
                 <p className="text-sm text-d-ink3">{s.concorrendo.length ? (travado ? "Ainda não liberou." : "Pronto para sortear.") : "Ninguém concorrendo ainda."}</p>
               )}
@@ -614,7 +639,7 @@ export function Palco({
               )}
               <div className="w-full max-w-3xl">
                 {meuGiro ? (
-                  <Roleta key={meuGiro.chave} participantes={meuGiro.lista} ganhador={meuGiro.ganhador} premio={meuGiro.premio} volume={mudo ? 0 : volume} grande />
+                  <GiroDoSorteio giro={meuGiro} visual={d.visual} volume={mudo ? 0 : volume} grande />
                 ) : fim ? (
                   <div>
                     <p key={restante} className="text-8xl font-bold tabular-nums text-d-gold" style={{ animation: "dPopIn .4s ease-out" }}>
@@ -678,7 +703,7 @@ export function Palco({
 
 // ---------- sortear (com a roleta) ----------
 
-export function useSortear(showId: string, trocar: (m: { sorteios: Sorteio[] }) => void, volume: number) {
+export function useSortear(showId: string, trocar: (m: { sorteios: Sorteio[] }) => void, volume: number, duracaoMs = 6500) {
   const token = useContext(DashContexto)?.token ?? "";
   const [giro, setGiro] = useState<Giro | null>(null);
   const [erro, setErro] = useState("");
@@ -694,11 +719,12 @@ export function useSortear(showId: string, trocar: (m: { sorteios: Sorteio[] }) 
       if (r.ganhador && r.roleta) {
         const s = r.sorteios.find((x) => x.id === corpo.id);
         setGiro({ chave: r.ganhador.id, sorteioId: String(corpo.id), ganhador: r.ganhador, lista: r.roleta, premio: s?.premio ?? null, nome: s?.nome ?? "" });
-        // A lista nova (com o ganhador) entra quando a roleta para.
+        // A lista nova (com o ganhador) entra quando a roleta para; o giro
+        // fica na tela mais uns segundos (com a música terminando).
         setTimeout(() => {
           trocar({ sorteios: r.sorteios });
-          setTimeout(() => setGiro(null), 6000);
-        }, 6800);
+          setTimeout(() => setGiro(null), 7000);
+        }, duracaoMs + 300);
       } else {
         trocar({ sorteios: r.sorteios });
       }
@@ -764,6 +790,118 @@ function MetaDaLive({ d, c, showId, aoMudar }: { d: LiveCarregada; c: Contas; sh
   );
 }
 
+// O jeito do sorteio (vale para a conta toda, no painel e na tela do OBS): o
+// pião ou a fita, e a música -- a marchinha do Dash, um arquivo enviado ou
+// nenhuma.
+function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio; volume: number; aoMudar: (v: VisualDoSorteio) => void }) {
+  const { chamar, eu } = useDash();
+  const dono = eu.membro.papel === "dono";
+  const [estado, setEstado] = useState("");
+  const [ouvindo, setOuvindo] = useState(false);
+  const arquivo = useRef<HTMLInputElement>(null);
+  const tocando = useRef<{ musica: Tocando; tempos: ReturnType<typeof setTimeout>[] } | null>(null);
+
+  const pararDeOuvir = () => {
+    tocando.current?.tempos.forEach(clearTimeout);
+    tocando.current?.musica.parar(300);
+    tocando.current = null;
+    setOuvindo(false);
+  };
+  useEffect(() => pararDeOuvir, []);
+
+  async function salvar(novo: VisualDoSorteio) {
+    aoMudar(novo);
+    await chamar("/api/dash/eu", { metodo: "PATCH", corpo: { preferencias: { sorteio: novo } } }).catch((e) => setEstado(String((e as Error).message)));
+  }
+
+  async function enviar(f: File) {
+    setEstado("Enviando a música…");
+    try {
+      const tipo = f.type || "audio/mpeg";
+      const r = await chamar<{ caminho: string; token: string; url: string }>("/api/dash/musica", { corpo: { nome: f.name, tipo, tamanho: f.size } });
+      const sb = supabaseNavegador();
+      if (!sb) throw new Error("Sem conexão com o armazenamento.");
+      const { error } = await sb.storage.from("dash-musicas").uploadToSignedUrl(r.caminho, r.token, f, { contentType: tipo });
+      if (error) throw new Error(error.message);
+      const antiga = visual.musicaUrl;
+      await salvar({ ...visual, musica: "arquivo", musicaUrl: r.url, musicaNome: f.name });
+      if (antiga && antiga !== r.url) chamar(`/api/dash/musica?url=${encodeURIComponent(antiga)}`, { metodo: "DELETE" }).catch(() => {});
+      setEstado("");
+    } catch (e) {
+      setEstado((e as Error).message || "Não consegui enviar a música.");
+    }
+  }
+
+  // Ouve como fica: o tempo do giro e a fanfarra no fim.
+  function ouvir() {
+    if (ouvindo) return pararDeOuvir();
+    destravarAudio();
+    const musica = tocarMusica({ tipo: visual.musica, url: visual.musicaUrl }, volume || 1);
+    const t1 = setTimeout(() => musica.vitoria(), DURACAO_PIAO);
+    const t2 = setTimeout(pararDeOuvir, DURACAO_PIAO + (visual.musica === "arquivo" ? 4500 : 2600));
+    tocando.current = { musica, tempos: [t1, t2] };
+    setOuvindo(true);
+  }
+
+  const chip = (ativo: boolean) => `d-chip ${ativo ? "d-chip-on" : ""} disabled:cursor-default disabled:opacity-70`;
+  return (
+    <section className="d-card flex flex-wrap items-center gap-x-6 gap-y-3 p-4">
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="d-label pr-1">Roleta</span>
+        <button className={chip(visual.estilo === "piao")} disabled={!dono} onClick={() => salvar({ ...visual, estilo: "piao" })} title="O tambor do Pião da Casa Própria, com os nomes passando">
+          Pião
+        </button>
+        <button className={chip(visual.estilo === "fita")} disabled={!dono} onClick={() => salvar({ ...visual, estilo: "fita" })} title="A fita com as fotos passando">
+          Fita
+        </button>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="d-label inline-flex items-center gap-1 pr-1">
+          <Music className="size-3.5" />
+          Música
+        </span>
+        <button className={chip(visual.musica === "padrao")} disabled={!dono} onClick={() => salvar({ ...visual, musica: "padrao" })} title="Marchinha de auditório feita pelo Dash">
+          Marchinha do Dash
+        </button>
+        {visual.musicaUrl && (
+          <button className={chip(visual.musica === "arquivo")} disabled={!dono} onClick={() => salvar({ ...visual, musica: "arquivo" })} title={visual.musicaNome ?? "Sua música"}>
+            <span className="inline-block max-w-[180px] truncate align-bottom">{visual.musicaNome ?? "Sua música"}</span>
+          </button>
+        )}
+        <button className={chip(visual.musica === "nenhuma")} disabled={!dono} onClick={() => salvar({ ...visual, musica: "nenhuma" })}>
+          Sem música
+        </button>
+      </div>
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        {estado && <span className="text-xs text-d-ink3">{estado}</span>}
+        {dono && (
+          <>
+            <input
+              ref={arquivo}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) enviar(f);
+              }}
+            />
+            <button className="d-btn d-btn-secondary d-btn-sm" onClick={() => arquivo.current?.click()} title="Envie o MP3 da música que vai tocar enquanto o pião gira (até 20 MB)">
+              <Upload className="size-3.5" />
+              Enviar música
+            </button>
+          </>
+        )}
+        <button className="d-btn d-btn-secondary d-btn-sm" onClick={ouvir} disabled={visual.musica === "nenhuma"}>
+          {ouvindo ? <Square className="size-3.5" /> : <Play className="size-3.5" />}
+          {ouvindo ? "Parar" : "Ouvir"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function Sorteios({ showId }: { showId: string }) {
   const { definirLiveAberta } = useDash();
   const { dados: d, erro, trocar } = useLiveDash(showId);
@@ -774,7 +912,7 @@ export default function Sorteios({ showId }: { showId: string }) {
   const [form, setForm] = useState<{ id?: string; nome: string; premio: string; regra: Regra } | null>(null);
   const [palco, setPalco] = useState(false);
   const { recados, novo } = useRecados();
-  const { giro, erro: erroAcao, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume);
+  const { giro, erro: erroAcao, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, d ? duracaoDoGiro(d.visual) : DURACAO_PIAO);
   useAvisos(d, c, { sons: sons && !mudo, volume, voz: false, novo });
 
   useEffect(() => {
@@ -848,6 +986,8 @@ export default function Sorteios({ showId }: { showId: string }) {
         </div>
       </section>
 
+      <ConfigDoSorteio visual={d.visual} volume={mudo ? 0 : volume} aoMudar={(visual) => trocar({ visual })} />
+
       {erroAcao && <p className="rounded-xl border border-d-bad/40 bg-d-bad/10 px-4 py-2.5 text-sm text-d-bad">{erroAcao}</p>}
 
       <MetaDaLive d={d} c={c} showId={showId} aoMudar={(metas) => trocar({ metas })} />
@@ -861,7 +1001,7 @@ export default function Sorteios({ showId }: { showId: string }) {
       {c.sorteios.length ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {c.sorteios.map((s) => (
-            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} editar={() => editar(s)} podeEditar={d.podeEditar} volume={mudo ? 0 : volume} />
+            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} editar={() => editar(s)} podeEditar={d.podeEditar} volume={mudo ? 0 : volume} visual={d.visual} />
           ))}
         </div>
       ) : (

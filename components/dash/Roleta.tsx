@@ -8,13 +8,13 @@ import { Avatar } from "@/components/dash/ui";
 // no ganhador -- que já foi sorteado pelo servidor. Quem tem mais bilhetes
 // aparece mais vezes na fita, como numa roleta de verdade.
 
-type Pessoa = { handle: string; foto: string | null; bilhetes: number };
+export type Pessoa = { handle: string; foto: string | null; bilhetes: number };
 
 const LARGURA = 132; // de cada casa da fita
-const CASAS = 64;
-const PARADA = 54; // em que casa o ganhador para
+export const CASAS = 64;
+export const PARADA = 54; // em que casa o ganhador para
 
-function montarFita(lista: Pessoa[], ganhador: Pessoa) {
+export function montarFita(lista: Pessoa[], ganhador: Pessoa) {
   const total = lista.reduce((s, p) => s + Math.max(1, p.bilhetes), 0) || 1;
   const fita: Pessoa[] = [];
   for (let i = 0; i < CASAS; i++) {

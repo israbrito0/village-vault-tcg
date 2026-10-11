@@ -95,3 +95,6 @@ alter table dash_monitores add column if not exists comeca_em timestamptz;
 -- dash_jamble_estado (a vaga de cada rodada), as funções dash_jamble_vaga()
 -- e dash_jamble_vendido(mes), e o pg_cron 'dash-jamble' a cada minuto.
 -- O SQL completo está nas migrações aplicadas no village-vault.
+
+-- dash_18_musicas_sorteio: bucket público "dash-musicas" (até 20 MB, só áudio)
+-- para a música que a conta envia para o sorteio.

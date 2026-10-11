@@ -144,6 +144,12 @@ const vendedor = (h, i, pontos) => ({
   lido: i !== 7,
 });
 salvar("ranking-jamble.json", { meses: mesesRanking, mes: "2026-10", temPontos: true, conta: "israelbrito", leitura, lista: nomes.slice(0, 15).map((h, i) => vendedor(h, i, 3000000 - i * 150000)) });
+// "Sortear": o ganhador e a lista da roleta (o id muda a cada vez, pelo relógio).
+salvar("sortear.json", {
+  sorteios,
+  ganhador: { id: T(0), handle: "edumarques", foto: null, bilhetes: 18 },
+  roleta: nomes.slice(0, 24).map((h, i) => ({ handle: h, foto: null, bilhetes: 1 + (i % 6) })),
+});
 salvar("ranking-jamble-09.json", { meses: mesesRanking, mes: "2026-09", temPontos: false, conta: "israelbrito", leitura, lista: nomes.slice(0, 15).map((h, i) => vendedor(h, i, null)) });
 
 fs.writeFileSync(
@@ -154,6 +160,7 @@ self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 const agora = (o) => Array.isArray(o) ? o.map(agora) : o && typeof o === "object" ? ("$t" in o && Object.keys(o).length === 1 ? Date.now() + o.$t : Object.fromEntries(Object.entries(o).map(([k, v]) => [k, agora(v)]))) : o;
 const arquivo = (u, metodo) => {
   const p = u.pathname;
+  if (metodo === "POST" && p.startsWith("/api/dash/sorteios/")) return "sortear.json";
   if (metodo !== "GET") return null;
   if (p === "/api/dash/eu") return "eu.json";
   if (p === "/api/dash/monitor") return "monitor.json";

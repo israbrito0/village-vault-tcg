@@ -3,7 +3,7 @@
 // Sons e voz do painel. Tudo no próprio navegador: nada sai do computador.
 
 let ctx: AudioContext | null = null;
-function audio() {
+export function audio() {
   if (typeof window === "undefined") return null;
   const C = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!C) return null;

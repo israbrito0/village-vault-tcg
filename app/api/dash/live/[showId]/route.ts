@@ -6,6 +6,7 @@ import {
   rankingDaLinha,
   sorteioDaLinha,
   vendaDaLinha,
+  visualDoSorteio,
   type RespostaLive,
 } from "@/lib/dash/api";
 import { lerTermos } from "@/lib/dash/calculos";
@@ -81,6 +82,7 @@ export async function GET(req: Request, { params }: { params: { showId: string }
     icones: Object.fromEntries((icones.data ?? []).map((i) => [i.id, { url: i.url, nome: i.nome, gemas: i.gemas }])),
     souVendedor: (live.vendedor ?? "").toLowerCase() === conta.toLowerCase(),
     podeEditar: !!membro,
+    visual: visualDoSorteio(config.preferencias),
     conta,
     agora: Date.now(),
   };
