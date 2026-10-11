@@ -116,7 +116,7 @@ const arroba = (h: unknown) => (semArroba(h) ? `@${semArroba(h)}` : "—");
 // Leilão e morte súbita são leilões; o resto é compra direta.
 export const tipoDeVenda = (t: string | null | undefined) => (/AUCTION|SUDDEN|leil/i.test(String(t ?? "")) ? "Leilão" : "Compra direta");
 const statusDaVenda = (v: Venda) => (v.cancelado ? "Cancelada" : v.pago === false ? "Pendente" : "Paga");
-const situacao = (s: string) => (s === "valido" ? "Ganhou" : s === "resorteado" ? "Re-sorteado" : s ? s[0].toUpperCase() + s.slice(1) : "—");
+const situacao = (s: string) => (s === "valido" ? "Ganhou" : s === "resorteado" ? "Trocado" : s ? s[0].toUpperCase() + s.slice(1) : "—");
 
 // ---------- montagem ----------
 

@@ -149,12 +149,22 @@ export function rankingCompradores(vendas: Venda[]) {
   return [...m.values()].sort((a, b) => b.total - a.total);
 }
 
+// O mesmo produto às vezes vem com e sem emoji no nome ("Triplo 30th 🇺🇸" e
+// "Triplo 30th"): agrupa pelo nome sem os emoji, e a foto é a primeira que
+// aparecer (algumas vendas vêm sem).
+const chaveDoProduto = (t: unknown) =>
+  String(t ?? "")
+    .replace(/[\p{Extended_Pictographic}\p{Regional_Indicator}\u{FE0F}\u{200D}\u{20E3}]/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
 export function porProduto(vendas: Venda[], soPagas = true) {
   const m = new Map<string, { titulo: string; imagem: string | null; qtd: number; total: number; vendas: number; compradores: Set<string> }>();
   for (const v of vendasValidas(vendas)) {
     if (soPagas && v.pago === false) continue;
-    const k = String(v.titulo ?? "").trim() || "(sem nome)";
-    const p = m.get(k) ?? { titulo: k, imagem: v.imagem || null, qtd: 0, total: 0, vendas: 0, compradores: new Set<string>() };
+    const k = chaveDoProduto(v.titulo) || "(sem nome)";
+    const p = m.get(k) ?? { titulo: k, imagem: null, qtd: 0, total: 0, vendas: 0, compradores: new Set<string>() };
+    if (!p.imagem && v.imagem) p.imagem = v.imagem;
     p.qtd += v.quantidade || 1;
     p.total += v.total || 0;
     p.vendas++;

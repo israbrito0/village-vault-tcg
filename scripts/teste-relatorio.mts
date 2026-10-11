@@ -85,7 +85,7 @@ conferir(r.compradores.find((c) => c.handle === "caiotcg")?.pendente === 300, "c
 conferir(r.icones[0].icone === "pixel_heart" && r.icones[0].imagem === "https://cdn/pixel_heart.png", "emotions por quantidade com a figura", r.icones);
 conferir(r.pontos[0].handle === "mariaeduardas" && r.pontos[0].pontos === 17020, "pontos por usuário", r.pontos);
 conferir(r.destaques[2]?.imagem === "https://cdn/pixel_heart.png" && r.destaques[0]?.titulo === "CASE TRIPLO", "destaques", r.destaques);
-conferir(r.ganhadores[0].handle === "@mago_tcg" && r.ganhadores[0].situacao === "Re-sorteado" && r.ganhadores[0].naLive === "Não", "ganhadores em ordem, com situação", r.ganhadores);
+conferir(r.ganhadores[0].handle === "@mago_tcg" && r.ganhadores[0].situacao === "Trocado" && r.ganhadores[0].naLive === "Não", "ganhadores em ordem, com situação", r.ganhadores);
 conferir(r.vendas.length === 6 && r.vendas[3].status === "Pendente" && r.vendas[5].status === "Cancelada" && r.vendas[4].tipo === "Compra direta", "todas as vendas", r.vendas);
 conferir(r.info === "@israelbrito • 09/10/2026, 20:42 – 09/10/2026, 20:50 • jamble.com/s/nhdcnknm • Gerado em 11/10/2026, 03:57", "linha do topo", r.info);
 conferir(r.arquivo === "relatorio-live-nhdcnknm.pdf" && r.cabecalho === "Relatório da live · @israelbrito", "arquivo e cabeçalho", [r.arquivo, r.cabecalho]);

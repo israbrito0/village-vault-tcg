@@ -71,11 +71,12 @@ async function carregarImagem(url: string, px: number, png: boolean): Promise<Im
 async function carregarTodas(pedidos: { url: string; px: number; png: boolean }[], aoAndar?: (feitas: number, total: number) => void) {
   const mapa = new Map<string, Imagem | null>();
   const fila = [...new Map(pedidos.filter((p) => p.url).map((p) => [p.url, p])).values()];
+  const total = fila.length;
   let feitas = 0;
   const trabalhar = async () => {
     for (let p = fila.shift(); p; p = fila.shift()) {
       mapa.set(p.url, await carregarImagem(p.url, p.px, p.png));
-      aoAndar?.(++feitas, mapa.size + fila.length);
+      aoAndar?.(++feitas, total);
     }
   };
   await Promise.all(Array.from({ length: 6 }, trabalhar));
@@ -278,7 +279,7 @@ export async function gerarPdf(r: Relatorio, aoAndar?: (texto: string) => void) 
       { titulo: "Valor total", largura: 77, direita: true, negrito: true, cor: verde },
       { titulo: "Preço médio", largura: 71, direita: true },
       { titulo: "Compradores", largura: 62, direita: true },
-      { titulo: "% do total", largura: 57, direita: true },
+      { titulo: "% do total", largura: 56.78, direita: true },
     ],
     r.produtos.map((p) => ["", p.titulo, inteiroBR(p.qtd), reaisBR(p.total), reaisBR(p.medio), inteiroBR(p.compradores), p.pct]),
     { alturaLinha: 41, imagens: r.produtos.map((p) => p.imagem), ladoImagem: 34 },
