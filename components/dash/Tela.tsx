@@ -52,7 +52,7 @@ function BlocoSorteio({ s, vertical }: { s: Sorteio; vertical: boolean }) {
           </p>
         </div>
       )}
-      <div className={`mt-5 grid gap-2 ${vertical ? "grid-cols-1" : "grid-cols-2"}`}>
+      <div className={`mt-5 grid gap-2 ${vertical ? "grid-cols-1" : "grid-cols-1 sm:grid-cols-2"}`}>
         {top.map((p) => (
           <div key={p.handle} className="flex items-center gap-3 rounded-xl bg-white/[0.06] px-3 py-2">
             <Avatar foto={p.foto} nome={p.handle} tamanho={36} />
@@ -225,7 +225,7 @@ export default function Tela({ parametros }: { parametros: Record<string, string
         )}
 
         {v === "sorteio" && (
-          <div className={`grid gap-5 ${vertical || sorteios.length < 2 ? "grid-cols-1" : "grid-cols-2"}`}>
+          <div className={`grid gap-5 ${vertical || sorteios.length < 2 ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
             {sorteios.map((s) => (
               <BlocoSorteio key={s.id} s={s} vertical={vertical} />
             ))}
@@ -238,7 +238,7 @@ export default function Tela({ parametros }: { parametros: Record<string, string
         {v === "compradores" && <Lista titulo="🛒 Quem mais comprou" itens={compradores} />}
 
         {v === "geral" && (
-          <div className={`grid gap-5 ${vertical ? "grid-cols-1" : "grid-cols-3"}`}>
+          <div className={`grid gap-5 ${vertical ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
             <div className="space-y-5">
               {sorteios.slice(0, 1).map((s) => (
                 <BlocoSorteio key={s.id} s={s} vertical />
