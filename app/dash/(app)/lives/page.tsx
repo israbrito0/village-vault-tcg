@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { LiveResumo } from "@/lib/dash/api";
-import { dataHora, inteiro, reais, useDash } from "@/lib/dash/cliente";
+import { dataHora, inteiro, reais, useDash, usePreferencia } from "@/lib/dash/cliente";
 import { usePeriodo } from "@/components/dash/Periodo";
 import { Avatar, StatusLive, Vazio } from "@/components/dash/ui";
 import { BotaoRelatorio } from "@/components/dash/BotaoRelatorio";
@@ -11,11 +11,15 @@ import { BotaoRelatorio } from "@/components/dash/BotaoRelatorio";
 // Lives & Relatórios, como no Dash TCG: filtro, período, totais e a tabela com
 // "Abrir" e "Baixar PDF" em cada live.
 export default function Lives() {
-  const { chamar } = useDash();
+  const { chamar, eu } = useDash();
   const { periodo, campos } = usePeriodo(["hoje", "ontem", "7d", "mes", "tudo"], "tudo");
   const [lives, setLives] = useState<LiveResumo[] | null>(null);
   const [busca, setBusca] = useState("");
+  // O banco também guarda lives de outros vendedores que o robô ou a extensão
+  // acompanharam; por padrão a lista (e o total e o PDF) é só das da conta.
+  const [soMinhas, setSoMinhas] = usePreferencia("dash-lives-so-minhas", true);
   const [erro, setErro] = useState("");
+  const conta = eu.membro.conta.toLowerCase();
 
   useEffect(() => {
     setLives(null);
@@ -26,8 +30,11 @@ export default function Lives() {
 
   const lista = useMemo(() => {
     const t = busca.trim().replace(/^@/, "").toLowerCase();
-    return (lives ?? []).filter((l) => !t || (l.titulo ?? "").toLowerCase().includes(t) || (l.vendedor ?? "").toLowerCase().includes(t));
-  }, [lives, busca]);
+    return (lives ?? [])
+      .filter((l) => !soMinhas || (l.vendedor ?? "").toLowerCase() === conta)
+      .filter((l) => !t || (l.titulo ?? "").toLowerCase().includes(t) || (l.vendedor ?? "").toLowerCase().includes(t));
+  }, [lives, busca, soMinhas, conta]);
+  const outras = (lives ?? []).filter((l) => (l.vendedor ?? "").toLowerCase() !== conta).length;
   const total = lista.reduce((s, l) => s + l.total, 0);
   const itens = lista.reduce((s, l) => s + l.itens, 0);
 
@@ -43,11 +50,21 @@ export default function Lives() {
 
       <section className="d-card flex flex-wrap items-end gap-3 p-4">
         {campos}
+        {outras > 0 && (
+          <button
+            type="button"
+            className={`d-chip ${soMinhas ? "" : "d-chip-on"}`}
+            onClick={() => setSoMinhas(!soMinhas)}
+            title="Lives de outros vendedores que o robô ou a extensão acompanharam"
+          >
+            {soMinhas ? `+ ${inteiro(outras)} de outros vendedores` : "Incluindo outros vendedores"}
+          </button>
+        )}
         <div className="ml-auto flex flex-wrap items-center gap-3">
           <p className="text-right text-xs text-d-ink3">
             {inteiro(lista.length)} lives · <span className="dash-valor font-semibold text-d-ok">{reais(total)}</span> · {inteiro(itens)} itens
           </p>
-          <BotaoRelatorio endereco={`/api/dash/relatorio?de=${periodo.de}&ate=${periodo.ate}${busca.trim() ? `&q=${encodeURIComponent(busca.trim())}` : ""}`}>
+          <BotaoRelatorio endereco={`/api/dash/relatorio?de=${periodo.de}&ate=${periodo.ate}${soMinhas ? "&minhas=1" : ""}${busca.trim() ? `&q=${encodeURIComponent(busca.trim())}` : ""}`}>
             Baixar relatório do período
           </BotaoRelatorio>
         </div>

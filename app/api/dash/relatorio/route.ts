@@ -115,8 +115,12 @@ export async function GET(req: Request) {
   if (!membro) return erro(401, "sem acesso");
   const p = periodo(u);
   const busca = (u.searchParams.get("q") ?? "").trim().replace(/^@/, "").toLowerCase();
+  // ?minhas=1: só as lives da própria conta (sem as de outros vendedores que o
+  // robô ou a extensão acompanharam), como a lista de "Lives & Relatórios".
+  const minhas = u.searchParams.get("minhas") === "1";
   const linhas = await todas<Linha>((a, b) => db().rpc("dash_lives_resumo", { p_conta: membro.conta, p_de: p.de, p_ate: p.ate }).range(a, b) as never);
   const lives: LiveDoRelatorio[] = linhas
+    .filter((l) => !minhas || String(l.vendedor ?? "").toLowerCase() === membro.conta.toLowerCase())
     .filter((l) => !busca || String(l.titulo ?? "").toLowerCase().includes(busca) || String(l.vendedor ?? "").toLowerCase().includes(busca))
     .map((l) => ({
       showId: String(l.show_id),
