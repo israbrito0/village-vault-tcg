@@ -15,10 +15,14 @@ const SERVICE = process.env.SUPABASE_SERVICE_ROLE;
 // A conta (o @ de vendedor na Jamble) de quem é a extensão.
 export const CONTA_PADRAO = "israelbrito";
 
+// O Next guarda em cache os fetch das rotas mesmo com force-dynamic (os
+// sorteios novos e as figurinhas não apareciam): aqui nada é guardado.
+const semCache: typeof fetch = (entrada, opcoes) => fetch(entrada, { ...opcoes, cache: "no-store" });
+
 let unico: SupabaseClient | null = null;
 export function db() {
   if (!SUPA_URL || !SERVICE) throw new Error("Supabase não configurado");
-  if (!unico) unico = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false } });
+  if (!unico) unico = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false }, global: { fetch: semCache } });
   return unico;
 }
 
