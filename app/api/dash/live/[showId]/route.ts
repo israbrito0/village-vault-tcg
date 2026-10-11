@@ -70,7 +70,9 @@ export async function GET(req: Request, { params }: { params: { showId: string }
     live,
     emocoes: emocoes.map(emocaoDaLinha),
     chat: chat.map(mensagemDaLinha),
-    vendas: vendas ? vendas.map(vendaDaLinha) : null,
+    // Pela chave da tela vai só o que os sorteios por compra precisam (quem
+    // comprou, quanto e se pagou): sem produto, foto nem preço unitário.
+    vendas: vendas ? vendas.map(vendaDaLinha).map((v) => (membro ? v : { ...v, titulo: "", imagem: null, foto: null, preco: 0 })) : null,
     vendasSig,
     ranking: rankingDaLinha(ranking),
     sorteios: (sorteios.data ?? []).map((s) => sorteioDaLinha(s, ganhadores.data ?? [], termos)),
