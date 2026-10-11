@@ -13,3 +13,7 @@ lib/generated
 
 # Token da extensao: fica so neste computador
 extensao-ranking/config-local.js
+
+# Dados de exemplo para ver o Dash logado no servidor local (scripts/mock-dash.mjs)
+public/__mock/
+public/__mock-sw.js
