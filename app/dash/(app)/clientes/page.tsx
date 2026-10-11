@@ -1,12 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import type { Cliente } from "@/lib/dash/api";
+import type { Cliente, LiveResumo } from "@/lib/dash/api";
 import type { Venda } from "@/lib/dash/calculos";
 import { inteiro, reais, useDash } from "@/lib/dash/cliente";
 import { usePeriodo } from "@/components/dash/Periodo";
 import { Avatar, Kpi, Vazio } from "@/components/dash/ui";
+import { BotaoRelatorio, relatorioDeClientes } from "@/components/dash/BotaoRelatorio";
 
 // Clientes, como no Dash TCG: quanto cada cliente comprou somando as lives do
 // período, com pago, pendente, itens, compras, lives, 1ª e última compra.
@@ -31,8 +31,10 @@ export default function Clientes() {
     chamar<{ clientes: Cliente[] }>(`/api/dash/clientes?de=${periodo.de}&ate=${periodo.ate}`)
       .then((r) => setClientes(r.clientes))
       .catch((e) => setErro(String(e.message)));
-    chamar<{ lives: unknown[] }>(`/api/dash/lives?de=${periodo.de}&ate=${periodo.ate}`)
-      .then((r) => setLives(r.lives.length))
+    chamar<{ lives: LiveResumo[] }>(`/api/dash/lives?de=${periodo.de}&ate=${periodo.ate}`)
+      // Só as lives do vendedor (os clientes são dele); as de outros vendedores
+      // que o robô ou a extensão acompanharam não contam aqui.
+      .then((r) => setLives(r.lives.filter((l) => (l.vendedor ?? "").toLowerCase() === eu.membro.conta.toLowerCase()).length))
       .catch(() => {});
   }, [chamar, periodo.de, periodo.ate]);
 
@@ -68,9 +70,9 @@ export default function Clientes() {
         </label>
         {campos}
         <input placeholder="Buscar @cliente" className="d-field w-full sm:w-48" value={busca} onChange={(e) => setBusca(e.target.value)} />
-        <Link className="d-btn d-btn-primary ml-auto" target="_blank" href={`/dash/relatorio/clientes?de=${periodo.de}&ate=${periodo.ate}&imprimir=1`}>
+        <BotaoRelatorio className="d-btn d-btn-primary ml-auto" preparar={relatorioDeClientes(eu.membro.conta, periodo.de, periodo.ate)}>
           Baixar PDF
-        </Link>
+        </BotaoRelatorio>
       </section>
       {erro && <p className="text-sm text-d-bad">{erro}</p>}
 

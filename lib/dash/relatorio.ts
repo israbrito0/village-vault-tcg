@@ -56,7 +56,7 @@ export type Kpi = { rotulo: string; valor: string; sub: string; cor: Cor };
 export type Destaque = { rotulo: string; cor: Cor; titulo: string; sub: string; imagem: string | null } | null;
 
 export type Relatorio = {
-  tipo: "live" | "periodo";
+  tipo: "live" | "periodo" | "clientes";
   // Faixa do topo.
   nome: string; // "Relatório da live" | "Relatório do período"
   subtitulo: string; // o título da live | "todo o histórico salvo" | "01/10/2026 a 11/10/2026"
@@ -74,6 +74,8 @@ export type Relatorio = {
   pontos: { posicao: number; handle: string; emocoes: number; pontos: number; pct: string }[];
   ganhadores: { quando: string; vendedor: string; regra: string; premio: string; handle: string; naLive: string; situacao: string }[];
   vendas: { hora: string; titulo: string; comprador: string; tipo: string; qtd: number; valor: number; status: string }[];
+  // Só no relatório de clientes.
+  clientes?: { posicao: number; handle: string; pago: number; pendente: number; itens: number; compras: number; lives: number; primeira: string; ultima: string }[];
   notas: { produtos: string; compradores: string; icones: string; pontos: string };
 };
 
@@ -304,6 +306,69 @@ export function montarRelatorio(e: EntradaRelatorio, geradoEm = Date.now()): Rel
       icones: `${inteiroBR(totalEmocoes)} emotions · ${inteiroBR(totalPontos)} pontos`,
       pontos: "todas as emotions",
     },
+  };
+}
+
+// ---------- clientes ----------
+//
+// "Clientes de @conta", como o PDF de clientes do Dash TCG: total pago,
+// clientes, itens e média por cliente; os 3 maiores; o ranking pelo total pago.
+
+export type ClienteDoRelatorio = { comprador: string; pago: number; pendente: number; itens: number; compras: number; lives: number; primeira: number; ultima: number };
+
+export function montarRelatorioClientes(
+  e: { conta: string; clientes: ClienteDoRelatorio[]; lives: number; periodo?: { de: number; ate: number } },
+  geradoEm = Date.now(),
+): Relatorio {
+  const lista = [...e.clientes].sort((a, b) => b.pago - a.pago || b.itens - a.itens);
+  const pago = lista.reduce((s, c) => s + c.pago, 0);
+  const pendente = lista.reduce((s, c) => s + c.pendente, 0);
+  const itens = lista.reduce((s, c) => s + c.itens, 0);
+  const fieis = lista.filter((c) => c.lives >= 2).length;
+  const de = e.periodo?.de ?? 0;
+  const ate = e.periodo?.ate || geradoEm;
+  const subtitulo = de > 0 ? `${dataBR(de)} a ${dataBR(Math.min(ate, geradoEm) - 1)}` : "todo o histórico salvo";
+  const gerado = dataHoraBR(geradoEm);
+  const nome = `Clientes de @${semArroba(e.conta)}`;
+  const cabecalho = `${nome} · ${subtitulo}`;
+  const destaque = (i: number, cor: Cor): Destaque => {
+    const c = lista[i];
+    return c ? { rotulo: `${i + 1}º cliente`, cor, titulo: `@${semArroba(c.comprador)}`, sub: `${reaisBR(c.pago)} · ${inteiroBR(c.itens)} itens · ${inteiroBR(c.lives)} lives`, imagem: null } : null;
+  };
+  return {
+    tipo: "clientes",
+    nome,
+    subtitulo,
+    info: [`${inteiroBR(e.lives)} lives`, `${inteiroBR(lista.length)} clientes`, `Gerado em ${gerado}`].join(" • "),
+    cabecalho,
+    rodape: `Dash Village · ${cabecalho} · gerado em ${gerado}`,
+    arquivo: de > 0 ? `clientes-${dataBR(de).replace(/\//g, "-")}.pdf` : "clientes-tudo.pdf",
+    kpis: [
+      { rotulo: "Total pago", valor: reaisBR(pago), sub: `+ ${reaisBR(pendente)} pendente`, cor: "verde" },
+      { rotulo: "Clientes", valor: inteiroBR(lista.length), sub: `${inteiroBR(fieis)} compraram em 2+ lives`, cor: "marca" },
+      { rotulo: "Itens", valor: inteiroBR(itens), sub: `${inteiroBR(e.lives)} lives`, cor: "marca" },
+      { rotulo: "Média por cliente", valor: reaisBR(lista.length ? pago / lista.length : 0), sub: "total pago ÷ clientes", cor: "azul" },
+    ],
+    destaques: [destaque(0, "marca"), destaque(1, "azul"), destaque(2, "verde")],
+    lives: [],
+    produtos: [],
+    compradores: [],
+    icones: [],
+    pontos: [],
+    ganhadores: [],
+    vendas: [],
+    clientes: lista.map((c, i) => ({
+      posicao: i + 1,
+      handle: semArroba(c.comprador),
+      pago: c.pago,
+      pendente: c.pendente,
+      itens: c.itens,
+      compras: c.compras,
+      lives: c.lives,
+      primeira: c.primeira ? dataBR(c.primeira) : "—",
+      ultima: c.ultima ? dataBR(c.ultima) : "—",
+    })),
+    notas: { produtos: "", compradores: "ordenado pelo total pago", icones: "", pontos: "" },
   };
 }
 

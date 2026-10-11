@@ -97,5 +97,24 @@ conferir(p.vendas.length === 0 && p.kpis[2].rotulo === "Lives", "período sem 'T
 const q = R.montarRelatorio({ ...entrada, tipo: "periodo", periodo: { de: Date.UTC(2026, 9, 1, 3), ate: Date.UTC(2026, 9, 12, 3) } }, Date.UTC(2026, 9, 11, 6, 57));
 conferir(q.subtitulo === "01/10/2026 a 11/10/2026", "período com datas", q.subtitulo);
 
+const cli = R.montarRelatorioClientes(
+  {
+    conta: "israelbrito",
+    lives: 11,
+    clientes: [
+      { comprador: "cartaperfeita", pago: 21166, pendente: 0, itens: 9, compras: 9, lives: 3, primeira: Date.UTC(2026, 8, 17, 15), ultima: Date.UTC(2026, 9, 6, 15) },
+      { comprador: "ravanello", pago: 28742, pendente: 0, itens: 52, compras: 36, lives: 6, primeira: Date.UTC(2026, 8, 19, 15), ultima: Date.UTC(2026, 9, 10, 15) },
+      { comprador: "natalytata", pago: 0, pendente: 501, itens: 1, compras: 1, lives: 1, primeira: Date.UTC(2026, 9, 10, 1), ultima: Date.UTC(2026, 9, 10, 1) },
+    ],
+  },
+  Date.UTC(2026, 9, 11, 10, 39),
+);
+conferir(cli.nome === "Clientes de @israelbrito" && cli.info === "11 lives • 3 clientes • Gerado em 11/10/2026, 07:39", "clientes: topo", [cli.nome, cli.info]);
+conferir(cli.clientes?.[0].handle === "ravanello" && cli.clientes?.[2].handle === "natalytata", "clientes pelo total pago", cli.clientes);
+conferir(cli.kpis[0].sub === "+ R$ 501,00 pendente" && cli.kpis[1].sub === "2 compraram em 2+ lives" && cli.kpis[3].valor === "R$ 16.636,00", "clientes: números", cli.kpis);
+conferir(cli.destaques[0]?.titulo === "@ravanello" && cli.destaques[0]?.sub === "R$ 28.742,00 · 52 itens · 6 lives" && cli.destaques[0]?.rotulo === "1º cliente", "clientes: os 3 maiores", cli.destaques);
+// 01:00 UTC de 10/10 ainda é 09/10 em Brasília.
+conferir(cli.clientes?.[2].primeira === "09/10/2026", "data da 1ª compra no horário de Brasília", cli.clientes?.[2]);
+
 console.log(falhas ? `\n${falhas} FALHA(S)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

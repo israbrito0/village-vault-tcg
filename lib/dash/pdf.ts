@@ -152,10 +152,9 @@ function numeros(doc: jsPDF, r: Relatorio) {
   });
 }
 
-function destaques(doc: jsPDF, r: Relatorio, imagens: Map<string, Imagem | null>) {
+function destaques(doc: jsPDF, r: Relatorio, imagens: Map<string, Imagem | null>, y: number) {
   const w = (CW - 2 * 10.8) / 3;
   const h = 68;
-  const y = 286;
   r.destaques.forEach((d: Destaque, i) => {
     const x = MX + i * (w + 10.8);
     doc.setFillColor(255, 255, 255);
@@ -197,8 +196,10 @@ export async function gerarPdf(r: Relatorio, aoAndar?: (texto: string) => void) 
   doc.setProperties({ title: `${r.nome} · ${textoDoPdf(r.subtitulo)}`, creator: "Dash Village" });
   faixa(doc, r);
   numeros(doc, r);
-  destaques(doc, r, imagens);
-  let y = 363;
+  // Os destaques vêm logo abaixo dos números (1 ou 2 linhas de 4).
+  const yDestaques = 139 + Math.ceil(r.kpis.length / 4) * 69 + 9;
+  destaques(doc, r, imagens, yDestaques);
+  let y = yDestaques + 68 + 9;
 
   const secao = (titulo: string, nota: string, colunas: Coluna[], linhas: (string | number)[][], opcoes: { alturaLinha?: number; imagens?: (string | null)[]; ladoImagem?: number } = {}) => {
     if (!linhas.length) return;
@@ -346,6 +347,24 @@ export async function gerarPdf(r: Relatorio, aoAndar?: (texto: string) => void) 
         ],
     r.ganhadores.map((g) => (r.tipo === "live" ? [g.quando, g.regra, g.premio, g.handle, g.naLive, g.situacao] : [g.quando.replace(" ", "\n"), g.vendedor, g.regra, g.premio, g.handle, g.naLive, g.situacao])),
   );
+  if (r.clientes) {
+    secao(
+      `Ranking de clientes (${r.clientes.length})`,
+      r.notas.compradores,
+      [
+        { titulo: "#", largura: 28 },
+        { titulo: "Cliente", largura: 112.28 },
+        { titulo: "Total pago", largura: 70, direita: true, negrito: true, cor: verde },
+        { titulo: "Pendente", largura: 64, direita: true },
+        { titulo: "Itens", largura: 34, direita: true },
+        { titulo: "Compras", largura: 51, direita: true },
+        { titulo: "Lives", largura: 35, direita: true },
+        { titulo: "1ª compra", largura: 60 },
+        { titulo: "Última", largura: 61 },
+      ],
+      r.clientes.map((c) => [c.posicao, `@${c.handle}`, reaisBR(c.pago), c.pendente ? reaisBR(c.pendente) : "—", inteiroBR(c.itens), inteiroBR(c.compras), inteiroBR(c.lives), c.primeira, c.ultima]),
+    );
+  }
   if (r.tipo === "live") {
     secao(
       `Todas as vendas (${r.vendas.length})`,

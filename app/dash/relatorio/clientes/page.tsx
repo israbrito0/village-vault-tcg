@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 export default function Pagina({ searchParams }: { searchParams: { de?: string; ate?: string } }) {
   return (
     <SessaoOpcional>
-      <RelatorioClientes de={Number(searchParams.de) || 0} ate={Number(searchParams.ate) || Date.now() + 86400000} />
+      <RelatorioClientes de={Number(searchParams.de) || 0} ate={Number(searchParams.ate) || 0} />
     </SessaoOpcional>
   );
 }
