@@ -58,10 +58,10 @@ export async function membroDaRequisicao(req: Request): Promise<Membro | null> {
   return (m as Membro | null) ?? null;
 }
 
-export type Config = { conta: string; tela_chave: string; termos_carpa: string; preferencias: Record<string, unknown> };
+export type Config = { conta: string; tela_chave: string; termos_carpa: string; preferencias: Record<string, unknown>; extensao_em?: string | null };
 
 export async function configDaConta(conta: string): Promise<Config> {
-  const { data } = await db().from("dash_config").select("conta, tela_chave, termos_carpa, preferencias").eq("conta", conta).maybeSingle();
+  const { data } = await db().from("dash_config").select("conta, tela_chave, termos_carpa, preferencias, extensao_em").eq("conta", conta).maybeSingle();
   if (data) return data as Config;
   const { data: nova } = await db().from("dash_config").insert({ conta }).select("conta, tela_chave, termos_carpa, preferencias").single();
   return nova as Config;

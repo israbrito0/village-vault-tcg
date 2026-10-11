@@ -23,7 +23,7 @@ type Pagina = {
 
 const cabecalhos = { "user-agent": "Mozilla/5.0 (Village Dash)", accept: "application/json" };
 
-async function acessoDeVisitante() {
+export async function acessoDeVisitante() {
   const r = await fetch(`${BASE}/api/visitor-token`, { method: "POST", headers: cabecalhos, cache: "no-store" });
   const j = (await r.json().catch(() => ({}))) as { visitor_token?: string };
   if (!r.ok || !j.visitor_token) throw new Error("a Jamble não deu o acesso de visitante");
@@ -87,4 +87,79 @@ export async function atualizarRankingJamble() {
   await db().from("dash_ranking_jamble").delete().eq("mes", r.mes).lt("atualizado_em", agora);
   await db().from("dash_ranking_jamble_meses").upsert({ mes: r.mes, titulo: r.titulo, regras: r.regras, total: linhas.length, atualizado_em: agora });
   return { mes: r.mes, total: linhas.length };
+}
+
+// ---------- link de live -> a live na Jamble ----------
+//
+// O robô acompanha uma live pelo código dela e do vendedor. Quem usa o Dash
+// cola o link do jeito que tiver:
+//   - jamble.com/s/<código>            (o link de compartilhar)
+//   - jamble.com/live/<@>/<show>       (o endereço da live aberta)
+//   - jamble.com/live/<@> ou só @<@>   (a live de agora desse vendedor)
+// A página da Jamble traz os dois códigos no HTML (com as aspas escapadas).
+
+export type LiveDoLink = { showId: string; sellerId: string; vendedor: string | null; codigo: string | null };
+
+const NAVEGADOR = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36" };
+const ID = "[A-Za-z0-9]{12,40}";
+
+async function pagina(caminho: string) {
+  const r = await fetch(`${BASE}${caminho}`, { headers: NAVEGADOR, cache: "no-store", redirect: "manual" });
+  if (r.status >= 300 && r.status < 400) return { destino: r.headers.get("location") ?? "", html: "" };
+  if (!r.ok) return { destino: "", html: "" };
+  return { destino: "", html: (await r.text()).replace(/\\+"/g, '"') };
+}
+
+type LinkLido = { codigo: string } | { vendedor: string; showId: string | null };
+
+export function lerLink(texto: string): LinkLido | null {
+  const t = texto.trim();
+  const s = t.match(/jamble\.com\/s\/([A-Za-z0-9_-]{4,40})/i);
+  if (s?.[1]) return { codigo: s[1] };
+  const l = t.match(new RegExp(`jamble\\.com/live/@?([A-Za-z0-9_.-]{2,40})(?:/(${ID}))?`, "i"));
+  if (l?.[1]) return { vendedor: l[1].toLowerCase(), showId: l[2] ?? null };
+  const arroba = t.match(/^@?([A-Za-z0-9_.-]{2,40})$/);
+  if (arroba?.[1]) return { vendedor: arroba[1].toLowerCase(), showId: null };
+  return null;
+}
+
+export async function resolverLink(texto: string): Promise<LiveDoLink | null> {
+  const lido = lerLink(texto);
+  if (!lido) return null;
+  if ("codigo" in lido) {
+    const { html } = await pagina(`/s/${encodeURIComponent(lido.codigo)}`);
+    const showId = html.match(new RegExp(`"show":\\{"id":"(${ID})"`))?.[1];
+    const sellerId = html.match(new RegExp(`"sellerId":"(${ID})"`))?.[1];
+    if (!showId || !sellerId) return null;
+    const vendedor = html.match(/"sellerUsername":"([A-Za-z0-9_.-]{2,40})"/)?.[1]?.toLowerCase() ?? null;
+    return { showId, sellerId, vendedor, codigo: lido.codigo };
+  }
+  let showId = lido.showId;
+  if (!showId) {
+    // Sem o código da live, a Jamble manda para a live de agora do vendedor.
+    const { destino } = await pagina(`/live/${encodeURIComponent(lido.vendedor)}`);
+    showId = destino.match(new RegExp(`/live/[^/]+/(${ID})`))?.[1] ?? null;
+    if (!showId) return null;
+  }
+  const { html } = await pagina(`/live/${encodeURIComponent(lido.vendedor)}/${showId}`);
+  const sellerId = html.match(new RegExp(`"sellerId":"(${ID})","showId":"${showId}"`))?.[1] ?? html.match(new RegExp(`"sellerId":"(${ID})"`))?.[1];
+  if (!sellerId) return null;
+  return { showId, sellerId, vendedor: lido.vendedor, codigo: null };
+}
+
+export type ShowPublico = { titulo: string | null; capa: string | null; comecou: boolean; acabou: boolean; inicio: string | null };
+
+export async function showPublico(token: string, sellerId: string, showId: string): Promise<ShowPublico | null> {
+  const q = new URLSearchParams({ seller_id: sellerId, show_id: showId });
+  const r = await fetch(`${BASE}/api/live/show?${q}`, { headers: { ...cabecalhos, authorization: `Bearer ${token}` }, cache: "no-store" });
+  const j = (await r.json().catch(() => ({}))) as { success?: boolean; show?: Record<string, unknown>; data?: { show?: Record<string, unknown> } };
+  const s = j.show ?? j.data?.show;
+  if (!r.ok || !s?.id) return null;
+  return {
+    titulo: typeof s.title === "string" ? s.title : null,
+    capa: typeof s.coverUrl === "string" ? s.coverUrl : null,
+    comecou: s.hasStarted === true,
+    acabou: s.isOver === true,
+    inicio: typeof s.startingAt === "string" ? s.startingAt : null,
+  };
 }

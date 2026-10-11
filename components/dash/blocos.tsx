@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Copy, Fish, Gavel, MessageSquareText, MessagesSquare, Package, Receipt, ShoppingBag, Sparkles, Star, Trophy } from "lucide-react";
+import { Activity, Copy, Eye, Fish, Gavel, MessageSquareText, MessagesSquare, Package, Receipt, ShoppingBag, Sparkles, Star, Trophy } from "lucide-react";
 import {
   descreverRegra,
   engajamento,
@@ -618,7 +618,7 @@ export function Engajamento({ d, c }: { d: LiveCarregada; c: Contas }) {
   return (
     <Cartao titulo={`Engajamento por espectador (${c.eng.length})`} icone={Activity} className="max-h-[520px] lg:col-span-3" direita={<span className="text-xs text-d-ink3">atualizado {horaSeg(d.atualizadoEm)}</span>}>
       <p className="border-b border-d-line px-4 py-2 text-xs text-d-ink3">
-        A Jamble não informa quem está assistindo, só quantos. O tempo ativo vai da 1ª à última interação da pessoa (chat, emotion ou compra); quem só assiste não aparece.
+        O tempo ativo vai da 1ª à última interação da pessoa (chat, emotion ou compra). Quem só assiste aparece em &quot;Assistindo agora&quot;.
       </p>
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-d-panel text-left text-[11px] uppercase tracking-wider text-d-ink3">
@@ -654,6 +654,44 @@ export function Engajamento({ d, c }: { d: LiveCarregada; c: Contas }) {
           ))}
         </tbody>
       </table>
+    </Cartao>
+  );
+}
+
+// Quem está na live agora: o robô lê a lista de espectadores da Jamble a cada
+// rodada (cerca de 1 minuto). Quem já interagiu mostra o que fez.
+export function AssistindoAgora({ d, c }: { d: LiveCarregada; c: Contas }) {
+  const m = d.live.metricas as Record<string, unknown>;
+  const lista = Array.isArray(m.assistindo) ? (m.assistindo as { handle: string; foto: string | null }[]) : [];
+  const total = Number(m.assistindoTotal) || lista.length;
+  const quando = Number(m.assistindoEm) || null;
+  const eng = useMemo(() => new Map(c.eng.map((p) => [p.handle.toLowerCase(), p])), [c.eng]);
+  if (!lista.length) return null;
+  const ordenada = [...lista].sort((a, b) => Number(eng.has(b.handle.toLowerCase())) - Number(eng.has(a.handle.toLowerCase())));
+  const calados = lista.filter((p) => !eng.has(p.handle.toLowerCase())).length;
+  return (
+    <Cartao
+      titulo={`Assistindo agora (${inteiro(total)})`}
+      icone={Eye}
+      className="max-h-[420px] lg:col-span-3"
+      direita={<span className="text-xs text-d-ink3">{calados} só assistindo{quando ? ` · lido ${horaSeg(quando)}` : ""}</span>}
+    >
+      <ul className="grid gap-1 p-3 sm:grid-cols-2 lg:grid-cols-4">
+        {ordenada.map((p) => {
+          const e = eng.get(p.handle.toLowerCase());
+          return (
+            <li key={p.handle} className="flex min-w-0 items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-d-panel2/60">
+              <Avatar foto={p.foto} nome={p.handle} tamanho={24} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium">@{p.handle}</span>
+                <span className="block truncate text-[11px] text-d-ink3">
+                  {e ? [e.mensagens && `${e.mensagens} msg`, e.emocoes && `${e.emocoes} emotions`, e.compras && `${e.compras} compras`].filter(Boolean).join(" · ") : "só assistindo"}
+                </span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </Cartao>
   );
 }

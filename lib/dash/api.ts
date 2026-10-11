@@ -240,6 +240,20 @@ export function rankingDaLinha(r: Linha | null): Ranking | null {
 
 export type Icone = { url: string | null; nome: string | null; gemas: number | null };
 
+// Uma live que o robô (sem a extensão) está acompanhando.
+export type MonitorInfo = {
+  id: string;
+  showId: string;
+  vendedor: string | null;
+  titulo: string | null;
+  ativo: boolean;
+  automatico: boolean;
+  criadoEm: number;
+  ate: number;
+  ultimoCiclo: number | null;
+  ultimoErro: string | null;
+};
+
 export type RespostaEu = {
   membro: { email: string; conta: string; papel: string; recursos: string[] };
   config: { telaChave: string; termosCarpa: string; preferencias: Record<string, unknown> };
@@ -247,6 +261,8 @@ export type RespostaEu = {
   outras: LiveInfo[];
   ranking: Ranking | null;
   extensaoVistaEm: number | null;
+  // O robô: quando começou a última rodada e quantas lives ele acompanha.
+  robo: { rodouEm: number | null; ativos: number };
 };
 
 export type RespostaLive = {

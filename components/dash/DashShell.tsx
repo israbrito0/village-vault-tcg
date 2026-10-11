@@ -129,6 +129,8 @@ function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: 
   const id = live ? encodeURIComponent(live.showId) : "";
   const sinal = dash.eu.extensaoVistaEm;
   const online = !!sinal && agora - sinal < 3 * 60 * 1000;
+  const robo = dash.eu.robo;
+  const roboOnline = !!robo?.rodouEm && agora - robo.rodouEm < 3 * 60 * 1000;
 
   const temas: [Tema, string, ComponentType<{ className?: string }>][] = [
     ["claro", "Claro", Sun],
@@ -166,12 +168,21 @@ function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: 
         </Secao>
       )}
       <div className="mt-auto space-y-2 border-t border-d-line pt-4">
-        <div
-          className={`flex items-center gap-2 rounded-xl border border-d-line bg-d-panel2/60 px-3 py-2 text-xs font-medium ${online ? "text-d-ok" : "text-d-ink3"}`}
-          title="A extensão do Edge manda os dados da live a cada poucos segundos"
-        >
-          <span className={`size-2 rounded-full ${online ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
-          {online ? "Extensão online" : sinal ? `Extensão parada ${haQuanto(sinal, agora)}` : "Extensão sem sinal"}
+        <div className="space-y-1.5 rounded-xl border border-d-line bg-d-panel2/60 px-3 py-2 text-xs font-medium">
+          <p
+            className={`flex items-center gap-2 ${roboOnline ? "text-d-ok" : "text-d-ink3"}`}
+            title="O robô entra nas lives pelo link, no servidor, sem precisar do computador ligado"
+          >
+            <span className={`size-2 rounded-full ${roboOnline ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
+            {roboOnline ? `Robô online · ${robo.ativos} ${robo.ativos === 1 ? "live" : "lives"}` : robo?.rodouEm ? `Robô parado ${haQuanto(robo.rodouEm, agora)}` : "Robô sem sinal"}
+          </p>
+          <p
+            className={`flex items-center gap-2 ${online ? "text-d-ok" : "text-d-ink3"}`}
+            title="A extensão do Edge (opcional) manda os dados da live a cada poucos segundos"
+          >
+            <span className={`size-2 rounded-full ${online ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
+            {online ? "Extensão online" : sinal ? `Extensão parada ${haQuanto(sinal, agora)}` : "Extensão desligada"}
+          </p>
         </div>
         <div role="radiogroup" aria-label="Tema" className="flex rounded-xl border border-d-line bg-d-panel2 p-0.5">
           {temas.map(([t, rotulo, I]) => (

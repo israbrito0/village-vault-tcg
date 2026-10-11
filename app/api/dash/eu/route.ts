@@ -1,15 +1,16 @@
 import { liveDaLinha, rankingDaLinha, type RespostaEu } from "@/lib/dash/api";
 import { configDaConta, db, erro, liveAtual, membroDaRequisicao, ok, ultimoRanking } from "@/lib/dash/servidor";
 
-// Quem está logado no painel, as preferências da conta, a live dela e as de
-// outros vendedores que a extensão está acompanhando agora.
+// Quem está logado no painel, as preferências da conta, a live dela, as de
+// outros vendedores que a extensão ou o robô estão acompanhando agora e se
+// os dois estão ligados.
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   const membro = await membroDaRequisicao(req);
   if (!membro) return erro(401, "sem acesso");
   const config = await configDaConta(membro.conta);
-  const [live, ranking, outras, ultima] = await Promise.all([
+  const [live, ranking, outras, robo, ativos] = await Promise.all([
     liveAtual(membro.conta),
     ultimoRanking(membro.conta),
     db()
@@ -20,15 +21,20 @@ export async function GET(req: Request) {
       .gte("visto_em", new Date(Date.now() - 12 * 3600 * 1000).toISOString())
       .order("visto_em", { ascending: false })
       .limit(8),
-    db().from("dash_lives").select("visto_em").eq("conta", membro.conta).order("visto_em", { ascending: false }).limit(1),
+    db().from("dash_robo").select("ultimo_inicio").eq("id", 1).maybeSingle(),
+    db().from("dash_monitores").select("id", { count: "exact", head: true }).eq("conta", membro.conta).eq("ativo", true),
   ]);
+  const ms = (v: unknown) => (v ? new Date(String(v)).getTime() : null);
   const resposta: RespostaEu = {
     membro,
     config: { telaChave: config.tela_chave, termosCarpa: config.termos_carpa, preferencias: config.preferencias ?? {} },
     live: live ? liveDaLinha(live) : null,
     outras: (outras.data ?? []).map(liveDaLinha),
     ranking: rankingDaLinha(ranking),
-    extensaoVistaEm: ultima.data?.[0]?.visto_em ? new Date(ultima.data[0].visto_em as string).getTime() : null,
+    // A extensão marca quando mandou dados; o robô grava as lives também, então
+    // a hora da última live vista não serve mais para saber se ela está ligada.
+    extensaoVistaEm: ms(config.extensao_em),
+    robo: { rodouEm: ms(robo.data?.ultimo_inicio), ativos: ativos.count ?? 0 },
   };
   return ok(resposta);
 }

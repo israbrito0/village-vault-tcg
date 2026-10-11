@@ -58,6 +58,9 @@ export async function POST(req: Request) {
   const resposta: Obj = { ok: true, lives: [] as Obj[] };
 
   try {
+    // O sinal de vida da extensão (o menu do Dash mostra se ela está ligada).
+    await db().from("dash_config").update({ extensao_em: new Date().toISOString() }).eq("conta", conta);
+
     for (const l of lives) {
       const showId = txt(l.showId, 80);
       if (!showId || showId === "sem-live") continue;

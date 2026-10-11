@@ -8,6 +8,7 @@ import { haQuanto, inteiro, reais, useAgora, useDash, useLiveDash, usePreferenci
 import {
   Chat,
   Emotions,
+  AssistindoAgora,
   Engajamento,
   Leiloeiro,
   MensagensChat,
@@ -159,6 +160,7 @@ export default function Painel({ showId }: { showId: string }) {
         <RankingCompradores c={c} />
         <Vendas d={d} limpoEm={limpoEm} />
         <PorProduto c={c} />
+        <AssistindoAgora d={d} c={c} />
         <Engajamento d={d} c={c} />
       </div>
     </main>
