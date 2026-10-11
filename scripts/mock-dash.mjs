@@ -124,7 +124,27 @@ const vivo = { showId: "TESTE1", vendedor: "israelbrito", titulo: live.titulo, i
 salvar("relatorio-live.json", { tipo: "live", conta: "israelbrito", lives: [vivo], vendas: vendasRel, emocoes: emocoesRel, ganhadores: ganhRel, icones: iconesRel });
 salvar("relatorio-periodo.json", { tipo: "periodo", conta: "israelbrito", lives: [vivo, { ...vivo, showId: "L1", titulo: "COMBO DE BOOSTER NO PRECINHO", inicio: T(-5 * 86400e3), codigo: null }], vendas: vendasRel, emocoes: emocoesRel, ganhadores: ganhRel, icones: iconesRel, periodo: { de: 0, ate: 0 } });
 salvar("clientes.json", { clientes: nomes.slice(0, 20).map((c, i) => ({ comprador: c, foto: null, total: 5000 - i * 200, pago: 4800 - i * 200, pendente: i % 4 ? 0 : 200, itens: 10 - (i % 9), compras: 8 - (i % 7), lives: 1 + (i % 5), primeira: T(-30 * 86400e3), ultima: T(-i * 86400e3) })) });
-salvar("ranking-jamble.json", { meses: [{ mes: "2026-10", total: 699, atualizadoEm: T(-5 * MIN), regras: [] }], mes: "2026-10", conta: "israelbrito", lista: nomes.slice(0, 15).map((h, i) => ({ id: `id${i}`, posicao: i + 1, handle: i === 4 ? "israelbrito" : h, foto: null, pontos: 3000000 - i * 150000, recompensado: i < 3 })) });
+const mesesRanking = [
+  { mes: "2026-10", total: 699, atualizadoEm: T(-5 * MIN), temPontos: true },
+  { mes: "2026-09", total: 0, atualizadoEm: null, temPontos: false },
+];
+const leitura = { vendedoresLidos: 120, vendedores: 699, livesPendentes: 840, ultimaRodada: T(-20e3) };
+const vendedor = (h, i, pontos) => ({
+  id: `id${i}`,
+  posicao: i + 1,
+  handle: i === 4 ? "israelbrito" : h,
+  foto: null,
+  pontos,
+  recompensado: i < 3,
+  vendido: i === 7 ? null : 180000 - i * 9000 + (i % 3) * 7000,
+  itens: 300 - i * 10,
+  lives: 4 + (i % 9),
+  pendentes: i % 5 === 1 ? 2 : 0,
+  parcialDesde: i % 4 === 0 && i !== 4 ? T(-12 * 86400e3) : null,
+  lido: i !== 7,
+});
+salvar("ranking-jamble.json", { meses: mesesRanking, mes: "2026-10", temPontos: true, conta: "israelbrito", leitura, lista: nomes.slice(0, 15).map((h, i) => vendedor(h, i, 3000000 - i * 150000)) });
+salvar("ranking-jamble-09.json", { meses: mesesRanking, mes: "2026-09", temPontos: false, conta: "israelbrito", leitura, lista: nomes.slice(0, 15).map((h, i) => vendedor(h, i, null)) });
 
 fs.writeFileSync(
   path.join(pub, "__mock-sw.js"),
@@ -141,7 +161,7 @@ const arquivo = (u, metodo) => {
   if (p.startsWith("/api/dash/live/")) return "live.json";
   if (p === "/api/dash/relatorio") return u.searchParams.get("show") ? "relatorio-live.json" : "relatorio-periodo.json";
   if (p === "/api/dash/clientes") return "clientes.json";
-  if (p === "/api/dash/ranking-jamble") return "ranking-jamble.json";
+  if (p === "/api/dash/ranking-jamble") return u.searchParams.get("mes") === "2026-09" ? "ranking-jamble-09.json" : "ranking-jamble.json";
   return null;
 };
 self.addEventListener("fetch", (e) => {

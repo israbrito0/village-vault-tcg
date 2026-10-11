@@ -87,3 +87,11 @@ grant execute on function dash_emocoes_somadas(text[]) to service_role;
 -- dash_15_monitor_comeca_em
 -- Live agendada colada no Dash: o robô só entra a partir de 10 min antes.
 alter table dash_monitores add column if not exists comeca_em timestamptz;
+
+-- dash_16_jamble_vendido_real e dash_17_jamble_cron
+-- Vendido de verdade de cada vendedor da Jamble (função dash-jamble): tabelas
+-- dash_jamble_lives (uma linha por live, com o vendido por mês em por_mes),
+-- dash_jamble_vendedores (quando o perfil foi lido e até onde ele cobre),
+-- dash_jamble_estado (a vaga de cada rodada), as funções dash_jamble_vaga()
+-- e dash_jamble_vendido(mes), e o pg_cron 'dash-jamble' a cada minuto.
+-- O SQL completo está nas migrações aplicadas no village-vault.
