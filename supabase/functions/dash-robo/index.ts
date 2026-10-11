@@ -98,6 +98,57 @@ async function verificarPropriaLive(token: string) {
   };
 }
 
+// ---------- ranking mensal da conta ----------
+
+// A foto do Ranking Mensal de Vendedores (posição, pontos, quem está logo
+// acima e abaixo), no mesmo formato que a extensão grava: o "Ranking #N" e as
+// mensagens de status do Painel seguem funcionando sem ela. A cada 3 min com
+// a live no ar, a cada 30 min fora dela.
+async function atualizarRanking(token: string, noAr: boolean) {
+  const { data: ultima } = await db.from("dash_ranking").select("ts").eq("conta", CONTA).order("ts", { ascending: false }).limit(1);
+  const idade = ultima?.[0] ? Date.now() - new Date(String(ultima[0].ts)).getTime() : Infinity;
+  if (idade < (noAr ? 3 : 30) * 60e3) return;
+  const lista: { handle: string; posicao: number; pontos: number }[] = [];
+  let eu: Obj | null = null;
+  let regras: Obj[] = [];
+  let titulo = "";
+  let depois: string | null = null;
+  for (let i = 0; i < 12; i++) {
+    const q = new URLSearchParams({ seller_id: CONTA_SELLER_ID });
+    if (depois) q.set("after", depois);
+    const p = await api(token, `/api/live/seller-ranking?${q}`);
+    if (!p) break;
+    if (i === 0) {
+      eu = (p.seller as Obj) ?? null;
+      regras = (p.rules as Obj[]) ?? [];
+      titulo = String(p.title ?? "");
+    }
+    for (const x of (p.participants as Obj[]) ?? []) lista.push({ handle: semArroba(x.username), posicao: n(x.rank), pontos: n(x.points) });
+    // Basta chegar em quem está logo abaixo da conta.
+    const minha = n(eu?.rank);
+    if (!p.hasNextPage || !p.nextCursor || !minha || lista.some((l) => l.posicao === minha + 1)) break;
+    depois = String(p.nextCursor);
+  }
+  if (!eu || !n(eu.rank)) return;
+  const posicao = n(eu.rank);
+  const proprio = { handle: CONTA, posicao, pontos: n(eu.points) };
+  if (!lista.some((l) => l.posicao === posicao)) lista.push(proprio);
+  lista.sort((a, b) => a.posicao - b.posicao);
+  const pontosDe = (icone: string) => n(regras.find((r) => r.icon === icone)?.entryPoints) || null;
+  const { error } = await db.from("dash_ranking").insert({
+    conta: CONTA,
+    ts: new Date().toISOString(),
+    mes: titulo || "Ranking Mensal de Vendedores",
+    pontos: proprio.pontos,
+    posicao,
+    acima: lista.find((l) => l.posicao === posicao - 1) ?? null,
+    abaixo: lista.find((l) => l.posicao === posicao + 1) ?? null,
+    lista: lista.filter((l) => l.posicao <= 20 || Math.abs(l.posicao - posicao) <= 1).slice(0, 200),
+    regras: { porReal: pontosDe("shop"), porGema: pontosDe("gem") },
+  });
+  if (error && !/duplicate/.test(error.message)) throw new Error(error.message);
+}
+
 // ---------- acompanhar uma live ----------
 
 type Monitor = { id: string; conta: string; show_id: string; seller_id: string; vendedor: string | null; ate: string };
@@ -440,13 +491,15 @@ async function ciclo() {
       .order("criado_em", { ascending: false })
       .limit(MAX_MONITORES);
     const lista = (data ?? []) as Monitor[];
-    await Promise.all(
-      lista.map((m) =>
+    const noAr = lista.some((m) => m.vendedor === CONTA);
+    await Promise.all([
+      ...lista.map((m) =>
         monitorar(m, token).catch(async (e) => {
           await db.from("dash_monitores").update({ ultimo_erro: String(e?.message ?? e).slice(0, 300), ultimo_ciclo: new Date().toISOString() }).eq("id", m.id);
         }),
       ),
-    );
+      atualizarRanking(token, noAr).catch((e) => (detalhes.ranking = String(e?.message ?? e))),
+    ]);
     await db.from("dash_robo").update({ ultimo_ciclo: new Date().toISOString(), ultimo_erro: null, monitores: lista.length, detalhes }).eq("id", 1);
   } catch (e) {
     await db.from("dash_robo").update({ ultimo_erro: String((e as Error)?.message ?? e).slice(0, 300), detalhes }).eq("id", 1);
