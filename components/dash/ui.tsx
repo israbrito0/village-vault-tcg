@@ -44,7 +44,8 @@ export function Kpi({ rotulo, valor, cor = "", dinheiro = false }: { rotulo: str
   return (
     <div className="d-card p-4">
       <p className="text-xs font-medium text-d-ink3">{rotulo}</p>
-      <p className={`mt-1.5 truncate text-2xl font-bold tracking-tight tabular-nums ${cor} ${dinheiro ? "dash-valor" : ""}`}>{valor}</p>
+      {/* O número diminui um pouco em telas médias para "R$ 58.000,00" caber inteiro. */}
+      <p className={`mt-1.5 truncate text-[clamp(1.05rem,1.4vw+0.4rem,1.5rem)] font-bold tracking-tight tabular-nums ${cor} ${dinheiro ? "dash-valor" : ""}`}>{valor}</p>
     </div>
   );
 }
