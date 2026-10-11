@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { ExternalLink, Home, LayoutDashboard, Laptop, LogOut, Menu, Monitor, Moon, Shield, Sun, Ticket, Users, X } from "lucide-react";
+import { ExternalLink, Home, LayoutDashboard, Laptop, LogOut, Menu, Monitor, Moon, Shield, Sun, Ticket, Trophy, Users, X } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import { chamarApi, DashContexto, haQuanto, useAgora, usePreferencia, type Dash, type LiveAberta } from "@/lib/dash/cliente";
 import type { RespostaEu } from "@/lib/dash/api";
@@ -151,6 +151,7 @@ function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: 
       </Secao>
       <Secao titulo="Histórico">
         <ItemMenu item={{ href: "/dash/lives", rotulo: "Lives & Relatórios", icone: Monitor }} ativo={caminho.startsWith("/dash/lives") || caminho.startsWith("/dash/relatorio")} aoClicar={aoClicar} />
+        <ItemMenu item={{ href: "/dash/ranking", rotulo: "Ranking Jamble", icone: Trophy }} ativo={caminho.startsWith("/dash/ranking")} aoClicar={aoClicar} />
       </Secao>
       <Secao titulo="Clientes">
         <ItemMenu item={{ href: "/dash/clientes", rotulo: "Clientes", icone: Users }} ativo={caminho.startsWith("/dash/clientes")} aoClicar={aoClicar} />
