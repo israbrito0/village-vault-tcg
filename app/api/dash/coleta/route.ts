@@ -80,7 +80,11 @@ export async function POST(req: Request) {
       if (l.audiencia !== undefined) linha.audiencia = num(l.audiencia);
       if (l.pico !== undefined) linha.audiencia_pico = num(l.pico);
       if (l.likes !== undefined) linha.likes = num(l.likes);
-      if (obj(l.metricas)) linha.metricas = l.metricas;
+      if (obj(l.metricas)) {
+        // Junta com o que já está lá (o código do link, o que o robô leu).
+        const { data: antes } = await db().from("dash_lives").select("metricas").eq("show_id", showId).maybeSingle();
+        linha.metricas = { ...(obj(antes?.metricas) ?? {}), ...(l.metricas as Obj) };
+      }
       if (Array.isArray(l.participacao)) linha.participacao = (l.participacao as Obj[]).slice(0, 3000);
       if (l.leilao !== undefined) linha.leilao = obj(l.leilao);
       if (l.batalha !== undefined) linha.batalha = obj(l.batalha);

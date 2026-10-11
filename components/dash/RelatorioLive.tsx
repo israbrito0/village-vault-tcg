@@ -1,14 +1,14 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Printer } from "lucide-react";
-import { engajamento, lerTermos, pontosDaLive, pontosPorPessoa, porIcone, porProduto, rankingCarpas, rankingCompradores, resumoVendas } from "@/lib/dash/calculos";
-import type { Cliente, LiveResumo } from "@/lib/dash/api";
-import { DashContexto, dataHora, duracao, inteiro, reais, useLiveDash } from "@/lib/dash/cliente";
+import { useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Download, Loader2, Printer } from "lucide-react";
+import type { Cliente } from "@/lib/dash/api";
+import { DashContexto, dataHora, inteiro, reais } from "@/lib/dash/cliente";
+import { prepararRelatorio } from "@/components/dash/BotaoRelatorio";
 
-// Os relatórios em PDF (Imprimir → Salvar como PDF): de uma live, do período
-// e dos clientes. Folha branca, com as mesmas contas do painel. Com
-// ?imprimir=1 a janela de impressão abre sozinha quando os dados chegam.
+// Os relatórios em PDF. O da live e o do período são desenhados como no Dash
+// TCG (VisorPdf); o de clientes é a folha branca para imprimir (Imprimir →
+// Salvar como PDF), que abre a janela de impressão sozinha com ?imprimir=1.
 
 function useImprimirSozinho(pronto: boolean) {
   useEffect(() => {
@@ -88,114 +88,64 @@ function Tabela({ titulo, cabecas, linhas }: { titulo: string; cabecas: string[]
 const semLogin = <div className="flex min-h-screen items-center justify-center text-sm text-d-ink3">Entre no Dash neste navegador para ver o relatório.</div>;
 const montando = (texto?: string) => <div className="flex min-h-screen items-center justify-center text-sm text-d-ink3">{texto || "Montando o relatório…"}</div>;
 
-export function RelatorioLive({ showId }: { showId: string }) {
+// O Relatório da live e o do período são PDFs iguais aos do Dash TCG
+// (lib/dash/pdf.ts): a página desenha o arquivo e mostra aqui mesmo, com o
+// botão de baixar. Com ?imprimir=1 (os links antigos) ele já baixa sozinho.
+function VisorPdf({ endereco, titulo }: { endereco: string; titulo: string }) {
   const dash = useContext(DashContexto);
-  const { dados: d, erro } = useLiveDash(showId, 0);
-  const c = useMemo(() => {
-    if (!d) return null;
-    const resumo = resumoVendas(d.vendas);
-    const gemas = d.emocoes.reduce((s, e) => s + e.gemas, 0);
-    const carpas = rankingCarpas(d.emocoes, d.chat, lerTermos(d.termos));
-    return {
-      resumo,
-      gemas,
-      carpas,
-      totalCarpas: carpas.reduce((s, p) => s + p.carpas, 0),
-      compradores: rankingCompradores(d.vendas),
-      produtos: porProduto(d.vendas, false),
-      pontos: pontosPorPessoa(d.emocoes),
-      icones: porIcone(d.emocoes),
-      eng: engajamento(d.emocoes, d.chat, d.vendas),
-      pontosLive: pontosDaLive(resumo.total, gemas, d.ranking?.regras),
-    };
-  }, [d]);
-  useImprimirSozinho(!!c);
-  if (!dash) return semLogin;
-  if (!d || !c) return montando(erro);
+  const chamar = useRef(dash?.chamar);
+  chamar.current = dash?.chamar;
+  const token = dash?.token;
+  const [estado, setEstado] = useState("Buscando os dados…");
+  const [url, setUrl] = useState<string | null>(null);
+  const pronto = useRef<{ salvar: () => void } | null>(null);
 
-  const live = d.live;
-  const m = live.metricas ?? {};
-  const vendido = Math.max(c.resumo.total, Number(m.faturamento) || 0);
-  const fim = live.fim ?? d.vendas.at(-1)?.ts ?? null;
+  useEffect(() => {
+    if (!token || !chamar.current) return;
+    let vivo = true;
+    let endBlob = "";
+    (async () => {
+      try {
+        const r = await prepararRelatorio(chamar.current!, endereco);
+        const { gerarPdf } = await import("@/lib/dash/pdf");
+        const doc = await gerarPdf(r, (t) => vivo && setEstado(t));
+        if (!vivo) return;
+        pronto.current = { salvar: () => doc.save(r.arquivo) };
+        endBlob = URL.createObjectURL(doc.output("blob"));
+        setUrl(endBlob);
+        setEstado("");
+        if (new URLSearchParams(window.location.search).get("imprimir") === "1") doc.save(r.arquivo);
+      } catch (e) {
+        if (vivo) setEstado((e as Error).message || "Não consegui montar o relatório.");
+      }
+    })();
+    return () => {
+      vivo = false;
+      if (endBlob) URL.revokeObjectURL(endBlob);
+    };
+  }, [token, endereco]);
+
+  if (!dash) return semLogin;
   return (
-    <Folha titulo={live.titulo || "Live"} sub={`@${live.vendedor} · ${live.inicio ? dataHora(live.inicio) : "—"}${live.inicio && fim && fim > live.inicio ? ` · ${duracao(fim - live.inicio)}` : ""}`}>
-      <Numeros
-        itens={[
-          ["Total vendido", reais(vendido)],
-          ["Pago", reais(c.resumo.pago)],
-          ["Pendente", reais(Math.max(0, vendido - c.resumo.pago))],
-          ["Vendas", inteiro(c.resumo.vendas)],
-          ["Itens", inteiro(Math.max(c.resumo.itens, Number(m.itensDashTCG) || 0))],
-          ["Compradores", inteiro(Math.max(c.resumo.compradores, Number(m.compradores) || 0))],
-          ["Ticket médio", reais(c.resumo.vendas ? c.resumo.total / c.resumo.vendas : 0)],
-          ["Carpas douradas", inteiro(c.totalCarpas)],
-          ["Emotions", `${inteiro(d.emocoes.length)} (${inteiro(c.gemas)} pts)`],
-          ["Mensagens no chat", inteiro(d.chat.length)],
-          ["Pico de espectadores", m.pico ? inteiro(Number(m.pico)) : live.pico ? inteiro(live.pico) : "—"],
-          ["Pontos no ranking (≈)", inteiro(c.pontosLive)],
-        ]}
-      />
-      <Tabela
-        titulo="Vendidos por produto"
-        cabecas={["Produto", "Qtd", "Vendas", "Compradores", "Preço médio", "Total"]}
-        linhas={c.produtos.map((p) => [p.titulo, inteiro(p.qtd), inteiro(p.vendas), inteiro(p.compradores), reais(p.medio), reais(p.total)])}
-      />
-      <Tabela titulo="Compradores" cabecas={["Cliente", "Itens", "Compras", "Pago", "Total"]} linhas={c.compradores.map((p) => [`@${p.handle}`, inteiro(p.itens), inteiro(p.compras), reais(p.pago), reais(p.total)])} />
-      <Tabela titulo="Ranking de carpas" cabecas={["Pessoa", "Carpas"]} linhas={c.carpas.slice(0, 40).map((p) => [`@${p.handle}`, inteiro(p.carpas)])} />
-      <Tabela titulo="Emotions" cabecas={["Emotion", "Envios", "Pontos"]} linhas={c.icones.map((i) => [i.icone, inteiro(i.qtd), inteiro(i.gemas)])} />
-      <Tabela titulo="Pontos por usuário" cabecas={["Pessoa", "Emotions", "Pontos"]} linhas={c.pontos.slice(0, 40).map((p) => [`@${p.handle}`, inteiro(p.emocoes), inteiro(p.gemas)])} />
-      <Tabela
-        titulo="Sorteios"
-        cabecas={["Sorteio", "Prêmio", "Ganhador", "Bilhetes", "Quando"]}
-        linhas={d.sorteios.flatMap((s) =>
-          s.ganhadores.map((g) => [
-            s.nome,
-            s.premio ?? "—",
-            `@${g.handle}${g.status !== "valido" ? ` (${g.status})` : g.presente === false ? " (ausente)" : ""}`,
-            `${g.bilhetes}/${g.totalBilhetes || "?"}`,
-            dataHora(g.ts),
-          ]),
-        )}
-      />
-      <Tabela
-        titulo="Engajamento (top 40)"
-        cabecas={["Pessoa", "Mensagens", "Emotions", "Compras", "Tempo ativo"]}
-        linhas={c.eng.slice(0, 40).map((p) => [`@${p.handle}`, p.mensagens, p.emocoes, p.compras, duracao(p.ativoMs)])}
-      />
-    </Folha>
+    <div className="flex h-screen flex-col bg-d-bg">
+      <header className="flex flex-wrap items-center gap-3 border-b border-d-line bg-d-panel px-4 py-3">
+        <p className="mr-auto text-sm font-semibold">{titulo}</p>
+        {estado && <span className="flex items-center gap-2 text-xs text-d-ink3"><Loader2 className="size-4 animate-spin" />{estado}</span>}
+        <button className="d-btn d-btn-primary" disabled={!url} onClick={() => pronto.current?.salvar()}>
+          <Download className="size-4" /> Baixar PDF
+        </button>
+      </header>
+      {url ? <iframe title={titulo} src={url} className="w-full flex-1 bg-white" /> : <div className="flex flex-1 items-center justify-center text-sm text-d-ink3">{estado}</div>}
+    </div>
   );
 }
 
-export function RelatorioPeriodo({ de, ate }: { de: number; ate: number }) {
-  const dash = useContext(DashContexto);
-  const [lives, setLives] = useState<LiveResumo[] | null>(null);
-  useEffect(() => {
-    dash?.chamar<{ lives: LiveResumo[] }>(`/api/dash/lives?de=${de}&ate=${ate}`).then((r) => setLives(r.lives)).catch(() => setLives([]));
-  }, [dash, de, ate]);
-  useImprimirSozinho(!!lives);
-  if (!dash) return semLogin;
-  if (!lives) return montando();
-  const soma = (k: keyof LiveResumo) => lives.reduce((s, l) => s + (Number(l[k]) || 0), 0);
-  const periodo = `${de ? new Date(de).toLocaleDateString("pt-BR") : "início"} a ${new Date(ate - 1).toLocaleDateString("pt-BR")}`;
-  return (
-    <Folha titulo="Relatório do período" sub={`@${dash.eu.membro.conta} · ${periodo}`}>
-      <Numeros
-        itens={[
-          ["Lives", inteiro(lives.length)],
-          ["Vendido", reais(soma("total"))],
-          ["Pago", reais(soma("pago"))],
-          ["Itens", inteiro(soma("itens"))],
-          ["Emotions", inteiro(soma("emocoes"))],
-          ["Sorteios", inteiro(soma("ganhadores"))],
-        ]}
-      />
-      <Tabela
-        titulo="Lives"
-        cabecas={["Live", "Data", "Vendido", "Pago", "Itens", "Compradores", "Emotions", "Sorteios"]}
-        linhas={lives.map((l) => [l.titulo ?? "Live", dataHora(l.inicio), reais(l.total), reais(l.pago), inteiro(l.itens), inteiro(l.compradores), inteiro(l.emocoes), inteiro(l.ganhadores)])}
-      />
-    </Folha>
-  );
+export function RelatorioLive({ showId }: { showId: string }) {
+  return <VisorPdf titulo="Relatório da live" endereco={`/api/dash/relatorio?show=${encodeURIComponent(showId)}`} />;
+}
+
+export function RelatorioPeriodo({ de, ate, busca = "" }: { de: number; ate: number; busca?: string }) {
+  return <VisorPdf titulo="Relatório do período" endereco={`/api/dash/relatorio?de=${de}&ate=${ate}${busca ? `&q=${encodeURIComponent(busca)}` : ""}`} />;
 }
 
 export function RelatorioClientes({ de, ate }: { de: number; ate: number }) {

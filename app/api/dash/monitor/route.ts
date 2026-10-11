@@ -93,6 +93,11 @@ export async function POST(req: Request) {
       inicio: show.inicio,
     });
   }
+  // O código do link de compartilhar vai no relatório (jamble.com/s/…).
+  if (alvo.codigo) {
+    const { data: antes } = await db().from("dash_lives").select("metricas").eq("show_id", alvo.showId).maybeSingle();
+    live.metricas = { ...((antes?.metricas as Record<string, unknown>) ?? {}), codigo: alvo.codigo };
+  }
   const { error: e1 } = await db().from("dash_lives").upsert(live, { onConflict: "show_id" });
   if (e1) return erro(500, "não consegui guardar a live");
 

@@ -6,6 +6,7 @@ import type { LiveResumo } from "@/lib/dash/api";
 import { dataHora, inteiro, reais, useDash } from "@/lib/dash/cliente";
 import { usePeriodo } from "@/components/dash/Periodo";
 import { Avatar, StatusLive, Vazio } from "@/components/dash/ui";
+import { BotaoRelatorio } from "@/components/dash/BotaoRelatorio";
 
 // Lives & Relatórios, como no Dash TCG: filtro, período, totais e a tabela com
 // "Abrir" e "Baixar PDF" em cada live.
@@ -46,9 +47,9 @@ export default function Lives() {
           <p className="text-right text-xs text-d-ink3">
             {inteiro(lista.length)} lives · <span className="dash-valor font-semibold text-d-ok">{reais(total)}</span> · {inteiro(itens)} itens
           </p>
-          <Link className="d-btn d-btn-primary" target="_blank" href={`/dash/relatorio/periodo?de=${periodo.de}&ate=${periodo.ate}&imprimir=1`}>
+          <BotaoRelatorio endereco={`/api/dash/relatorio?de=${periodo.de}&ate=${periodo.ate}${busca.trim() ? `&q=${encodeURIComponent(busca.trim())}` : ""}`}>
             Baixar relatório do período
-          </Link>
+          </BotaoRelatorio>
         </div>
       </section>
       {erro && <p className="text-sm text-d-bad">{erro}</p>}
@@ -99,9 +100,9 @@ export default function Lives() {
                         <Link className="d-btn d-btn-secondary d-btn-sm" href={`/dash/painel/${encodeURIComponent(l.showId)}`}>
                           Abrir
                         </Link>
-                        <Link className="d-btn d-btn-primary d-btn-sm" target="_blank" href={`/dash/relatorio/${encodeURIComponent(l.showId)}?imprimir=1`}>
+                        <BotaoRelatorio className="d-btn d-btn-primary d-btn-sm" endereco={`/api/dash/relatorio?show=${encodeURIComponent(l.showId)}`}>
                           Baixar PDF
-                        </Link>
+                        </BotaoRelatorio>
                       </div>
                     </td>
                   </tr>
