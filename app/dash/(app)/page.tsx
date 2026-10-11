@@ -208,7 +208,7 @@ export default function Inicio() {
             <MonitorPlay className="size-4 shrink-0 text-d-brand" />
             <span className="truncate">Monitorar uma live</span>
           </h2>
-          <span className="text-xs text-d-ink3">Links jamble.com/s/… e jamble.com/live/…</span>
+          <span className="text-xs text-d-ink3">Links jamble.com/s/…, jamble.com/live/… ou @vendedor</span>
         </header>
         <div className="d-card-body space-y-4">
           <div className="flex flex-col gap-2.5 sm:flex-row">
