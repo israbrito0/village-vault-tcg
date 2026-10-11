@@ -252,6 +252,8 @@ export type MonitorInfo = {
   ate: number;
   ultimoCiclo: number | null;
   ultimoErro: string | null;
+  // Live agendada: quando ela começa (o robô entra 10 min antes).
+  comecaEm: number | null;
 };
 
 export type RespostaEu = {

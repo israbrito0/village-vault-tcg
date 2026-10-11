@@ -31,7 +31,9 @@ function LinhaLive({ live, monitor, onParar, onReligar }: { live?: LiveInfo; mon
             {live?.audiencia != null && live.aoVivo ? `${inteiro(live.audiencia)} assistindo · ` : ""}
             {monitor
               ? ligado
-                ? monitor.ultimoCiclo
+                ? monitor.comecaEm && monitor.comecaEm > agora
+                  ? `robô espera a live (${dataHora(monitor.comecaEm)})`
+                  : monitor.ultimoCiclo
                   ? `robô leu ${haQuanto(monitor.ultimoCiclo, agora)}`
                   : "robô entrando na live…"
                 : "robô parado"
@@ -102,8 +104,14 @@ export default function Inicio() {
     try {
       const r = await chamar<{ showId: string; acabou: boolean; comecou: boolean }>("/api/dash/monitor", { corpo: { link } });
       setLink("");
-      setAviso(r.acabou ? "Essa live já acabou: o robô puxa os vendidos dela e para." : "Robô ligado. Abrindo o painel…");
       recarregarEu();
+      lerMonitores();
+      if (!r.comecou && !r.acabou) {
+        // Live agendada: fica na lista, e o robô entra sozinho quando começar.
+        setAviso("Essa live ainda não começou. O robô entra nela sozinho 10 minutos antes do horário — ela aparece na lista abaixo.");
+        return;
+      }
+      setAviso(r.acabou ? "Essa live já acabou: o robô puxa os vendidos dela e para." : "Robô ligado. Abrindo o painel…");
       router.push(`/dash/painel/${encodeURIComponent(r.showId)}`);
     } catch (erro) {
       setAviso((erro as Error).message);

@@ -16,6 +16,7 @@ const db = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SE
 const BASE = "https://www.jamble.com";
 const WS = "wss://ws.jamble.com/websocket";
 const UA = { "user-agent": "Mozilla/5.0 (Village Dash)", accept: "application/json" };
+const NAVEGADOR = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0 Safari/537.36" };
 const OUVIR_MS = 80_000;
 const GRAVAR_A_CADA_MS = 6_000;
 const MAX_MONITORES = 8;
@@ -57,29 +58,53 @@ async function emLotes<T>(linhas: T[], tam: number, fazer: (l: T[]) => PromiseLi
 
 // ---------- a live da própria conta liga sozinha ----------
 
-// Devolve a próxima live agendada (o Início mostra, como no Dash TCG); se a
-// live já começou, liga o robô nela.
+// A página de perfil (/u/<@>) diz a live em andamento ("ongoingShow") e as
+// agendadas ("upcomingShows"). Se a live já começou, liga o robô nela; senão
+// devolve a próxima agendada (o Início mostra, como no Dash TCG).
 async function verificarPropriaLive(token: string) {
-  const r = await fetch(`${BASE}/live/${CONTA}`, { headers: UA, redirect: "manual" });
-  const destino = r.headers.get("location") ?? "";
-  const showId = destino.match(/\/live\/[^/]+\/([A-Za-z0-9]+)/)?.[1];
-  if (!showId) return null;
-  const s = await api(token, `/api/live/show?seller_id=${CONTA_SELLER_ID}&show_id=${showId}`);
-  const show = (s?.show ?? {}) as Obj;
-  if (show.isOver || !show.id) return null;
-  if (!show.hasStarted) return { conta: CONTA, showId, titulo: show.title ?? null, inicio: show.startingAt ?? null, capa: show.coverUrl ?? null };
-  await db
-    .from("dash_monitores")
-    .upsert(
-      { conta: CONTA, show_id: showId, seller_id: CONTA_SELLER_ID, vendedor: CONTA, titulo: show.title ?? null, ativo: true, automatico: true, ate: new Date(Date.now() + 14 * 3600e3).toISOString() },
-      { onConflict: "conta,show_id", ignoreDuplicates: true },
-    );
-  return null;
+  const r = await fetch(`${BASE}/u/${CONTA}`, { headers: NAVEGADOR });
+  const h = r.ok ? (await r.text()).replace(/\\+"/g, '"') : "";
+  let showId = h.match(/"ongoingShow":\{"id":"([A-Za-z0-9]+)"/)?.[1] ?? null;
+  if (!showId) {
+    // Se a página mudar: o endereço /live/<@> leva para a live de agora.
+    const rr = await fetch(`${BASE}/live/${CONTA}`, { headers: UA, redirect: "manual" });
+    showId = (rr.headers.get("location") ?? "").match(/\/live\/[^/]+\/([A-Za-z0-9]+)/)?.[1] ?? null;
+  }
+  if (showId) {
+    const s = await api(token, `/api/live/show?seller_id=${CONTA_SELLER_ID}&show_id=${showId}`);
+    const show = (s?.show ?? {}) as Obj;
+    if (show.id && show.hasStarted && !show.isOver) {
+      await db
+        .from("dash_monitores")
+        .upsert(
+          { conta: CONTA, show_id: showId, seller_id: CONTA_SELLER_ID, vendedor: CONTA, titulo: show.title ?? null, ativo: true, automatico: true, ate: new Date(Date.now() + 14 * 3600e3).toISOString() },
+          { onConflict: "conta,show_id", ignoreDuplicates: true },
+        );
+      return null;
+    }
+  }
+  const p = h.indexOf('"upcomingShows":[{');
+  if (p < 0) return null;
+  const t = h.slice(p, p + 3000);
+  const id = t.match(/"id":"([A-Za-z0-9]+)"/)?.[1];
+  if (!id) return null;
+  const inicio = ms(t.match(/"startingAt":([\d.]+)/)?.[1]);
+  return {
+    conta: CONTA,
+    showId: id,
+    titulo: t.match(/"title":"([^"]*)"/)?.[1] ?? null,
+    inicio: inicio ? new Date(inicio).toISOString() : null,
+    capa: t.match(/"coverUrl":"(https:[^"]+)"/)?.[1] ?? null,
+  };
 }
 
 // ---------- acompanhar uma live ----------
 
 type Monitor = { id: string; conta: string; show_id: string; seller_id: string; vendedor: string | null; ate: string };
+
+// Live agendada colada no Dash: o robô só entra a partir de 10 min antes do
+// horário (sem ficar conectado dias numa live que não começou).
+const jaPodeComecar = () => `comeca_em.is.null,comeca_em.lte.${new Date(Date.now() + 10 * 60e3).toISOString().slice(0, 19)}Z`;
 
 // A lista Vendidos inteira, de página em página. "completa" diz se veio até
 // o fim: só uma lista completa pode tirar do banco o que sumiu dela.
@@ -407,7 +432,13 @@ async function ciclo() {
       return null;
     });
     await db.from("dash_monitores").update({ ativo: false }).eq("ativo", true).lt("ate", new Date().toISOString());
-    const { data } = await db.from("dash_monitores").select("*").eq("ativo", true).order("criado_em", { ascending: false }).limit(MAX_MONITORES);
+    const { data } = await db
+      .from("dash_monitores")
+      .select("*")
+      .eq("ativo", true)
+      .or(jaPodeComecar())
+      .order("criado_em", { ascending: false })
+      .limit(MAX_MONITORES);
     const lista = (data ?? []) as Monitor[];
     await Promise.all(
       lista.map((m) =>
@@ -433,6 +464,7 @@ async function primeiraRodada(id: string) {
     .eq("ativo", true)
     .is("ultimo_ciclo", null)
     .gte("criado_em", new Date(Date.now() - 5 * 60e3).toISOString())
+    .or(jaPodeComecar())
     .select("*");
   const m = (data ?? [])[0] as Monitor | undefined;
   if (!m) return;

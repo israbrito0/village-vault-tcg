@@ -28,6 +28,7 @@ function monitorDaLinha(r: Record<string, unknown>): MonitorInfo {
     ate: ms(r.ate) ?? 0,
     ultimoCiclo: ms(r.ultimo_ciclo),
     ultimoErro: (r.ultimo_erro as string) ?? null,
+    comecaEm: ms(r.comeca_em),
   };
 }
 
@@ -114,10 +115,14 @@ export async function POST(req: Request) {
         ativo: true,
         automatico: false,
         criado_em: agora.toISOString(),
-        // Uma live que já acabou: uma rodada basta para puxar os vendidos.
-        ate: new Date(agora.getTime() + (show.acabou ? 10 * 60e3 : HORAS * 3600e3)).toISOString(),
+        // Uma live que já acabou: uma rodada basta para puxar os vendidos. Uma
+        // agendada: o robô espera ela começar e fica as 14 h a partir dali.
+        ate: new Date(
+          show.acabou ? agora.getTime() + 10 * 60e3 : Math.max(agora.getTime(), show.comecou ? 0 : new Date(show.inicio ?? 0).getTime()) + HORAS * 3600e3,
+        ).toISOString(),
         ultimo_ciclo: null,
         ultimo_erro: null,
+        comeca_em: !show.comecou && !show.acabou && show.inicio ? show.inicio : null,
       },
       { onConflict: "conta,show_id" },
     )

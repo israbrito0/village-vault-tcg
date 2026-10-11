@@ -136,7 +136,14 @@ export async function resolverLink(texto: string): Promise<LiveDoLink | null> {
   }
   let showId = lido.showId;
   if (!showId) {
-    // Sem o código da live, a Jamble manda para a live de agora do vendedor.
+    // Sem o código da live: o perfil (/u/<@>) diz a live de agora ou a
+    // próxima agendada (o robô fica esperando ela começar).
+    const { html: perfil } = await pagina(`/u/${encodeURIComponent(lido.vendedor)}`);
+    const achada =
+      perfil.match(new RegExp(`"ongoingShow":\\{"id":"(${ID})","sellerId":"(${ID})"`)) ??
+      perfil.match(new RegExp(`"upcomingShows":\\[\\{"id":"(${ID})","sellerId":"(${ID})"`));
+    if (achada) return { showId: achada[1], sellerId: achada[2], vendedor: lido.vendedor, codigo: null };
+    // Se o perfil mudar: /live/<@> leva para a live de agora.
     const { destino } = await pagina(`/live/${encodeURIComponent(lido.vendedor)}`);
     showId = destino.match(new RegExp(`/live/[^/]+/(${ID})`))?.[1] ?? null;
     if (!showId) return null;
@@ -160,6 +167,7 @@ export async function showPublico(token: string, sellerId: string, showId: strin
     capa: typeof s.coverUrl === "string" ? s.coverUrl : null,
     comecou: s.hasStarted === true,
     acabou: s.isOver === true,
-    inicio: typeof s.startingAt === "string" ? s.startingAt : null,
+    // A Jamble manda em segundos (1791587700); às vezes como texto ISO.
+    inicio: typeof s.startingAt === "number" ? new Date(s.startingAt * 1000).toISOString() : typeof s.startingAt === "string" ? s.startingAt : null,
   };
 }
