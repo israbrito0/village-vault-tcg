@@ -5,6 +5,7 @@ import { DashContexto, useLiveDash, usePreferencia } from "@/lib/dash/cliente";
 import { useContasLive } from "@/components/dash/blocos";
 import { duracaoDoGiro, Palco, useSortear } from "@/components/dash/Sorteios";
 import { DURACAO_PIAO } from "@/components/dash/Piao";
+import { TEMPO_DO_GANHADOR_MS } from "@/components/dash/RespostaDoGanhador";
 
 // Um sorteio sozinho, em 16:9 ou 9:16, para o OBS (fonte Navegador ou captura
 // de janela). Abre com o link com a chave; quando alguém sorteia no painel,
@@ -43,8 +44,8 @@ export function TelaSorteio({ showId, sorteioId, chave }: { showId: string; sort
         premio: novo.s.premio,
         nome: novo.s.nome,
       });
-      // O giro, o ganhador na tela e a música terminando.
-      setTimeout(() => setGiroDeFora(null), duracao + 7500);
+      // O giro e os 10 segundos para o ganhador responder no chat.
+      setTimeout(() => setGiroDeFora(null), duracao + TEMPO_DO_GANHADOR_MS + 500);
     }
   }, [c, sorteioId, meuGiro?.chave, duracao]);
 

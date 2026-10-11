@@ -2,7 +2,7 @@
 
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
-import { descreverRegra, mensagemDeGanhador, regraPadrao, type Regra } from "@/lib/dash/calculos";
+import { descreverRegra, mensagemDeGanhador, regraPadrao, type Mensagem, type Regra } from "@/lib/dash/calculos";
 import type { Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
 import { destravarAudio, tocar } from "@/lib/dash/som";
@@ -10,6 +10,7 @@ import { tocarMusica, type Tocando } from "@/lib/dash/musica";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import Roleta from "@/components/dash/Roleta";
 import Piao, { DURACAO_PIAO } from "@/components/dash/Piao";
+import RespostaDoGanhador, { TEMPO_DO_GANHADOR_MS } from "@/components/dash/RespostaDoGanhador";
 import { Emotions, MensagensChat, useAvisos, useContasLive, useRecados, type Contas, type SorteioCalculado } from "@/components/dash/blocos";
 import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
@@ -24,20 +25,32 @@ type Acao = (corpo: Record<string, unknown>) => Promise<{ sorteios: Sorteio[]; g
 // Quanto tempo o giro dura em cada estilo (o pião gira mais, com a música).
 export const duracaoDoGiro = (v: VisualDoSorteio) => (v.estilo === "fita" ? 6500 : DURACAO_PIAO);
 
-// O giro do sorteio no estilo que a conta escolheu: o pião (padrão) ou a fita.
-function GiroDoSorteio({ giro, visual, volume, grande = false }: { giro: Giro; visual: VisualDoSorteio; volume: number; grande?: boolean }) {
-  return visual.estilo === "fita" ? (
-    <Roleta key={giro.chave} participantes={giro.lista} ganhador={giro.ganhador} premio={giro.premio} volume={volume} grande={grande} />
-  ) : (
-    <Piao
-      key={giro.chave}
-      participantes={giro.lista}
-      ganhador={giro.ganhador}
-      premio={giro.premio}
-      volume={volume}
-      musica={{ tipo: visual.musica, url: visual.musicaUrl }}
-      grande={grande}
-    />
+// O giro do sorteio no estilo que a conta escolheu (o pião, padrão, ou a
+// fita) e, quando para, os 10 segundos para o ganhador responder no chat.
+function GiroDoSorteio({ giro, visual, volume, chat, grande = false }: { giro: Giro; visual: VisualDoSorteio; volume: number; chat: Mensagem[]; grande?: boolean }) {
+  const [paradoEm, setParadoEm] = useState<number | null>(null);
+  const parou = () => setParadoEm(Date.now());
+  const resposta = paradoEm ? <RespostaDoGanhador handle={giro.ganhador.handle} desde={paradoEm} chat={chat} volume={volume} grande={grande} /> : null;
+  return (
+    <div className="w-full">
+      {visual.estilo === "fita" ? (
+        <>
+          <Roleta participantes={giro.lista} ganhador={giro.ganhador} premio={giro.premio} volume={volume} grande={grande} aoTerminar={parou} />
+          {resposta}
+        </>
+      ) : (
+        <Piao
+          participantes={giro.lista}
+          ganhador={giro.ganhador}
+          premio={giro.premio}
+          volume={volume}
+          musica={{ tipo: visual.musica, url: visual.musicaUrl }}
+          grande={grande}
+          aoTerminar={parou}
+          extra={resposta}
+        />
+      )}
+    </div>
   );
 }
 
@@ -394,6 +407,7 @@ export function CartaoSorteio({
   podeEditar,
   volume,
   visual,
+  chat,
 }: {
   s: SorteioCalculado;
   showId: string;
@@ -404,6 +418,7 @@ export function CartaoSorteio({
   podeEditar: boolean;
   volume: number;
   visual: VisualDoSorteio;
+  chat: Mensagem[];
 }) {
   const chave = useContext(DashContexto)?.eu.config.telaChave;
   const individual = s.regra.tipo === "individual";
@@ -484,7 +499,7 @@ export function CartaoSorteio({
             <Situacao s={s} />
             <div className="mt-5 flex min-h-32 flex-col items-center justify-center gap-2">
               {meuGiro ? (
-                <GiroDoSorteio giro={meuGiro} visual={visual} volume={volume} />
+                <GiroDoSorteio key={meuGiro.chave} giro={meuGiro} visual={visual} volume={volume} chat={chat} />
               ) : (
                 <p className="text-sm text-d-ink3">{s.concorrendo.length ? (travado ? "Ainda não liberou." : "Pronto para sortear.") : "Ninguém concorrendo ainda."}</p>
               )}
@@ -639,7 +654,7 @@ export function Palco({
               )}
               <div className="w-full max-w-3xl">
                 {meuGiro ? (
-                  <GiroDoSorteio giro={meuGiro} visual={d.visual} volume={mudo ? 0 : volume} grande />
+                  <GiroDoSorteio key={meuGiro.chave} giro={meuGiro} visual={d.visual} volume={mudo ? 0 : volume} chat={d.chat} grande />
                 ) : fim ? (
                   <div>
                     <p key={restante} className="text-8xl font-bold tabular-nums text-d-gold" style={{ animation: "dPopIn .4s ease-out" }}>
@@ -652,18 +667,21 @@ export function Palco({
                 )}
               </div>
             </div>
-            <div className="space-y-2">
-              {podeEditar && (
-                <button
-                  className="rounded-3xl bg-d-gold px-14 py-5 text-3xl font-bold tracking-wide text-d-on-gold shadow-[0_0_60px_rgb(var(--d-gold)/0.35)] transition enabled:hover:brightness-110 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
-                  disabled={!s.concorrendo.length || travado || !!giro}
-                  onClick={() => sortear(s)}
-                >
-                  SORTEAR
-                </button>
-              )}
-              <p className="text-sm text-d-ink3">{inteiro(s.concorrendo.length)} participantes concorrendo</p>
-            </div>
+            {/* Durante o giro e a resposta do ganhador o botão sai (o espaço vai para o pião). */}
+            {!meuGiro && (
+              <div className="space-y-2">
+                {podeEditar && (
+                  <button
+                    className="rounded-3xl bg-d-gold px-14 py-5 text-3xl font-bold tracking-wide text-d-on-gold shadow-[0_0_60px_rgb(var(--d-gold)/0.35)] transition enabled:hover:brightness-110 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+                    disabled={!s.concorrendo.length || travado || !!giro}
+                    onClick={() => sortear(s)}
+                  >
+                    SORTEAR
+                  </button>
+                )}
+                <p className="text-sm text-d-ink3">{inteiro(s.concorrendo.length)} participantes concorrendo</p>
+              </div>
+            )}
           </section>
           {!soUm && (
             <aside className="flex min-h-0 flex-1 flex-col gap-4">
@@ -720,10 +738,10 @@ export function useSortear(showId: string, trocar: (m: { sorteios: Sorteio[] }) 
         const s = r.sorteios.find((x) => x.id === corpo.id);
         setGiro({ chave: r.ganhador.id, sorteioId: String(corpo.id), ganhador: r.ganhador, lista: r.roleta, premio: s?.premio ?? null, nome: s?.nome ?? "" });
         // A lista nova (com o ganhador) entra quando a roleta para; o giro
-        // fica na tela mais uns segundos (com a música terminando).
+        // fica na tela enquanto o ganhador tem os 10 segundos para responder.
         setTimeout(() => {
           trocar({ sorteios: r.sorteios });
-          setTimeout(() => setGiro(null), 7000);
+          setTimeout(() => setGiro(null), TEMPO_DO_GANHADOR_MS);
         }, duracaoMs + 300);
       } else {
         trocar({ sorteios: r.sorteios });
@@ -1001,7 +1019,7 @@ export default function Sorteios({ showId }: { showId: string }) {
       {c.sorteios.length ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {c.sorteios.map((s) => (
-            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} editar={() => editar(s)} podeEditar={d.podeEditar} volume={mudo ? 0 : volume} visual={d.visual} />
+            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} editar={() => editar(s)} podeEditar={d.podeEditar} volume={mudo || palco ? 0 : volume} visual={d.visual} chat={d.chat} />
           ))}
         </div>
       ) : (

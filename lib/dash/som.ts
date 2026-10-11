@@ -28,7 +28,7 @@ function nota(freq: number, inicio: number, dur: number, volume: number, tipo: O
   o.stop(t + dur + 0.02);
 }
 
-export type Som = "venda" | "pagamento" | "carpa" | "sorteio" | "meta" | "tique" | "lance";
+export type Som = "venda" | "pagamento" | "carpa" | "sorteio" | "meta" | "tique" | "lance" | "mamou";
 
 export function tocar(som: Som, volume = 0.5) {
   // Volume de 0 a 200%, como no Dash TCG.
@@ -49,6 +49,11 @@ export function tocar(som: Som, volume = 0.5) {
     nota(520, 0, 0.07, v * 0.6, "square");
   } else if (som === "tique") {
     nota(1800, 0, 0.03, v * 0.5, "square");
+  } else if (som === "mamou") {
+    // "Uón, uón, uón, uóóón": três notas descendo e a última comprida.
+    [311, 294, 277].forEach((f, i) => nota(f, i * 0.42, 0.38, v * 0.8, "sawtooth"));
+    nota(262, 1.26, 1.1, v * 0.8, "sawtooth");
+    nota(131, 1.26, 1.1, v * 0.4, "triangle");
   } else {
     // sorteio e meta: fanfarra curta
     [523, 659, 784, 1047].forEach((f, i) => nota(f, i * 0.11, 0.35, v, "triangle"));

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { montarFita, PARADA, type Pessoa } from "@/components/dash/Roleta";
 import { Avatar } from "@/components/dash/ui";
 import { tocarMusica, type Musica } from "@/lib/dash/musica";
@@ -25,6 +25,7 @@ export default function Piao({
   grande = false,
   duracaoMs = DURACAO_PIAO,
   aoTerminar,
+  extra,
 }: {
   participantes: Pessoa[];
   ganhador: Pessoa;
@@ -34,6 +35,7 @@ export default function Piao({
   grande?: boolean;
   duracaoMs?: number;
   aoTerminar?: () => void;
+  extra?: ReactNode;
 }) {
   const fita = useMemo(() => montarFita(participantes.length ? participantes : [ganhador], ganhador), [participantes, ganhador]);
   const tambor = useRef<HTMLDivElement>(null);
@@ -138,7 +140,7 @@ export default function Piao({
         ref={tambor}
         className="relative aspect-square overflow-hidden rounded-full"
         style={{
-          width: grande ? "min(48vh, 480px, 84vw)" : "min(300px, 80vw)",
+          width: grande ? "min(42vh, 440px, 84vw)" : "min(300px, 80vw)",
           background: "linear-gradient(90deg, #0b0b0d 0%, #2b2c31 16%, #575a61 36%, #6e7179 50%, #575a61 64%, #2b2c31 84%, #0b0b0d 100%)",
           boxShadow: parou
             ? "0 0 0 5px #ffe07a, 0 0 0 11px #ff9d00, 0 0 46px 22px rgba(255,170,0,.75), 0 0 110px 50px rgba(255,130,0,.4)"
@@ -183,12 +185,16 @@ export default function Piao({
           ))}
       </div>
       {parou ? (
-        <div className="dash-entrar mt-6 flex flex-col items-center text-center">
-          <div className="flex items-center gap-3">
-            <Avatar foto={ganhador.foto} nome={ganhador.handle} tamanho={grande ? 56 : 36} />
-            <p className={`font-black text-d-gold ${grande ? "text-4xl" : "text-2xl"}`}>🎉 @{ganhador.handle}</p>
+        <div className={`mt-4 flex items-center justify-center gap-x-8 gap-y-2 ${grande ? "flex-row flex-wrap" : "flex-col"}`}>
+          <div className="dash-entrar flex flex-col items-center text-center">
+            <div className="flex items-center gap-3">
+              <Avatar foto={ganhador.foto} nome={ganhador.handle} tamanho={grande ? 52 : 36} />
+              <p className={`font-black text-d-gold ${grande ? "text-4xl" : "text-2xl"}`}>🎉 @{ganhador.handle}</p>
+            </div>
+            {premio && <p className={`mt-1.5 text-d-ink2 ${grande ? "text-xl" : "text-[15px]"}`}>ganhou {premio}</p>}
           </div>
-          {premio && <p className={`mt-2 text-d-ink2 ${grande ? "text-2xl" : "text-[15px]"}`}>ganhou {premio}</p>}
+          {/* Na tela cheia, o cronômetro do ganhador fica ao lado do nome. */}
+          {extra}
         </div>
       ) : (
         <p className={`mt-6 font-bold uppercase tracking-[0.3em] text-d-ink3 ${grande ? "text-lg" : "text-xs"}`}>rodando o pião…</p>

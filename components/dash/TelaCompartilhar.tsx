@@ -123,7 +123,7 @@ function SorteiosDaTela({
       {lista.length ? (
         <div className="grid gap-5 lg:grid-cols-2">
           {lista.map((s) => (
-            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} podeEditar={podeEditar} volume={mudo ? 0 : volume} visual={d.visual} />
+            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} podeEditar={podeEditar} volume={mudo || palco ? 0 : volume} visual={d.visual} chat={d.chat} />
           ))}
         </div>
       ) : (

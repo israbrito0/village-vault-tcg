@@ -329,3 +329,13 @@ body {
     color: #111111 !important;
   }
 }
+
+/* O "MAMOU, MAMOU, MAMOU!!!" do sorteio: balança e pulsa. */
+@keyframes dMamou {
+  from {
+    transform: scale(1) rotate(-2deg);
+  }
+  to {
+    transform: scale(1.06) rotate(2deg);
+  }
+}
