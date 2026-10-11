@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, Copy, Eye, Fish, Gavel, MessageSquareText, MessagesSquare, Package, Receipt, ShoppingBag, Sparkles, Star, Trophy } from "lucide-react";
+import { Activity, Copy, Eye, Fish, Gavel, Gem, MessageSquareText, MessagesSquare, Package, Receipt, ShoppingBag, Star, Trophy } from "lucide-react";
 import {
   descreverRegra,
   engajamento,
@@ -125,7 +125,7 @@ function textoDeStatus(c: Contas) {
   for (const s of c.sorteios) {
     if (!s.ativo || s.regra.tipo !== "sorteio") continue;
     if (s.lib.livre) continue;
-    if (s.lib.disponiveis > 0) linhas.push(`🎉 ${s.nome}: sorteio liberado!`);
+    if (s.lib.disponiveis > 0) linhas.push(`🎉 ${s.nome}: Pião da Village TCG liberado!`);
     else if (s.lib.proximo) linhas.push(`🎁 ${s.nome}: faltam ${inteiro(Math.ceil(s.lib.proximo.falta))} ${s.lib.proximo.unidade} pro próximo sorteio${s.premio ? ` (${s.premio})` : ""}!`);
   }
   if (c.metaLive && !c.metaBatida) linhas.push(`🎯 Meta da live: faltam ${inteiro(c.metaLive.alvo - c.atualMeta)} pontos!`);
@@ -198,7 +198,7 @@ export function MensagensChat({ d, c, recados, novo }: { d: LiveCarregada; c: Co
           ))}
         </ul>
       ) : (
-        <p className="px-4 py-5 text-center text-sm text-d-ink3">As mensagens aparecem aqui quando um sorteio for liberado, alguém bater uma meta ou ao gerar o status.</p>
+        <p className="px-4 py-5 text-center text-sm text-d-ink3">As mensagens aparecem aqui quando o Pião da Village TCG for liberado, alguém bater uma meta ou ao gerar o status.</p>
       )}
     </section>
   );
@@ -258,7 +258,7 @@ export function useAvisos(
       const lib = agora.liberados[s.id] ?? 0;
       if (!s.lib.livre && lib > (a.liberados[s.id] ?? 0)) {
         if (sons) tocar("sorteio", volume);
-        dizer(`Sorteio liberado: ${s.nome}`);
+        dizer(`Pião da Village TCG liberado: ${s.nome}`);
         novo(mensagemDeSorteioLiberado(s.nome, s.premio));
       }
       const bateram = agora.bateram[s.id] ?? 0;
@@ -414,7 +414,7 @@ export function Emotions({
 }) {
   const feed = d.emocoes.filter((e) => e.ts >= limpoEm).slice(-150).reverse();
   return (
-    <Cartao titulo="Emotions" icone={Sparkles} className={altura} direita={<span className="text-xs text-d-ink3">{inteiro(d.emocoes.length)} recebidas</span>}>
+    <Cartao titulo="Diamantes" icone={Gem} className={altura} direita={<span className="text-xs text-d-ink3">{inteiro(d.emocoes.length)} recebidas</span>}>
       <div className="flex flex-wrap gap-2 border-b border-d-line p-3">
         {c.icones.map((i) => {
           const ligado = c.termos.includes(i.icone);
@@ -430,7 +430,7 @@ export function Emotions({
             />
           );
         })}
-        {!c.icones.length && <span className="text-xs text-d-ink3">Nenhuma emotion ainda.</span>}
+        {!c.icones.length && <span className="text-xs text-d-ink3">Nenhum diamante ainda.</span>}
       </div>
       <ul className="divide-y divide-d-line">
         {feed.map((e) => (
@@ -479,7 +479,7 @@ export function PontosPorUsuario({ c, altura = "h-[480px]" }: { c: Contas; altur
               <Avatar foto={p.foto} nome={p.handle} tamanho={32} />
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">@{p.handle}</p>
-                <p className="text-xs text-d-ink3">{inteiro(p.emocoes)} emotions</p>
+                <p className="text-xs text-d-ink3">{inteiro(p.emocoes)} diamantes</p>
               </div>
               <span className="text-lg font-bold tabular-nums text-d-brand">
                 {inteiro(p.gemas)} <span className="text-xs font-semibold text-d-ink3">pts</span>
@@ -488,7 +488,7 @@ export function PontosPorUsuario({ c, altura = "h-[480px]" }: { c: Contas; altur
           ))}
         </ol>
       ) : (
-        <Vazio>Ninguém mandou emotion ainda.</Vazio>
+        <Vazio>Ninguém mandou diamante ainda.</Vazio>
       )}
     </Cartao>
   );
@@ -618,7 +618,7 @@ export function Engajamento({ d, c }: { d: LiveCarregada; c: Contas }) {
   return (
     <Cartao titulo={`Engajamento por espectador (${c.eng.length})`} icone={Activity} className="max-h-[520px] lg:col-span-3" direita={<span className="text-xs text-d-ink3">atualizado {horaSeg(d.atualizadoEm)}</span>}>
       <p className="border-b border-d-line px-4 py-2 text-xs text-d-ink3">
-        O tempo ativo vai da 1ª à última interação da pessoa (chat, emotion ou compra). Quem só assiste aparece em &quot;Assistindo agora&quot;.
+        O tempo ativo vai da 1ª à última interação da pessoa (chat, diamante ou compra). Quem só assiste aparece em &quot;Assistindo agora&quot;.
       </p>
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-d-panel text-left text-[11px] uppercase tracking-wider text-d-ink3">
@@ -626,7 +626,7 @@ export function Engajamento({ d, c }: { d: LiveCarregada; c: Contas }) {
             <th className="w-10 px-4 py-2 font-semibold">#</th>
             <th className="px-4 py-2 font-semibold">Espectador</th>
             <th className="px-4 py-2 text-right font-semibold">Mensagens</th>
-            <th className="hidden px-4 py-2 text-right font-semibold sm:table-cell">Emotions</th>
+            <th className="hidden px-4 py-2 text-right font-semibold sm:table-cell">Diamantes</th>
             <th className="hidden px-4 py-2 text-right font-semibold sm:table-cell">Compras</th>
             <th className="px-4 py-2 text-right font-semibold">Tempo ativo</th>
           </tr>
@@ -685,7 +685,7 @@ export function AssistindoAgora({ d, c }: { d: LiveCarregada; c: Contas }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">@{p.handle}</span>
                 <span className="block truncate text-[11px] text-d-ink3">
-                  {e ? [e.mensagens && `${e.mensagens} msg`, e.emocoes && `${e.emocoes} emotions`, e.compras && `${e.compras} compras`].filter(Boolean).join(" · ") : "só assistindo"}
+                  {e ? [e.mensagens && `${e.mensagens} msg`, e.emocoes && `${e.emocoes} diamantes`, e.compras && `${e.compras} compras`].filter(Boolean).join(" · ") : "só assistindo"}
                 </span>
               </span>
             </li>

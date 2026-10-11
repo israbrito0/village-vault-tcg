@@ -321,7 +321,7 @@ export function totalDaFonte(contagem: { n: number }[]) {
 export const FONTES: { id: string; nome: string; unidade: string }[] = [
   { id: "compradores", nome: "Compradores (1 bilhete por item)", unidade: "itens" },
   { id: "carpas", nome: "Carpa dourada", unidade: "carpas" },
-  { id: "emocoes", nome: "Todos que enviaram emotions", unidade: "emotions" },
+  { id: "emocoes", nome: "Todos que enviaram diamantes", unidade: "diamantes" },
   { id: "gemas", nome: "Gemas enviadas (1 bilhete a cada 100)", unidade: "gemas" },
   { id: "chat", nome: "Quem escreveu no chat", unidade: "mensagens" },
 ];
@@ -329,7 +329,7 @@ export const FONTES: { id: string; nome: string; unidade: string }[] = [
 export function nomeDaFonte(fonte: string, nomesEmocoes: Record<string, string> = {}) {
   if (fonte.startsWith("emocao:")) {
     const i = fonte.slice(7);
-    return { nome: `Emotion ${nomesEmocoes[i] || i}`, unidade: "envios" };
+    return { nome: `Diamante ${nomesEmocoes[i] || i}`, unidade: "envios" };
   }
   return FONTES.find((f) => f.id === fonte) ?? { nome: fonte, unidade: "pontos" };
 }
@@ -449,15 +449,15 @@ export function regraDoSorteio(s: {
 const contaEmocao = (regra: Regra, e: Emocao) => !regra.icones || regra.icones.includes(e.icone);
 
 function nomeDasEmocoes(regra: Regra) {
-  return !regra.icones ? "qualquer emotion" : regra.icones.length ? regra.icones.join(", ") : "nenhuma emotion";
+  return !regra.icones ? "qualquer diamante" : regra.icones.length ? regra.icones.join(", ") : "nenhum diamante";
 }
 
 // A frase que resume a regra, como no Dash TCG:
-// "1 sorteio a cada 50 emotions (qualquer emotion) · concorrem emotions (qualquer emotion) · emotions por quantidade · pode repetir"
+// "1 sorteio a cada 50 diamantes (qualquer diamante) · concorrem diamantes (qualquer diamante) · diamantes por quantidade · pode repetir"
 export function descreverRegra(regra: Regra) {
   const em = nomeDasEmocoes(regra);
   if (regra.tipo === "individual") {
-    return `Quem somar ${int(regra.alvo ?? 0)} ${regra.unidade === "pontos" ? "pontos" : "emotions"} (${em}) ganha`;
+    return `Quem somar ${int(regra.alvo ?? 0)} ${regra.unidade === "pontos" ? "pontos" : "diamantes"} (${em}) ganha`;
   }
   const partes: string[] = [];
   if (regra.liberacao === "livre") partes.push("Sorteio livre");
@@ -466,7 +466,7 @@ export function descreverRegra(regra: Regra) {
     if (m.metaDaLive) partes.push("1 sorteio quando bater a meta da live");
     else {
       const metas: string[] = [];
-      if (m.emocoes) metas.push(`${int(m.emocoes)} emotions (${em})`);
+      if (m.emocoes) metas.push(`${int(m.emocoes)} diamantes (${em})`);
       if (m.pontos) metas.push(`${int(m.pontos)} pontos`);
       if (m.itens) metas.push(`${int(m.itens)} itens vendidos`);
       if (m.reais) metas.push(`${brl(m.reais)} vendidos`);
@@ -474,10 +474,10 @@ export function descreverRegra(regra: Regra) {
       partes.push(metas.length ? `1 sorteio a cada ${metas.join(" ou ")}` : "sem meta marcada");
     }
   }
-  const quem = regra.quem === "compra" ? "compradores" : regra.quem === "ambos" ? `emotions (${em}) e compradores` : `emotions (${em})`;
+  const quem = regra.quem === "compra" ? "compradores" : regra.quem === "ambos" ? `diamantes (${em}) e compradores` : `diamantes (${em})`;
   partes.push(`concorrem ${quem}`);
   if (regra.quem !== "compra") {
-    partes.push(regra.chance === "pontos" ? "emotions por pontos" : regra.chance === "igual" ? "chance igual" : "emotions por quantidade");
+    partes.push(regra.chance === "pontos" ? "diamantes por pontos" : regra.chance === "igual" ? "chance igual" : "diamantes por quantidade");
   }
   if (regra.quem !== "emocao" && regra.chance !== "igual") partes.push("1 bilhete por item");
   partes.push(regra.repetir ? "pode repetir" : "não repete ganhador");
@@ -573,7 +573,7 @@ export function liberacoes(regra: Regra, t: TotaisDaRegra, jaSorteados: number) 
     return { livre: false, liberados, disponiveis: Math.max(0, liberados - jaSorteados), proximo: liberados ? null : { falta: 1, unidade: "meta da live", progresso: 0 } };
   }
   const lista: { a: number; total: number; unidade: string }[] = [];
-  if (m.emocoes) lista.push({ a: m.emocoes, total: t.emocoes, unidade: "emotions" });
+  if (m.emocoes) lista.push({ a: m.emocoes, total: t.emocoes, unidade: "diamantes" });
   if (m.pontos) lista.push({ a: m.pontos, total: t.pontos, unidade: "pontos" });
   if (m.itens) lista.push({ a: m.itens, total: t.itens, unidade: "itens vendidos" });
   if (m.reais) lista.push({ a: m.reais, total: t.reais, unidade: "reais vendidos" });
@@ -631,7 +631,7 @@ export type Totais = {
 
 export const TIPOS_DE_META: { id: string; nome: string; unidade: string; pessoa: boolean }[] = [
   { id: "pontos", nome: "Pontos do ranking mensal ganhos na live", unidade: "pts", pessoa: false },
-  { id: "gemas", nome: "Gemas em emotions desta live", unidade: "gemas", pessoa: true },
+  { id: "gemas", nome: "Gemas em diamantes desta live", unidade: "gemas", pessoa: true },
   { id: "carpas", nome: "Carpas douradas", unidade: "carpas", pessoa: true },
   { id: "faturamento", nome: "Total vendido (R$)", unidade: "reais", pessoa: true },
   { id: "itens", nome: "Itens vendidos", unidade: "itens", pessoa: true },
@@ -725,7 +725,7 @@ export function mensagemDeStatus(d: {
 }
 
 export function mensagemDeSorteioLiberado(nome: string, premio?: string | null) {
-  return `🎉 Sorteio liberado: ${nome}${premio ? ` — prêmio: ${premio}` : ""}! Valendo agora, fica na live!`;
+  return `🎉 Pião da Village TCG liberado: ${nome}${premio ? ` — prêmio: ${premio}` : ""}! Valendo agora, fica na live!`;
 }
 
 export function mensagemDeGanhador(handle: string, premio?: string | null) {

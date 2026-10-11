@@ -150,7 +150,7 @@ export default function Inicio() {
     <main className="d-page">
       <header>
         <h1 className="d-page-title">Início</h1>
-        <p className="d-page-sub">Cole o link de uma live que esteja no ar e acompanhe emotions, compradores e vendas em tempo real.</p>
+        <p className="d-page-sub">Cole o link de uma live que esteja no ar e acompanhe diamantes, compradores e vendas em tempo real.</p>
       </header>
 
       <section className="d-card overflow-hidden">

@@ -84,7 +84,7 @@ export default function Lives() {
                   <th className="px-4 py-3 text-right font-semibold">Vendido</th>
                   <th className="px-4 py-3 text-right font-semibold">Itens</th>
                   <th className="px-4 py-3 text-right font-semibold">Compradores</th>
-                  <th className="px-4 py-3 text-right font-semibold">Emotions</th>
+                  <th className="px-4 py-3 text-right font-semibold">Diamantes</th>
                   <th className="px-4 py-3 text-right font-semibold">Sorteios</th>
                   <th className="px-4 py-3" />
                 </tr>

@@ -93,7 +93,7 @@ export default function Painel({ showId }: { showId: string }) {
           </div>
         </div>
         <button
-          title={sons ? "Sons ligados: venda (caixa registradora), pagamento (moedas), sorteio liberado e meta batida — clique para silenciar" : "Sons desligados"}
+          title={sons ? "Sons ligados: venda (caixa registradora), pagamento (moedas), Pião da Village TCG liberado e meta batida — clique para silenciar" : "Sons desligados"}
           className={`d-btn d-btn-secondary d-btn-sm ${sons ? "text-d-gold" : "text-d-ink3"}`}
           onClick={() => setSons(!sons)}
         >
@@ -115,7 +115,7 @@ export default function Painel({ showId }: { showId: string }) {
           <Link target="_blank" className="d-btn d-btn-primary d-btn-sm" href={`/dash/sorteios/${id}`}>
             Abrir sorteio
           </Link>
-          <Link target="_blank" title="Chat, emotions e sorteios sem dados de vendas — para compartilhar a tela" className="d-btn d-btn-secondary d-btn-sm" href={`/dash/tela/${id}`}>
+          <Link target="_blank" title="Chat, diamantes e sorteios sem dados de vendas — para compartilhar a tela" className="d-btn d-btn-secondary d-btn-sm" href={`/dash/tela/${id}`}>
             Tela p/ compartilhar
           </Link>
           <button className="d-btn d-btn-secondary d-btn-sm" onClick={reconectar}>

@@ -82,7 +82,7 @@ function GiroDoSorteio({
 const MODELOS: { rotulo: string; nome: string; regra: Partial<Regra> }[] = [
   { rotulo: "Compradores", nome: "Sorteio para compradores", regra: { quem: "compra", liberacao: "livre", chance: "quantidade" } },
   { rotulo: "Magikarp shiny", nome: "Sorteio para quem enviou magikarp_shiny", regra: { quem: "emocao", icones: ["magikarp_shiny"], liberacao: "livre", chance: "quantidade" } },
-  { rotulo: "Todos que enviaram emotions", nome: "Sorteio para todos que enviaram emotions", regra: { quem: "emocao", icones: null, liberacao: "livre", chance: "quantidade" } },
+  { rotulo: "Todos que enviaram diamantes", nome: "Vai começar o sorteio do Pião do Pokémon de Maceió", regra: { quem: "emocao", icones: null, liberacao: "livre", chance: "quantidade" } },
 ];
 
 // ---------- formulário da regra ----------
@@ -169,7 +169,7 @@ function FormRegra({
             valor={r.quem}
             mudar={(quem) => muda({ quem })}
             opcoes={[
-              ["emocao", "quem mandou emotion"],
+              ["emocao", "quem mandou diamante"],
               ["compra", "quem comprou"],
               ["ambos", "os dois"],
             ]}
@@ -179,18 +179,18 @@ function FormRegra({
 
       {(individual || r.quem !== "compra") && (
         <div className="space-y-2">
-          <p className="text-sm text-d-ink2">Emotions que contam</p>
+          <p className="text-sm text-d-ink2">Diamantes que contam</p>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              title="Conta qualquer emotion, inclusive as que aparecerem depois na live"
+              title="Conta qualquer diamante, inclusive os que aparecerem depois na live"
               onClick={() => muda({ icones: r.icones ? null : [] })}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
                 !r.icones ? "border-d-gold bg-d-gold/15 text-d-gold" : "border-d-line bg-d-panel2 text-d-ink2 hover:border-d-ink3"
               }`}
             >
               <Sparkles className="size-3.5 shrink-0" />
-              Todas as emotions
+              Todos os diamantes
             </button>
             {todas.map((t) => (
               <ChipEmocao key={t.id} id={t.id} icones={d.icones} pts={t.pts} ligado={marcada(t.id)} onClick={() => alternar(t.id)} />
@@ -208,7 +208,7 @@ function FormRegra({
               valor={r.unidade ?? "emocoes"}
               mudar={(unidade) => muda({ unidade })}
               opcoes={[
-                ["emocoes", "emotions"],
+                ["emocoes", "diamantes"],
                 ["pontos", "pontos"],
               ]}
             />
@@ -231,7 +231,7 @@ function FormRegra({
             {r.liberacao === "metas" && (
               <div className="space-y-2 rounded-2xl border border-d-line bg-d-panel2/50 p-3">
                 <p className="text-xs text-d-ink3">Marque uma ou mais metas. Qualquer meta atingida libera 1 sorteio (as liberações se somam).</p>
-                {linhaMeta("emocoes", 50, "emotions")}
+                {linhaMeta("emocoes", 50, "diamantes")}
                 {linhaMeta("pontos", 5000, "pontos")}
                 {linhaMeta("itens", 10, "itens vendidos")}
                 {linhaMeta("reais", 1000, "vendidos", "R$")}
@@ -252,7 +252,7 @@ function FormRegra({
           </div>
           {r.quem !== "compra" && (
             <div className="space-y-1.5">
-              <p className="text-sm text-d-ink2">Chance de quem mandou emotion</p>
+              <p className="text-sm text-d-ink2">Chance de quem mandou diamante</p>
               <Escolha
                 valor={r.chance}
                 mudar={(chance) => muda({ chance })}
@@ -294,7 +294,7 @@ function Situacao({ s, grande = false }: { s: SorteioCalculado; grande?: boolean
   if (s.lib.livre) {
     return (
       <div>
-        <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>Sorteio livre</p>
+        <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>Pião da Village TCG</p>
         <p className="text-xs uppercase tracking-widest text-d-ink3">sorteie quando quiser</p>
       </div>
     );
@@ -303,7 +303,7 @@ function Situacao({ s, grande = false }: { s: SorteioCalculado; grande?: boolean
   return (
     <div className="space-y-2">
       {s.lib.disponiveis > 0 ? (
-        <p className={`font-bold text-d-ok ${grande ? "text-5xl" : "text-3xl"}`}>{s.lib.disponiveis === 1 ? "1 sorteio liberado!" : `${s.lib.disponiveis} sorteios liberados!`}</p>
+        <p className={`font-bold text-d-ok ${grande ? "text-5xl" : "text-3xl"}`}>{s.lib.disponiveis === 1 ? "Pião da Village TCG liberado!" : `Pião da Village TCG: ${s.lib.disponiveis} liberados!`}</p>
       ) : (
         <p className={`font-bold tabular-nums text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>{p ? `Faltam ${inteiro(Math.ceil(p.falta))}` : "Aguardando"}</p>
       )}
@@ -497,7 +497,7 @@ export function CartaoSorteio({
             {inteiro(s.individual.bateram.length)} <span className="text-base font-semibold text-d-ink3">já bateram</span>
           </p>
           <p className="text-center text-xs uppercase tracking-widest text-d-ink3">
-            meta: {inteiro(s.individual.alvo)} {s.regra.unidade === "pontos" ? "pontos" : "emotions"}
+            meta: {inteiro(s.individual.alvo)} {s.regra.unidade === "pontos" ? "pontos" : "diamantes"}
           </p>
           <ul className="d-scroll mt-4 max-h-72 divide-y divide-d-line overflow-y-auto">
             {[...s.individual.bateram, ...s.individual.faltam.slice(0, 30)].map((p) => {
@@ -844,7 +844,7 @@ function MetaDaLive({ d, c, showId, aoMudar }: { d: LiveCarregada; c: Contas; sh
       <span className="text-sm text-d-ink2">pontos de</span>
       <select className="d-field px-3 py-1.5 text-sm" aria-label="Origem dos pontos" value={tipo} onChange={(e) => setTipo(e.target.value)}>
         <option value="ranking">Ranking mensal da Jamble</option>
-        <option value="emocoes">Emotions desta live</option>
+        <option value="emocoes">Diamantes desta live</option>
       </select>
       <button type="submit" disabled={!mudou} className="d-btn d-btn-primary d-btn-sm">
         Salvar meta
