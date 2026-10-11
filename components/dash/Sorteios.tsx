@@ -916,13 +916,14 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
     }
   }
 
-  // Ouve o som dos 10 segundos.
+  // Ouve o som dos 10 segundos, até onde ele toca no sorteio (os 10 s e a
+  // conferência do chat).
   function ouvirContagem() {
     if (ouvindo) return pararDeOuvir();
     if (!visual.contagemUrl) return;
     destravarAudio();
     const musica = tocarSomDaContagem(visual.contagemUrl, volume || 1);
-    const t = setTimeout(pararDeOuvir, 10_500);
+    const t = setTimeout(pararDeOuvir, 15_000);
     tocando.current = { musica, tempos: [t] };
     setOuvindo(true);
   }

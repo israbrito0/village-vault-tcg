@@ -50,9 +50,10 @@ export default function RespostaDoGanhador({
     return () => clearInterval(t);
   }, [fase]);
 
-  // O som da contagem: o arquivo que a conta enviou toca durante os 10
-  // segundos (e para quando a contagem acaba ou o ganhador responde); sem
-  // arquivo, um tique a cada segundo.
+  // O som da contagem: o arquivo que a conta enviou toca uma vez a partir do
+  // ganhador. Ele pode passar dos 10 segundos (o final mais forte do som cai
+  // no "conferindo o chat…"), então só é cortado quando o ganhador responde
+  // ou quando aparece o "mamou". Sem arquivo, um tique a cada segundo.
   const somDaContagem = useRef<Tocando | null>(null);
   useEffect(() => {
     if (!somUrl) return;
@@ -62,7 +63,7 @@ export default function RespostaDoGanhador({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [somUrl]);
   useEffect(() => {
-    if (fase !== "contando") somDaContagem.current?.parar(400);
+    if (fase === "respondeu" || fase === "mamou") somDaContagem.current?.parar(400);
   }, [fase]);
   const ultimoTique = useRef(-1);
   useEffect(() => {
