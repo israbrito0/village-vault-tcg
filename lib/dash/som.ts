@@ -7,7 +7,21 @@ export function audio() {
   if (typeof window === "undefined") return null;
   const C = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!C) return null;
-  if (!ctx) ctx = new C();
+  if (!ctx) {
+    ctx = new C();
+    // Sem um clique o navegador deixa o áudio parado: o primeiro clique ou
+    // tecla na página destrava (a música do sorteio começa nessa hora).
+    const destravar = () => {
+      if (ctx?.state === "running") {
+        window.removeEventListener("pointerdown", destravar);
+        window.removeEventListener("keydown", destravar);
+        return;
+      }
+      ctx?.resume().catch(() => {});
+    };
+    window.addEventListener("pointerdown", destravar);
+    window.addEventListener("keydown", destravar);
+  }
   if (ctx.state === "suspended") ctx.resume().catch(() => {});
   return ctx;
 }

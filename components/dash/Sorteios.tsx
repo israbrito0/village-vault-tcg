@@ -6,7 +6,7 @@ import { descreverRegra, mensagemDeGanhador, regraPadrao, type Mensagem, type Re
 import type { Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
 import { destravarAudio, tocar } from "@/lib/dash/som";
-import { tocarMusica, type Tocando } from "@/lib/dash/musica";
+import { tocarMusica, tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import Roleta from "@/components/dash/Roleta";
 import Piao, { DURACAO_PIAO } from "@/components/dash/Piao";
@@ -26,11 +26,35 @@ type Acao = (corpo: Record<string, unknown>) => Promise<{ sorteios: Sorteio[]; g
 export const duracaoDoGiro = (v: VisualDoSorteio) => (v.estilo === "fita" ? 6500 : DURACAO_PIAO);
 
 // O giro do sorteio no estilo que a conta escolheu (o pião, padrão, ou a
-// fita) e, quando para, os 10 segundos para o ganhador responder no chat.
-function GiroDoSorteio({ giro, visual, volume, chat, grande = false }: { giro: Giro; visual: VisualDoSorteio; volume: number; chat: Mensagem[]; grande?: boolean }) {
+// fita) e, quando para, os 10 segundos para o ganhador responder no chat,
+// com o som da contagem. Na tela cheia a música é da própria tela (toca desde
+// que ela abre), então o giro fica sem música e avisa quando parou.
+function GiroDoSorteio({
+  giro,
+  visual,
+  volume,
+  chat,
+  grande = false,
+  musicaDaTela = false,
+  aoParar,
+}: {
+  giro: Giro;
+  visual: VisualDoSorteio;
+  volume: number;
+  chat: Mensagem[];
+  grande?: boolean;
+  musicaDaTela?: boolean;
+  aoParar?: () => void;
+}) {
   const [paradoEm, setParadoEm] = useState<number | null>(null);
-  const parou = () => setParadoEm(Date.now());
-  const resposta = paradoEm ? <RespostaDoGanhador handle={giro.ganhador.handle} desde={paradoEm} chat={chat} volume={volume} grande={grande} /> : null;
+  const parou = () => {
+    setParadoEm(Date.now());
+    aoParar?.();
+  };
+  const somUrl = visual.contagem === "arquivo" ? visual.contagemUrl : null;
+  const resposta = paradoEm ? (
+    <RespostaDoGanhador handle={giro.ganhador.handle} desde={paradoEm} chat={chat} volume={volume} grande={grande} somUrl={somUrl} />
+  ) : null;
   return (
     <div className="w-full">
       {visual.estilo === "fita" ? (
@@ -44,7 +68,8 @@ function GiroDoSorteio({ giro, visual, volume, chat, grande = false }: { giro: G
           ganhador={giro.ganhador}
           premio={giro.premio}
           volume={volume}
-          musica={{ tipo: visual.musica, url: visual.musicaUrl }}
+          musica={musicaDaTela ? { tipo: "nenhuma" } : { tipo: visual.musica, url: visual.musicaUrl }}
+          sons={!musicaDaTela}
           grande={grande}
           aoTerminar={parou}
           extra={resposta}
@@ -581,6 +606,25 @@ export function Palco({
   const travado = !!s && !s.lib.livre && s.lib.disponiveis <= 0;
   const restante = fim ? Math.max(0, Math.ceil((fim - agora) / 1000)) : 0;
 
+  // A música do sorteio toca com a tela aberta (em loop) até o ganhador
+  // aparecer; volta quando a tela fica pronta para o próximo sorteio.
+  const [ganhadorNaTela, setGanhadorNaTela] = useState(false);
+  useEffect(() => setGanhadorNaTela(false), [meuGiro?.chave]);
+  const volumeAgora = useRef(volume);
+  volumeAgora.current = volume;
+  const musicaLigada = !mudo && !ganhadorNaTela && d.visual.musica !== "nenhuma";
+  const [somTravado, setSomTravado] = useState(false);
+  useEffect(() => {
+    if (!musicaLigada) return;
+    const m = tocarMusica({ tipo: d.visual.musica, url: d.visual.musicaUrl, loop: true }, volumeAgora.current || 1);
+    const olhar = setInterval(() => setSomTravado(m.bloqueado()), 500);
+    return () => {
+      clearInterval(olhar);
+      setSomTravado(false);
+      m.parar(500);
+    };
+  }, [musicaLigada, d.visual.musica, d.visual.musicaUrl]);
+
   return (
     <div className="fixed inset-0 z-[70] flex flex-col overflow-hidden bg-d-bg">
       <div
@@ -605,6 +649,12 @@ export function Palco({
           </div>
         )}
         {soUm && <span className="flex-1" />}
+        {somTravado && (
+          <button className="d-btn d-btn-primary d-btn-sm d-pulse" onClick={() => destravarAudio()} title="O navegador só deixa tocar som depois de um clique na página">
+            <Volume2 className="size-4" />
+            Clique para ligar a música
+          </button>
+        )}
         <button className="d-btn d-btn-secondary d-btn-sm" title={mudo ? "Ligar o som" : "Silenciar"} onClick={() => setMudo(!mudo)}>
           {mudo ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
           Som
@@ -654,7 +704,16 @@ export function Palco({
               )}
               <div className="w-full max-w-3xl">
                 {meuGiro ? (
-                  <GiroDoSorteio key={meuGiro.chave} giro={meuGiro} visual={d.visual} volume={mudo ? 0 : volume} chat={d.chat} grande />
+                  <GiroDoSorteio
+                    key={meuGiro.chave}
+                    giro={meuGiro}
+                    visual={d.visual}
+                    volume={mudo ? 0 : volume}
+                    chat={d.chat}
+                    grande
+                    musicaDaTela
+                    aoParar={() => setGanhadorNaTela(true)}
+                  />
                 ) : fim ? (
                   <div>
                     <p key={restante} className="text-8xl font-bold tabular-nums text-d-gold" style={{ animation: "dPopIn .4s ease-out" }}>
@@ -817,6 +876,7 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
   const [estado, setEstado] = useState("");
   const [ouvindo, setOuvindo] = useState(false);
   const arquivo = useRef<HTMLInputElement>(null);
+  const arquivoContagem = useRef<HTMLInputElement>(null);
   const tocando = useRef<{ musica: Tocando; tempos: ReturnType<typeof setTimeout>[] } | null>(null);
 
   const pararDeOuvir = () => {
@@ -832,8 +892,10 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
     await chamar("/api/dash/eu", { metodo: "PATCH", corpo: { preferencias: { sorteio: novo } } }).catch((e) => setEstado(String((e as Error).message)));
   }
 
-  async function enviar(f: File) {
-    setEstado("Enviando a música…");
+  // Envia o arquivo direto para o armazenamento e troca na conta: a música
+  // do sorteio ou o som dos 10 segundos.
+  async function enviar(f: File, campo: "musica" | "contagem") {
+    setEstado(campo === "musica" ? "Enviando a música…" : "Enviando o som da contagem…");
     try {
       const tipo = f.type || "audio/mpeg";
       const r = await chamar<{ caminho: string; token: string; url: string }>("/api/dash/musica", { corpo: { nome: f.name, tipo, tamanho: f.size } });
@@ -841,20 +903,35 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
       if (!sb) throw new Error("Sem conexão com o armazenamento.");
       const { error } = await sb.storage.from("dash-musicas").uploadToSignedUrl(r.caminho, r.token, f, { contentType: tipo });
       if (error) throw new Error(error.message);
-      const antiga = visual.musicaUrl;
-      await salvar({ ...visual, musica: "arquivo", musicaUrl: r.url, musicaNome: f.name });
+      const antiga = campo === "musica" ? visual.musicaUrl : visual.contagemUrl;
+      await salvar(
+        campo === "musica"
+          ? { ...visual, musica: "arquivo", musicaUrl: r.url, musicaNome: f.name }
+          : { ...visual, contagem: "arquivo", contagemUrl: r.url, contagemNome: f.name },
+      );
       if (antiga && antiga !== r.url) chamar(`/api/dash/musica?url=${encodeURIComponent(antiga)}`, { metodo: "DELETE" }).catch(() => {});
       setEstado("");
     } catch (e) {
-      setEstado((e as Error).message || "Não consegui enviar a música.");
+      setEstado((e as Error).message || "Não consegui enviar o arquivo.");
     }
+  }
+
+  // Ouve o som dos 10 segundos.
+  function ouvirContagem() {
+    if (ouvindo) return pararDeOuvir();
+    if (!visual.contagemUrl) return;
+    destravarAudio();
+    const musica = tocarSomDaContagem(visual.contagemUrl, volume || 1);
+    const t = setTimeout(pararDeOuvir, 10_500);
+    tocando.current = { musica, tempos: [t] };
+    setOuvindo(true);
   }
 
   // Ouve como fica: o tempo do giro e a fanfarra no fim.
   function ouvir() {
     if (ouvindo) return pararDeOuvir();
     destravarAudio();
-    const musica = tocarMusica({ tipo: visual.musica, url: visual.musicaUrl }, volume || 1);
+    const musica = tocarMusica({ tipo: visual.musica, url: visual.musicaUrl, loop: true }, volume || 1);
     const t1 = setTimeout(() => musica.vitoria(), DURACAO_PIAO);
     const t2 = setTimeout(pararDeOuvir, DURACAO_PIAO + (visual.musica === "arquivo" ? 4500 : 2600));
     tocando.current = { musica, tempos: [t1, t2] };
@@ -890,6 +967,44 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
           Sem música
         </button>
       </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="d-label inline-flex items-center gap-1 pr-1">
+          <Timer className="size-3.5" />
+          Som dos 10 s
+        </span>
+        <button className={chip(visual.contagem === "padrao")} disabled={!dono} onClick={() => salvar({ ...visual, contagem: "padrao" })} title="Um tique a cada segundo">
+          Tique do Dash
+        </button>
+        {visual.contagemUrl && (
+          <button className={chip(visual.contagem === "arquivo")} disabled={!dono} onClick={() => salvar({ ...visual, contagem: "arquivo" })} title={visual.contagemNome ?? "Seu som"}>
+            <span className="inline-block max-w-[160px] truncate align-bottom">{visual.contagemNome ?? "Seu som"}</span>
+          </button>
+        )}
+        {dono && (
+          <>
+            <input
+              ref={arquivoContagem}
+              type="file"
+              accept="audio/*"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                e.target.value = "";
+                if (f) enviar(f, "contagem");
+              }}
+            />
+            <button className="d-btn d-btn-ghost d-btn-sm" onClick={() => arquivoContagem.current?.click()} title="Envie o som que toca nos 10 segundos para o ganhador responder">
+              <Upload className="size-3.5" />
+              Enviar
+            </button>
+          </>
+        )}
+        {visual.contagemUrl && (
+          <button className="d-btn d-btn-ghost d-btn-sm" onClick={ouvirContagem} title="Ouvir o som da contagem">
+            {ouvindo ? <Square className="size-3.5" /> : <Play className="size-3.5" />}
+          </button>
+        )}
+      </div>
       <div className="ml-auto flex flex-wrap items-center gap-2">
         {estado && <span className="text-xs text-d-ink3">{estado}</span>}
         {dono && (
@@ -902,7 +1017,7 @@ function ConfigDoSorteio({ visual, volume, aoMudar }: { visual: VisualDoSorteio;
               onChange={(e) => {
                 const f = e.target.files?.[0];
                 e.target.value = "";
-                if (f) enviar(f);
+                if (f) enviar(f, "musica");
               }}
             />
             <button className="d-btn d-btn-secondary d-btn-sm" onClick={() => arquivo.current?.click()} title="Envie o MP3 da música que vai tocar enquanto o pião gira (até 20 MB)">

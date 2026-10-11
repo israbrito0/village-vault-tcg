@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Mensagem } from "@/lib/dash/calculos";
 import { tocar } from "@/lib/dash/som";
+import { tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
 
 // Depois que o pião para: 10 segundos para o ganhador responder no chat. Se
 // responder, aparece "Respondeu!"; se não, "MAMOU, MAMOU, MAMOU!!!".
@@ -27,12 +28,14 @@ export default function RespostaDoGanhador({
   chat,
   volume = 0.5,
   grande = false,
+  somUrl = null,
 }: {
   handle: string;
   desde: number;
   chat: Mensagem[];
   volume?: number;
   grande?: boolean;
+  somUrl?: string | null;
 }) {
   const [agora, setAgora] = useState(() => Date.now());
   const fim = desde + SEGUNDOS_PARA_RESPONDER * 1000;
@@ -47,14 +50,27 @@ export default function RespostaDoGanhador({
     return () => clearInterval(t);
   }, [fase]);
 
-  // Os sons: tique nos últimos 5 segundos, e o resultado.
+  // O som da contagem: o arquivo que a conta enviou toca durante os 10
+  // segundos (e para quando a contagem acaba ou o ganhador responde); sem
+  // arquivo, um tique a cada segundo.
+  const somDaContagem = useRef<Tocando | null>(null);
+  useEffect(() => {
+    if (!somUrl) return;
+    const t = tocarSomDaContagem(somUrl, volume);
+    somDaContagem.current = t;
+    return () => t.parar(300);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [somUrl]);
+  useEffect(() => {
+    if (fase !== "contando") somDaContagem.current?.parar(400);
+  }, [fase]);
   const ultimoTique = useRef(-1);
   useEffect(() => {
-    if (fase === "contando" && restam <= 5 && restam > 0 && restam !== ultimoTique.current) {
+    if (!somUrl && fase === "contando" && restam > 0 && restam !== ultimoTique.current) {
       ultimoTique.current = restam;
-      tocar("tique", volume);
+      tocar("tique", restam <= 3 ? volume * 1.6 : volume);
     }
-  }, [fase, restam, volume]);
+  }, [fase, restam, volume, somUrl]);
   useEffect(() => {
     if (fase === "mamou") tocar("mamou", volume);
     if (fase === "respondeu") tocar("pagamento", volume);

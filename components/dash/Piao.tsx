@@ -26,6 +26,7 @@ export default function Piao({
   duracaoMs = DURACAO_PIAO,
   aoTerminar,
   extra,
+  sons = true,
 }: {
   participantes: Pessoa[];
   ganhador: Pessoa;
@@ -35,6 +36,8 @@ export default function Piao({
   grande?: boolean;
   duracaoMs?: number;
   aoTerminar?: () => void;
+  // Sem sons próprios (na tela cheia a música e a contagem são da tela).
+  sons?: boolean;
   extra?: ReactNode;
 }) {
   const fita = useMemo(() => montarFita(participantes.length ? participantes : [ganhador], ganhador), [participantes, ganhador]);
@@ -92,7 +95,7 @@ export default function Piao({
       const atual = Math.round(pos);
       if (atual !== ultimo) {
         ultimo = atual;
-        if (!comMusica) tocar("tique", volume);
+        if (!comMusica && sons) tocar("tique", volume);
       }
       if (t < 1) {
         quadro = requestAnimationFrame(desenhar);
@@ -100,7 +103,7 @@ export default function Piao({
       }
       setParou(true);
       tocando.vitoria();
-      if (!comMusica) tocar("sorteio", volume);
+      if (!comMusica && sons) tocar("sorteio", volume);
       aoTerminar?.();
       // A música some uns segundos depois do ganhador aparecer.
       fimDaMusica = setTimeout(() => tocando.parar(1800), m.tipo === "arquivo" ? 4500 : 2600);

@@ -2,18 +2,19 @@
 
 import { audio } from "@/lib/dash/som";
 
-// A música do sorteio enquanto o pião gira.
-//   - "arquivo": o MP3 que a conta enviou (toca do começo e some depois do
-//     ganhador);
+// A música do sorteio: toca com a tela do sorteio aberta (em loop) até o
+// ganhador aparecer.
+//   - "arquivo": o MP3 que a conta enviou;
 //   - "padrao": uma marchinha de programa de auditório feita aqui mesmo, no
 //     navegador (composição própria, sem arquivo e sem direitos de terceiros),
 //     que fecha com uma fanfarra quando o pião para;
 //   - "nenhuma": silêncio.
 
-export type Musica = { tipo: "padrao" | "arquivo" | "nenhuma"; url?: string | null };
-export type Tocando = { vitoria: () => void; parar: (someEmMs?: number) => void };
+export type Musica = { tipo: "padrao" | "arquivo" | "nenhuma"; url?: string | null; loop?: boolean };
+// bloqueado(): o navegador não deixou tocar sozinho (falta um clique na página).
+export type Tocando = { vitoria: () => void; parar: (someEmMs?: number) => void; bloqueado: () => boolean };
 
-const SILENCIO: Tocando = { vitoria: () => {}, parar: () => {} };
+const SILENCIO: Tocando = { vitoria: () => {}, parar: () => {}, bloqueado: () => false };
 const freq = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
 
 // ---------- os instrumentos ----------
@@ -160,21 +161,47 @@ function tocarPadrao(volume: number): Tocando {
       clearInterval(relogio);
       sumir(ms);
     },
+    // Sem um clique na página o áudio fica parado ("suspended"); ele começa
+    // sozinho quando a página destrava o som.
+    bloqueado: () => a.state !== "running",
   };
 }
 
 // ---------- o arquivo enviado ----------
 
-function tocarArquivo(url: string, volume: number): Tocando {
+function tocarArquivo(url: string, volume: number, loop = false): Tocando {
   if (typeof window === "undefined") return SILENCIO;
   const el = new Audio(url);
   const alvo = Math.max(0, Math.min(1, volume * 0.8));
   el.volume = alvo;
-  el.play().catch(() => {});
+  el.loop = loop;
+  let travado = false;
+  let parado = false;
+  const tentar = () =>
+    el.play().then(
+      () => {
+        travado = false;
+      },
+      () => {
+        // Sem clique na página o navegador não deixa tocar: tenta de novo no
+        // primeiro clique ou tecla.
+        travado = true;
+        const destravar = () => {
+          window.removeEventListener("pointerdown", destravar);
+          window.removeEventListener("keydown", destravar);
+          if (!parado) tentar();
+        };
+        window.addEventListener("pointerdown", destravar);
+        window.addEventListener("keydown", destravar);
+      },
+    );
+  tentar();
   let fade: ReturnType<typeof setInterval> | null = null;
   return {
+    bloqueado: () => travado,
     vitoria: () => {},
     parar: (ms = 1500) => {
+      parado = true;
       if (fade) return;
       const passos = Math.max(1, Math.round(ms / 50));
       let k = 0;
@@ -193,6 +220,12 @@ function tocarArquivo(url: string, volume: number): Tocando {
 
 export function tocarMusica(m: Musica, volume: number): Tocando {
   if (volume <= 0 || m.tipo === "nenhuma") return SILENCIO;
-  if (m.tipo === "arquivo" && m.url) return tocarArquivo(m.url, volume);
+  if (m.tipo === "arquivo" && m.url) return tocarArquivo(m.url, volume, m.loop === true);
   return tocarPadrao(volume);
+}
+
+// O som dos 10 segundos do ganhador (o arquivo que a conta enviou), uma vez.
+export function tocarSomDaContagem(url: string, volume: number): Tocando {
+  if (volume <= 0 || !url) return SILENCIO;
+  return tocarArquivo(url, volume, false);
 }

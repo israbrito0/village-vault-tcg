@@ -292,16 +292,26 @@ export type VisualDoSorteio = {
   musica: "padrao" | "arquivo" | "nenhuma";
   musicaUrl: string | null;
   musicaNome: string | null;
+  // O som dos 10 segundos para o ganhador responder: o tique do Dash ou um
+  // arquivo enviado.
+  contagem: "padrao" | "arquivo";
+  contagemUrl: string | null;
+  contagemNome: string | null;
 };
 
 export function visualDoSorteio(preferencias: Record<string, unknown> | null | undefined): VisualDoSorteio {
   const s = (preferencias?.sorteio ?? {}) as Partial<VisualDoSorteio>;
-  const url = typeof s.musicaUrl === "string" && s.musicaUrl.startsWith("https://") ? s.musicaUrl : null;
+  const https = (u: unknown) => (typeof u === "string" && u.startsWith("https://") ? u : null);
+  const url = https(s.musicaUrl);
+  const contagemUrl = https(s.contagemUrl);
   return {
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,
     musicaNome: typeof s.musicaNome === "string" ? s.musicaNome.slice(0, 120) : null,
+    contagem: s.contagem === "arquivo" && contagemUrl ? "arquivo" : "padrao",
+    contagemUrl,
+    contagemNome: typeof s.contagemNome === "string" ? s.contagemNome.slice(0, 120) : null,
   };
 }
 
