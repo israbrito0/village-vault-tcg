@@ -21,10 +21,16 @@ export async function GET(req: Request) {
       .gte("visto_em", new Date(Date.now() - 12 * 3600 * 1000).toISOString())
       .order("visto_em", { ascending: false })
       .limit(8),
-    db().from("dash_robo").select("ultimo_inicio").eq("id", 1).maybeSingle(),
+    db().from("dash_robo").select("ultimo_inicio, detalhes").eq("id", 1).maybeSingle(),
     db().from("dash_monitores").select("id", { count: "exact", head: true }).eq("conta", membro.conta).eq("ativo", true),
   ]);
   const ms = (v: unknown) => (v ? new Date(String(v)).getTime() : null);
+  // A próxima live da conta que o robô viu na Jamble (ainda não começou).
+  const agendadaDa = (d: unknown, conta: string) => {
+    const a = (d as { agendada?: Record<string, unknown> } | null)?.agendada;
+    if (!a || a.conta !== conta || typeof a.showId !== "string") return null;
+    return { showId: a.showId, titulo: (a.titulo as string) ?? null, inicio: ms(a.inicio), capa: (a.capa as string) ?? null };
+  };
   const resposta: RespostaEu = {
     membro,
     config: { telaChave: config.tela_chave, termosCarpa: config.termos_carpa, preferencias: config.preferencias ?? {} },
@@ -34,7 +40,7 @@ export async function GET(req: Request) {
     // A extensão marca quando mandou dados; o robô grava as lives também, então
     // a hora da última live vista não serve mais para saber se ela está ligada.
     extensaoVistaEm: ms(config.extensao_em),
-    robo: { rodouEm: ms(robo.data?.ultimo_inicio), ativos: ativos.count ?? 0 },
+    robo: { rodouEm: ms(robo.data?.ultimo_inicio), ativos: ativos.count ?? 0, agendada: agendadaDa(robo.data?.detalhes, membro.conta) },
   };
   return ok(resposta);
 }

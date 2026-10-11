@@ -57,20 +57,24 @@ async function emLotes<T>(linhas: T[], tam: number, fazer: (l: T[]) => PromiseLi
 
 // ---------- a live da própria conta liga sozinha ----------
 
+// Devolve a próxima live agendada (o Início mostra, como no Dash TCG); se a
+// live já começou, liga o robô nela.
 async function verificarPropriaLive(token: string) {
   const r = await fetch(`${BASE}/live/${CONTA}`, { headers: UA, redirect: "manual" });
   const destino = r.headers.get("location") ?? "";
   const showId = destino.match(/\/live\/[^/]+\/([A-Za-z0-9]+)/)?.[1];
-  if (!showId) return;
+  if (!showId) return null;
   const s = await api(token, `/api/live/show?seller_id=${CONTA_SELLER_ID}&show_id=${showId}`);
   const show = (s?.show ?? {}) as Obj;
-  if (!show.hasStarted || show.isOver) return;
+  if (show.isOver || !show.id) return null;
+  if (!show.hasStarted) return { conta: CONTA, showId, titulo: show.title ?? null, inicio: show.startingAt ?? null, capa: show.coverUrl ?? null };
   await db
     .from("dash_monitores")
     .upsert(
       { conta: CONTA, show_id: showId, seller_id: CONTA_SELLER_ID, vendedor: CONTA, titulo: show.title ?? null, ativo: true, automatico: true, ate: new Date(Date.now() + 14 * 3600e3).toISOString() },
       { onConflict: "conta,show_id", ignoreDuplicates: true },
     );
+  return null;
 }
 
 // ---------- acompanhar uma live ----------
@@ -398,7 +402,10 @@ async function ciclo() {
   if (!vaga) return;
   try {
     const token = await visitante();
-    await verificarPropriaLive(token).catch((e) => (detalhes.propria = String(e)));
+    detalhes.agendada = await verificarPropriaLive(token).catch((e) => {
+      detalhes.propria = String(e);
+      return null;
+    });
     await db.from("dash_monitores").update({ ativo: false }).eq("ativo", true).lt("ate", new Date().toISOString());
     const { data } = await db.from("dash_monitores").select("*").eq("ativo", true).order("criado_em", { ascending: false }).limit(MAX_MONITORES);
     const lista = (data ?? []) as Monitor[];

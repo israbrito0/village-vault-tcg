@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Loader2, MonitorPlay, Radio } from "lucide-react";
-import { haQuanto, inteiro, useAgora, useDash } from "@/lib/dash/cliente";
+import { dataHora, haQuanto, inteiro, useAgora, useDash } from "@/lib/dash/cliente";
 import type { LiveInfo, MonitorInfo } from "@/lib/dash/api";
 import { Avatar, StatusLive } from "@/components/dash/ui";
 
@@ -67,6 +67,21 @@ export default function Inicio() {
   useEffect(() => setTermos(eu.config.termosCarpa), [eu.config.termosCarpa]);
   const live = eu.live;
   const dono = eu.membro.papel === "dono";
+  const agendada = eu.robo?.agendada ?? null;
+
+  // Como no Dash TCG: com esta página aberta, o Painel abre sozinho quando a
+  // live começa (a conta é conferida a cada 30 s enquanto não há live no ar).
+  const aoVivo = !!live?.aoVivo;
+  const estavaNoAr = useRef(aoVivo);
+  useEffect(() => {
+    if (aoVivo && !estavaNoAr.current && live) router.push(`/dash/painel/${encodeURIComponent(live.showId)}`);
+    estavaNoAr.current = aoVivo;
+  }, [aoVivo, live, router]);
+  useEffect(() => {
+    if (aoVivo) return;
+    const t = setInterval(recarregarEu, 30000);
+    return () => clearInterval(t);
+  }, [aoVivo, recarregarEu]);
 
   const lerMonitores = useCallback(() => {
     chamar<RespostaMonitor>("/api/dash/monitor")
@@ -148,8 +163,18 @@ export default function Inicio() {
             </div>
           ) : (
             <>
-              <p>Nenhuma live sua no ar agora.</p>
-              <p className="text-xs text-d-ink3">Quando a live começar, o robô entra nela sozinho em até 1 minuto e ela aparece aqui. A extensão do Edge é opcional.</p>
+              {agendada ? (
+                <div className="flex items-center gap-3 pb-1">
+                  <Avatar foto={agendada.capa} nome={agendada.titulo ?? "Live"} tamanho={40} />
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold">Próxima live: {agendada.titulo || "sem título"}</p>
+                    <p className="text-xs text-d-ink3">{agendada.inicio ? `agendada para ${dataHora(agendada.inicio)}` : "agendada na Jamble"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p>Nenhuma live agendada na Jamble.</p>
+              )}
+              <p className="text-xs text-d-ink3">Deixe esta página aberta: quando a live começar, o Painel abre sozinho. O robô entra na live em até 1 minuto, sem precisar da extensão.</p>
               {live && (
                 <p className="pt-2 text-xs">
                   Última:{" "}

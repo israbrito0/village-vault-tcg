@@ -262,7 +262,7 @@ export type RespostaEu = {
   ranking: Ranking | null;
   extensaoVistaEm: number | null;
   // O robô: quando começou a última rodada e quantas lives ele acompanha.
-  robo: { rodouEm: number | null; ativos: number };
+  robo: { rodouEm: number | null; ativos: number; agendada: { showId: string; titulo: string | null; inicio: number | null; capa: string | null } | null };
 };
 
 export type RespostaLive = {
