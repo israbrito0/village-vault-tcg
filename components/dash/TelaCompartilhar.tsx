@@ -5,7 +5,7 @@ import { useContext, useState } from "react";
 import { ArrowLeft, Ticket, Volume2, VolumeX } from "lucide-react";
 import { DashContexto, inteiro, useLiveDash, usePreferencia } from "@/lib/dash/cliente";
 import { Chat, Emotions, Leiloeiro, PontosPorUsuario, RankingCarpas, useAvisos, useContasLive, useRecados } from "@/components/dash/blocos";
-import { CartaoSorteio, duracaoDoGiro, Palco, useSortear } from "@/components/dash/Sorteios";
+import { CartaoSorteio, duracaoDoGiro, Palco, useGiroDeFora, useSorteioAgendado, useSortear } from "@/components/dash/Sorteios";
 import { Logo } from "@/components/dash/DashShell";
 import { Avatar, Kpi, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
@@ -101,7 +101,10 @@ function SorteiosDaTela({
   setMudo: (v: boolean) => void;
 }) {
   const [palco, setPalco] = useState(false);
-  const { giro, erro, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, duracaoDoGiro(d.visual));
+  const { giro: meuGiro, erro, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, duracaoDoGiro(d.visual));
+  const giroDeFora = useGiroDeFora(c, meuGiro, duracaoDoGiro(d.visual));
+  const giro = meuGiro ?? giroDeFora;
+  useSorteioAgendado(d.sorteios, acao, podeEditar, d.desvio);
   const lista = c.sorteios.filter((s) => s.ativo);
   return (
     <section className="space-y-3">
@@ -131,7 +134,7 @@ function SorteiosDaTela({
           <Vazio>Nenhum sorteio nesta live.</Vazio>
         </section>
       )}
-      {palco && <Palco d={d} c={c} giro={giro} sortear={sortear} aoFechar={() => setPalco(false)} podeEditar={podeEditar} volume={volume} mudo={mudo} setMudo={setMudo} />}
+      {palco && <Palco d={d} c={c} giro={giro} sortear={sortear} acao={acao} aoFechar={() => setPalco(false)} podeEditar={podeEditar} volume={volume} mudo={mudo} setMudo={setMudo} />}
     </section>
   );
 }

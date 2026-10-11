@@ -54,6 +54,8 @@ export type LiveCarregada = {
   conta: string;
   visual: VisualDoSorteio;
   atualizadoEm: number;
+  // Relógio do servidor menos o deste computador (para o sorteio agendado).
+  desvio: number;
 };
 
 // Carrega uma live e fica buscando o que chega (a cada 3 s com a aba na
@@ -103,6 +105,7 @@ export function useLiveDash(showId: string, intervalo = 3000, chave?: string) {
         conta: r.conta,
         visual: r.visual ?? visualDoSorteio(null),
         atualizadoEm: Date.now(),
+        desvio: r.agora ? r.agora - Date.now() : antes?.desvio ?? 0,
       };
       atual.current = novo;
       setDados(novo);

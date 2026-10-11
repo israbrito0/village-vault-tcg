@@ -1,9 +1,9 @@
 "use client";
 
 import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Check, ChevronDown, Gift, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Ticket, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
-import { descreverRegra, mensagemDeGanhador, regraPadrao, type Mensagem, type Regra } from "@/lib/dash/calculos";
-import type { Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
+import { CalendarClock, Check, ChevronDown, Gem, Gift, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Ticket, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
+import { descreverRegra, mensagemDeGanhador, regraPadrao, type Emocao, type Mensagem, type Regra } from "@/lib/dash/calculos";
+import type { Icone, Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
 import { destravarAudio, tocar } from "@/lib/dash/som";
 import { tocarMusica, tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
@@ -13,7 +13,7 @@ import Piao, { DURACAO_PIAO, PiaoParado } from "@/components/dash/Piao";
 import { Wing } from "@/components/Wordmark";
 import RespostaDoGanhador, { TEMPO_DO_GANHADOR_MS } from "@/components/dash/RespostaDoGanhador";
 import { Emotions, MensagensChat, useAvisos, useContasLive, useRecados, type Contas, type SorteioCalculado } from "@/components/dash/blocos";
-import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@/components/dash/ui";
+import { Avatar, Barra, ChipEmocao, Escolha, FiguraEmocao, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
 // Sorteios & Metas, no desenho do Dash TCG: barra com "Novo sorteio", "Nova
 // meta individual" e os modelos; a meta da live; as mensagens; as emotions; e
@@ -489,6 +489,12 @@ export function CartaoSorteio({
             {s.descricao}
             {s.premio ? ` · prêmio: ${s.premio}` : ""}
           </p>
+          {s.agendadoPara && (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-d-gold/15 px-2.5 py-0.5 text-xs font-bold text-d-gold">
+              <CalendarClock className="size-3.5" />
+              Agendado: gira sozinho às {new Date(s.agendadoPara).toLocaleTimeString("pt-BR")}
+            </p>
+          )}
         </div>
       </header>
 
@@ -566,12 +572,14 @@ export function Palco({
   mudo,
   setMudo,
   soUm = false,
+  acao,
 }: {
   d: LiveCarregada;
   c: Contas;
   inicial?: string;
   giro: Giro | null;
   sortear: (s: SorteioCalculado) => void;
+  acao?: Acao;
   aoFechar?: () => void;
   editar?: (s: SorteioCalculado) => void;
   podeEditar: boolean;
@@ -583,25 +591,24 @@ export function Palco({
   const lista = c.sorteios.filter((s) => s.regra.tipo === "sorteio");
   const [atual, setAtual] = useState(inicial ?? lista[0]?.id ?? "");
   const s = lista.find((x) => x.id === atual) ?? lista[0];
-  const [min, setMin] = useState(2);
-  const [seg, setSeg] = useState(0);
-  const [fim, setFim] = useState<number | null>(null);
+  // Agendou ou girou outro sorteio: a tela vai para ele (menos na tela de um
+  // sorteio só, do OBS).
+  const agendado = lista.find((x) => x.agendadoPara)?.id;
+  useEffect(() => {
+    const alvo = giro?.sorteioId ?? agendado;
+    if (!soUm && alvo && lista.some((x) => x.id === alvo)) setAtual(alvo);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [giro?.sorteioId, agendado, soUm]);
+  // O sorteio agendado fica no servidor (vale em todas as telas abertas); a
+  // tela de quem pode sortear sorteia sozinha na hora (useSorteioAgendado).
+  const fim = s?.agendadoPara ? s.agendadoPara - d.desvio : null;
   const [agora, setAgora] = useState(Date.now());
-  const sortearRef = useRef(sortear);
-  sortearRef.current = sortear;
-
   useEffect(() => {
     if (!fim) return;
-    const t = setInterval(() => {
-      const n = Date.now();
-      setAgora(n);
-      if (n >= fim) {
-        setFim(null);
-        if (s) sortearRef.current(s);
-      }
-    }, 200);
+    setAgora(Date.now());
+    const t = setInterval(() => setAgora(Date.now()), 250);
     return () => clearInterval(t);
-  }, [fim, s]);
+  }, [fim]);
 
   const meuGiro = s && giro?.sorteioId === s.id ? giro : null;
   const travado = !!s && !s.lib.livre && s.lib.disponiveis <= 0;
@@ -634,19 +641,21 @@ export function Palco({
   // embaixo, ou do ganhador e da contagem no giro), em qualquer formato de tela.
   const [tambor, setTambor] = useState(300);
   const girando = !!meuGiro;
+  const contando = !!fim;
   const [meio, setMeio] = useState<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!meio) return;
     const medir = () => {
       // Na tela estreita (9:16) o cronômetro do ganhador vai para baixo do nome.
-      const reserva = girando ? (meio.clientWidth < 600 ? 285 : 190) : meio.clientWidth < 600 ? 95 : 60;
+      const estreita = meio.clientWidth < 600;
+      const reserva = girando ? (estreita ? 285 : 190) : contando ? (estreita ? 165 : 120) : estreita ? 95 : 60;
       setTambor(Math.round(Math.max(150, Math.min(420, meio.clientHeight - reserva, meio.clientWidth * 0.8))));
     };
     medir();
     const ro = new ResizeObserver(medir);
     ro.observe(meio);
     return () => ro.disconnect();
-  }, [meio, girando]);
+  }, [meio, girando, contando]);
   const maiorBilhete = s ? Math.max(1, ...s.concorrendo.slice(0, 200).map((p) => p.bilhetes)) : 1;
   const tempo = Math.floor(restante / 60) > 0 ? `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}` : String(restante);
 
@@ -678,7 +687,7 @@ export function Palco({
       <div className="d-palco-feixe d-palco-feixe-dir" />
       <div className="d-palco-vinheta pointer-events-none absolute inset-0" />
 
-      <header className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+      <header className="relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
         <MarcaDoPiao />
         {!soUm && (
           <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
@@ -698,25 +707,8 @@ export function Palco({
           </div>
         )}
         {soUm && <span className="flex-1" />}
-        {/* O cronômetro do operador (não aparece para quem só olha). */}
-        {s && podeEditar && !meuGiro && (
-          <form
-            className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-d-ink3"
-            onSubmit={(e) => {
-              e.preventDefault();
-              setFim(fim ? null : Date.now() + (min * 60 + seg) * 1000);
-            }}
-          >
-            <Timer className="size-3.5" />
-            <input type="number" min={0} className="d-field w-12 px-1.5 py-0.5 text-center text-xs" value={min} onChange={(e) => setMin(Math.max(0, Number(e.target.value) || 0))} />
-            <span>min</span>
-            <input type="number" min={0} max={59} className="d-field w-12 px-1.5 py-0.5 text-center text-xs" value={seg} onChange={(e) => setSeg(Math.max(0, Math.min(59, Number(e.target.value) || 0)))} />
-            <span>s</span>
-            <button type="submit" className="rounded-full bg-white/[0.07] px-2.5 py-0.5 font-semibold text-d-ink2 hover:text-d-ink disabled:opacity-40" disabled={!s.concorrendo.length || travado}>
-              {fim ? "Parar" : "Iniciar cronômetro"}
-            </button>
-          </form>
-        )}
+        {/* Agendar o sorteio (só para quem pode sortear). */}
+        {s && podeEditar && acao && !meuGiro && <AgendarSorteio s={s} acao={acao} restante={fim ? restante : null} />}
         {d.live.aoVivo && (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F53A3A] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-[0_0_20px_rgb(245_58_58/0.5)]">
             <span className="size-1.5 animate-pulse rounded-full bg-white" />
@@ -755,6 +747,8 @@ export function Palco({
             className="d-palco-vidro relative flex min-h-0 flex-col items-center justify-between gap-3 overflow-hidden rounded-[28px] px-5 py-4 text-center sm:px-8"
             style={{ ["--d-tambor" as string]: `${tambor}px` }}
           >
+            {/* Enquanto espera o sorteio, os diamantes que chegam sobem pelos lados. */}
+            {!meuGiro && <DiamantesEmVolta emocoes={d.emocoes} icones={d.icones} />}
             {editar && podeEditar && (
               <button
                 className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-d-gold/20 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-d-ink2 transition hover:text-d-ink"
@@ -766,7 +760,7 @@ export function Palco({
             )}
 
             {/* O nome do sorteio, a regra e o prêmio. */}
-            <div className="flex w-full flex-col items-center gap-2">
+            <div className="relative z-10 flex w-full flex-col items-center gap-2">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.45em] text-d-gold/80">◆ Sorteio da live ◆</p>
               <h1 className="d-ouro max-w-5xl font-display text-[clamp(1.2rem,2.2vw,2.1rem)] font-extrabold uppercase leading-[1.08] [text-wrap:balance]">{s.nome}</h1>
               <p className="line-clamp-2 max-w-3xl text-xs text-d-ink3 [@media(max-height:820px)]:hidden">{s.descricao}</p>
@@ -786,7 +780,7 @@ export function Palco({
             </div>
 
             {/* O pião: parado (com a marca ou a contagem) ou girando. */}
-            <div ref={setMeio} className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3">
+            <div ref={setMeio} className="relative z-10 flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3">
               {meuGiro ? (
                 <div className="w-full max-w-3xl">
                   <GiroDoSorteio
@@ -813,14 +807,14 @@ export function Palco({
                       {placa}
                     </PiaoParado>
                   )}
-                  <StatusDoPalco s={s} contando={!!fim} />
+                  <StatusDoPalco s={s} restante={fim ? restante : null} />
                 </>
               )}
             </div>
 
             {/* Durante o giro e a resposta do ganhador o botão sai (o espaço vai para o pião). */}
             {!meuGiro && (
-              <div className="flex flex-col items-center gap-3">
+              <div className="relative z-10 flex flex-col items-center gap-3">
                 {podeEditar && (
                   <button
                     className="d-botao-sortear px-14 py-3.5 font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-extrabold tracking-[0.14em] sm:px-20"
@@ -912,7 +906,7 @@ function MarcaDoPiao() {
 
 // Embaixo do pião parado: se pode girar, quanto falta para liberar ou a
 // contagem para começar.
-function StatusDoPalco({ s, contando }: { s: SorteioCalculado; contando: boolean }) {
+function StatusDoPalco({ s, restante }: { s: SorteioCalculado; restante: number | null }) {
   const numeros = (
     <>
       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-d-ink2">
@@ -925,11 +919,26 @@ function StatusDoPalco({ s, contando }: { s: SorteioCalculado; contando: boolean
       </span>
     </>
   );
+  // Sorteio agendado: o recado para quem está assistindo.
+  if (restante != null) {
+    const tempo = restante > 60 ? `${Math.ceil(restante / 60)} minutos` : restante === 1 ? "1 segundo" : `${restante} segundos`;
+    return (
+      <div className="flex max-w-3xl flex-col items-center gap-1.5">
+        <p className="d-ouro font-display text-[clamp(1rem,1.9vw,1.55rem)] font-extrabold uppercase leading-tight [text-wrap:balance]">
+          Você tem {tempo} para enviar o máximo de diamantes!
+        </p>
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-d-ink sm:text-base">
+          <Gem className="size-4 shrink-0 text-d-gold" />
+          Quanto mais diamantes, mais chances de ganhar!
+        </p>
+        <div className="mt-1 flex flex-wrap justify-center gap-2">{numeros}</div>
+      </div>
+    );
+  }
   if (!s.concorrendo.length) return <p className="text-sm text-d-ink3">Ninguém concorrendo ainda.</p>;
   const p = s.lib.proximo;
   let aviso: ReactNode;
-  if (contando) aviso = <span className="text-xs font-bold uppercase tracking-[0.3em] text-d-gold/80">o sorteio começa sozinho</span>;
-  else if (s.lib.livre) {
+  if (s.lib.livre) {
     aviso = (
       <span className="inline-flex items-center gap-2 rounded-full border border-d-gold/30 bg-d-gold/10 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-d-gold">
         <span className="size-1.5 animate-pulse rounded-full bg-d-gold" />
@@ -964,6 +973,212 @@ function StatusDoPalco({ s, contando }: { s: SorteioCalculado; contando: boolean
       {numeros}
     </div>
   );
+}
+
+// O botão de agendar na barra do palco: em quantos minutos o pião gira
+// sozinho. Agendado, vira a contagem com "Cancelar".
+const MINUTOS = [1, 2, 3, 5, 10];
+const relogio = (seg: number) => (seg >= 60 ? `${Math.floor(seg / 60)}:${String(seg % 60).padStart(2, "0")}` : `${seg} s`);
+
+function AgendarSorteio({ s, acao, restante }: { s: SorteioCalculado; acao: Acao; restante: number | null }) {
+  const [aberto, setAberto] = useState(false);
+  const [min, setMin] = useState(2);
+  const [enviando, setEnviando] = useState(false);
+  async function agendar() {
+    setEnviando(true);
+    const r = await acao({ acao: "agendar", id: s.id, segundos: Math.round(min * 60) });
+    setEnviando(false);
+    if (r) setAberto(false);
+  }
+  if (restante != null) {
+    return (
+      <span className="inline-flex items-center gap-2 rounded-full border border-d-gold/40 bg-d-gold/10 py-1 pl-3 pr-1 text-xs font-bold text-d-gold">
+        <CalendarClock className="size-3.5" />
+        Sorteio em <span className="tabular-nums">{relogio(restante)}</span>
+        <button className="rounded-full bg-white/[0.08] px-2.5 py-0.5 font-semibold text-d-ink2 hover:text-d-ink" onClick={() => acao({ acao: "desagendar", id: s.id })}>
+          Cancelar
+        </button>
+      </span>
+    );
+  }
+  return (
+    <div className="relative">
+      <button
+        className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] px-3.5 py-1.5 text-sm font-bold text-[#1a1405] shadow-[0_0_20px_rgb(244_175_20/0.35)] transition hover:brightness-105"
+        onClick={() => setAberto(!aberto)}
+      >
+        <CalendarClock className="size-4" />
+        Agendar sorteio
+      </button>
+      {aberto && (
+        <div className="absolute right-0 top-full z-30 mt-2 w-[310px] rounded-2xl border border-d-gold/25 bg-[#0e0f14]/95 p-4 text-left shadow-[0_24px_60px_-12px_rgb(0_0_0/0.8)] backdrop-blur">
+          <p className="font-display text-sm font-extrabold uppercase tracking-wider text-d-gold">Agendar sorteio</p>
+          <p className="mt-1 text-xs text-d-ink3">O pião gira sozinho quando o tempo acabar. Até lá, a tela mostra para a live:</p>
+          <p className="mt-2 rounded-xl border border-d-gold/20 bg-d-gold/[0.06] px-3 py-2 text-xs font-semibold leading-relaxed text-d-ink">
+            “Você tem {min} {min === 1 ? "minuto" : "minutos"} para enviar o máximo de diamantes! Quanto mais diamantes, mais chances de ganhar!”
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {MINUTOS.map((m) => (
+              <button
+                key={m}
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${m === min ? "bg-d-gold text-[#1a1405]" : "border border-white/10 bg-white/[0.05] text-d-ink2 hover:text-d-ink"}`}
+                onClick={() => setMin(m)}
+              >
+                {m} min
+              </button>
+            ))}
+            <label className="inline-flex items-center gap-1 text-xs text-d-ink3">
+              <input
+                type="number"
+                min={1}
+                max={120}
+                className="d-field w-14 px-1.5 py-0.5 text-center text-xs"
+                value={min}
+                onChange={(e) => setMin(Math.max(1, Math.min(120, Math.round(Number(e.target.value) || 1))))}
+              />
+              min
+            </label>
+          </div>
+          <div className="mt-4 flex items-center justify-end gap-2">
+            <button className="rounded-full px-3 py-1.5 text-xs font-semibold text-d-ink3 hover:text-d-ink" onClick={() => setAberto(false)}>
+              Fechar
+            </button>
+            <button
+              disabled={enviando}
+              className="rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] px-4 py-1.5 text-xs font-bold text-[#1a1405] disabled:opacity-50"
+              onClick={agendar}
+            >
+              {enviando ? "Agendando…" : `Começar daqui a ${min} min`}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Enquanto o sorteio não gira, cada diamante que alguém manda na live sobe
+// pelos lados do palco com o rosto da pessoa e a figurinha. Só os que chegam
+// com a tela aberta, um a cada 0,18 s no máximo, até 22 na tela.
+type Bolha = { chave: string; foto: string | null; handle: string; icone: string; x: number; dx: number; dur: number; tam: number };
+
+function DiamantesEmVolta({ emocoes, icones }: { emocoes: Emocao[]; icones: Record<string, Icone> }) {
+  const vistos = useRef<Set<string> | null>(null);
+  const fila = useRef<Emocao[]>([]);
+  const [bolhas, setBolhas] = useState<Bolha[]>([]);
+  useEffect(() => {
+    if (!vistos.current) {
+      vistos.current = new Set(emocoes.map((e) => e.id));
+      return;
+    }
+    for (const e of emocoes) {
+      if (vistos.current.has(e.id)) continue;
+      vistos.current.add(e.id);
+      fila.current.push(e);
+    }
+    if (fila.current.length > 40) fila.current = fila.current.slice(-40);
+  }, [emocoes]);
+  useEffect(() => {
+    const t = setInterval(() => {
+      const e = fila.current.shift();
+      if (!e) return;
+      // Pelos lados, longe do pião: 2–24% ou 76–98% da largura.
+      const esquerda = Math.random() < 0.5;
+      const x = esquerda ? 2 + Math.random() * 22 : 76 + Math.random() * 22;
+      const b: Bolha = { chave: e.id, foto: e.foto ?? null, handle: e.handle, icone: e.icone, x, dx: (Math.random() - 0.5) * 70, dur: 5 + Math.random() * 2.5, tam: 0.8 + Math.random() * 0.4 };
+      setBolhas((l) => [...l.slice(-21), b]);
+    }, 180);
+    return () => clearInterval(t);
+  }, []);
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+      {bolhas.map((b) => (
+        <div
+          key={b.chave}
+          className="absolute bottom-0"
+          style={{ left: `${b.x}%`, ["--dx" as string]: `${b.dx}px`, animation: `dBolha ${b.dur}s ease-out forwards` }}
+          onAnimationEnd={(ev) => {
+            if (ev.animationName === "dBolha") setBolhas((l) => l.filter((x) => x.chave !== b.chave));
+          }}
+        >
+          <div style={{ transform: `scale(${b.tam})` }}>
+            <div className="flex flex-col items-center" style={{ animation: "dBalanca 1.6s ease-in-out infinite alternate" }}>
+              <div className="relative">
+                <span className="block rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] p-[2px] shadow-[0_0_18px_rgb(244_175_20/0.45)]">
+                  <Avatar foto={b.foto} nome={b.handle} tamanho={46} />
+                </span>
+                <span className="absolute -bottom-1 -right-2 grid size-7 place-items-center rounded-full bg-[#121216] ring-2 ring-[#f4af14]/70">
+                  <FiguraEmocao id={b.icone} icones={icones} className="size-5" />
+                </span>
+              </div>
+              <span className="mt-1 max-w-[96px] truncate rounded-full bg-black/45 px-1.5 text-[10px] font-semibold text-white/90">@{b.handle}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Sorteio agendado: na hora, a tela de quem pode sortear sorteia sozinha. Se
+// houver mais de uma aberta, o servidor deixa só a primeira (as outras rodam o
+// pião pelo useGiroDeFora).
+export function useSorteioAgendado(sorteios: Sorteio[] | undefined, acao: Acao, ativo: boolean, desvio: number) {
+  const disparados = useRef(new Set<string>());
+  const atual = useRef({ sorteios, acao, desvio });
+  atual.current = { sorteios, acao, desvio };
+  useEffect(() => {
+    if (!ativo) return;
+    const t = setInterval(() => {
+      const { sorteios: lista, acao: fazer, desvio: d } = atual.current;
+      const agora = Date.now() + d;
+      for (const s of lista ?? []) {
+        if (!s.agendadoPara || agora < s.agendadoPara) continue;
+        const chave = `${s.id}:${s.agendadoPara}`;
+        if (disparados.current.has(chave)) continue;
+        disparados.current.add(chave);
+        fazer({ acao: "sortear", id: s.id, agendado: true });
+      }
+    }, 400);
+    return () => clearInterval(t);
+  }, [ativo]);
+}
+
+// Ganhador novo que esta tela não sorteou (o agendado que outra tela sorteou,
+// ou o painel sorteando com a tela do OBS aberta): roda o pião aqui também.
+// Espera um pouco antes: se foi esta tela que sorteou, o giro já é dela.
+export function useGiroDeFora(c: Contas | null, meuGiro: Giro | null, duracao: number, sorteioId?: string) {
+  const [giro, setGiro] = useState<Giro | null>(null);
+  const vistos = useRef<Set<string> | null>(null);
+  const meu = useRef(meuGiro);
+  meu.current = meuGiro;
+  useEffect(() => {
+    if (!c) return;
+    const todos = c.sorteios.flatMap((s) => s.ganhadores.map((g) => ({ s, g })));
+    if (vistos.current === null) {
+      vistos.current = new Set(todos.map((x) => x.g.id));
+      return;
+    }
+    const novo = todos.find((x) => !vistos.current!.has(x.g.id) && x.g.status === "valido" && (!sorteioId || x.s.id === sorteioId));
+    for (const x of todos) vistos.current.add(x.g.id);
+    if (!novo || Date.now() - novo.g.ts > 60000) return;
+    const lista = novo.s.concorrendo.slice(0, 60).map((p) => ({ handle: p.handle, foto: p.foto, bilhetes: p.bilhetes }));
+    const deFora: Giro = {
+      chave: novo.g.id,
+      sorteioId: novo.s.id,
+      ganhador: { handle: novo.g.handle, foto: novo.g.foto, bilhetes: novo.g.bilhetes },
+      lista: lista.length ? lista : [{ handle: novo.g.handle, foto: novo.g.foto, bilhetes: 1 }],
+      premio: novo.s.premio,
+      nome: novo.s.nome,
+    };
+    setTimeout(() => {
+      if (meu.current?.chave === deFora.chave) return;
+      setGiro(deFora);
+      // O giro e os 10 segundos para o ganhador responder no chat.
+      setTimeout(() => setGiro((g) => (g?.chave === deFora.chave ? null : g)), duracao + TEMPO_DO_GANHADOR_MS + 500);
+    }, 1200);
+  }, [c, sorteioId, duracao]);
+  return giro;
 }
 
 // ---------- sortear (com a roleta) ----------
@@ -1234,7 +1449,10 @@ export default function Sorteios({ showId }: { showId: string }) {
   const [form, setForm] = useState<{ id?: string; nome: string; premio: string; regra: Regra } | null>(null);
   const [palco, setPalco] = useState(false);
   const { recados, novo } = useRecados();
-  const { giro, erro: erroAcao, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, d ? duracaoDoGiro(d.visual) : DURACAO_PIAO);
+  const { giro: meuGiro, erro: erroAcao, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume, d ? duracaoDoGiro(d.visual) : DURACAO_PIAO);
+  const giroDeFora = useGiroDeFora(c, meuGiro, d ? duracaoDoGiro(d.visual) : DURACAO_PIAO);
+  const giro = meuGiro ?? giroDeFora;
+  useSorteioAgendado(d?.sorteios, acao, !!d?.podeEditar, d?.desvio ?? 0);
   useAvisos(d, c, { sons: sons && !mudo, volume, voz: false, novo });
 
   useEffect(() => {
@@ -1335,7 +1553,7 @@ export default function Sorteios({ showId }: { showId: string }) {
       )}
 
       {palco && (
-        <Palco d={d} c={c} giro={giro} sortear={sortear} aoFechar={() => setPalco(false)} editar={(s) => { setPalco(false); editar(s); }} podeEditar={d.podeEditar} volume={volume} mudo={mudo} setMudo={setMudo} />
+        <Palco d={d} c={c} giro={giro} sortear={sortear} acao={acao} aoFechar={() => setPalco(false)} editar={(s) => { setPalco(false); editar(s); }} podeEditar={d.podeEditar} volume={volume} mudo={mudo} setMudo={setMudo} />
       )}
     </main>
   );

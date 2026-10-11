@@ -452,6 +452,34 @@ body {
   box-shadow: none;
 }
 
+/* Os diamantes que chegam subindo pelos lados do palco (com o rosto de quem
+   mandou), balançando de leve até sumir lá em cima. */
+@keyframes dBolha {
+  0% {
+    transform: translate(-50%, 20%) scale(0.3);
+    opacity: 0;
+  }
+  12% {
+    transform: translate(-50%, -7vh) scale(1);
+    opacity: 1;
+  }
+  75% {
+    opacity: 0.95;
+  }
+  100% {
+    transform: translate(calc(-50% + var(--dx, 0px)), -72vh) scale(0.85);
+    opacity: 0;
+  }
+}
+@keyframes dBalanca {
+  from {
+    transform: translateX(-8px) rotate(-5deg);
+  }
+  to {
+    transform: translateX(8px) rotate(5deg);
+  }
+}
+
 /* O anel do pião pulsando na reta final, antes do ganhador. */
 @keyframes dTensao {
   from {

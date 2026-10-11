@@ -127,6 +127,8 @@ export type Sorteio = {
   ativo: boolean;
   ordem: number;
   criadoEm: number;
+  // Sorteio agendado: a hora (no relógio do servidor) em que ele começa sozinho.
+  agendadoPara: number | null;
   regra: Regra;
   ganhadores: Ganhador[];
 };
@@ -168,6 +170,7 @@ export function sorteioDaLinha(r: Linha, ganhadores: Linha[], termos?: string[])
     ativo: r.ativo !== false,
     ordem: Number(r.ordem) || 0,
     criadoEm: ms(r.criado_em),
+    agendadoPara: r.agendado_para ? ms(r.agendado_para) : null,
     regra: regraDoSorteio({ ...antigo, regra: (r.regra as Partial<Regra>) ?? null }, termos),
     ganhadores: ganhadores
       .filter((g) => g.sorteio_id === r.id)

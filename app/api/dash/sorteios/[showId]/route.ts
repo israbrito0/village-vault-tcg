@@ -29,6 +29,9 @@ type Corpo = {
   premio?: string | null;
   ativo?: boolean;
   regra?: Partial<Regra>;
+  // agendar: daqui a quantos segundos; sortear: veio do agendamento.
+  segundos?: number;
+  agendado?: boolean;
 };
 
 const num = (v: unknown) => (Number(v) > 0 ? Math.round(Number(v)) : null);
@@ -123,6 +126,40 @@ export async function POST(req: Request, { params }: { params: { showId: string 
   if (c.acao === "zerar") {
     await db().from("dash_ganhadores").delete().eq("sorteio_id", c.id);
     return ok({ sorteios: await lista() });
+  }
+
+  // Agendar: o sorteio começa sozinho daqui a N segundos (de 10 s a 2 h).
+  if (c.acao === "agendar") {
+    const segundos = Math.round(Number(c.segundos));
+    if (!(segundos >= 10 && segundos <= 7200)) return erro(400, "escolha de 10 segundos a 2 horas");
+    const { error } = await db()
+      .from("dash_sorteios")
+      .update({ agendado_para: new Date(Date.now() + segundos * 1000).toISOString() })
+      .eq("id", c.id);
+    if (error) return erro(500, "não consegui agendar");
+    return ok({ sorteios: await lista() });
+  }
+  if (c.acao === "desagendar") {
+    await db().from("dash_sorteios").update({ agendado_para: null }).eq("id", c.id);
+    return ok({ sorteios: await lista() });
+  }
+
+  if (c.acao === "sortear") {
+    if (c.agendado) {
+      // Chegou a hora do agendado: várias telas podem pedir juntas; só a
+      // primeira leva (ela apaga o agendamento) e as outras só atualizam.
+      const { data: vaga } = await db()
+        .from("dash_sorteios")
+        .update({ agendado_para: null })
+        .eq("id", c.id)
+        .not("agendado_para", "is", null)
+        .lte("agendado_para", new Date(Date.now() + 5000).toISOString())
+        .select("id");
+      if (!vaga?.length) return ok({ sorteios: await lista() });
+    } else if (s.agendado_para) {
+      // Sorteou na mão antes da hora: o agendamento acaba.
+      await db().from("dash_sorteios").update({ agendado_para: null }).eq("id", c.id);
+    }
   }
 
   if (c.acao === "sortear" || c.acao === "resortear") {
