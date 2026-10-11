@@ -14,11 +14,11 @@ const LARGURA = 132; // de cada casa da fita
 export const CASAS = 64;
 export const PARADA = 54; // em que casa o ganhador para
 
-export function montarFita(lista: Pessoa[], ganhador: Pessoa) {
+export function montarFita(lista: Pessoa[], ganhador: Pessoa, casas = CASAS, parada = PARADA) {
   const total = lista.reduce((s, p) => s + Math.max(1, p.bilhetes), 0) || 1;
   const fita: Pessoa[] = [];
-  for (let i = 0; i < CASAS; i++) {
-    if (i === PARADA) {
+  for (let i = 0; i < casas; i++) {
+    if (i === parada) {
       fita.push(ganhador);
       continue;
     }

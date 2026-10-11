@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { montarFita, PARADA, type Pessoa } from "@/components/dash/Roleta";
+import { montarFita, type Pessoa } from "@/components/dash/Roleta";
 import { Avatar } from "@/components/dash/ui";
 import { tocarMusica, type Musica } from "@/lib/dash/musica";
 import { tocar } from "@/lib/dash/som";
@@ -12,9 +12,49 @@ import { tocar } from "@/lib/dash/som";
 // ganhador (que o servidor já sorteou) dentro da moldura do meio. A música
 // toca enquanto gira e a fanfarra entra quando ele para.
 
-export const DURACAO_PIAO = 9000;
+export const DURACAO_PIAO = 13000;
 // Ângulo entre um nome e o próximo no tambor (36°: cinco nomes por meia volta).
 const PASSO = Math.PI / 5;
+// Quantos nomes passam até o ganhador (mais que na fita: o pião gira mais).
+const CASAS_PIAO = 116;
+const PARADA_PIAO = 110;
+
+// O caminho do tambor (em nomes) ao longo do giro, t de 0 a 1. Arranca, gira
+// na velocidade máxima um bom tempo e freia até quase parar com o ganhador
+// aparecendo na beirada da moldura; segura ali um instante, quase parado, e
+// então cai devagar no ganhador, passa um tiquinho e volta. É o suspense da
+// reta final.
+const ARRANCA = 0.031; // até aqui acelera (0,4 s de 13)
+const GIRA = 0.369; // até aqui gira no máximo (4,8 s)
+const FREIA = 0.73; // até aqui freia (9,5 s)
+const SEGURA = 0.79; // segura na beirada
+const CAI = 0.945; // cai no ganhador, passando um pouco
+const BEIRADA = 0.62; // quanto falta para o ganhador quando quase para
+const ANDA = 0.04; // o que ainda anda enquanto segura
+const PASSA = 0.1; // o quanto passa do ganhador antes de voltar
+const entraESai = (u: number) => (u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2);
+
+// A parte do giro até a beirada (0 a 1): velocidade subindo, constante e
+// caindo com (1 - s)², somada até t.
+function giroAte(t: number): number {
+  const total = ARRANCA / 2 + (GIRA - ARRANCA) + (FREIA - GIRA) / 3;
+  if (t < ARRANCA) return (t * t) / (2 * ARRANCA) / total;
+  if (t < GIRA) return (ARRANCA / 2 + (t - ARRANCA)) / total;
+  const s = (t - GIRA) / (FREIA - GIRA);
+  return (ARRANCA / 2 + (GIRA - ARRANCA) + ((FREIA - GIRA) / 3) * (1 - Math.pow(1 - s, 3))) / total;
+}
+
+function posicaoDoPiao(t: number): number {
+  const P = PARADA_PIAO;
+  if (t < FREIA) return (P - BEIRADA) * giroAte(t);
+  if (t < SEGURA) {
+    const u = (t - FREIA) / (SEGURA - FREIA);
+    // Quase parado: anda um fio e balança, como o pião antes de tombar.
+    return P - BEIRADA + ANDA * u + 0.015 * Math.sin(u * Math.PI * 3);
+  }
+  if (t < CAI) return P - BEIRADA + ANDA + (BEIRADA - ANDA + PASSA) * entraESai((t - SEGURA) / (CAI - SEGURA));
+  return P + PASSA * (1 - entraESai(Math.min(1, (t - CAI) / (1 - CAI))));
+}
 
 export default function Piao({
   participantes,
@@ -40,11 +80,16 @@ export default function Piao({
   sons?: boolean;
   extra?: ReactNode;
 }) {
-  const fita = useMemo(() => montarFita(participantes.length ? participantes : [ganhador], ganhador), [participantes, ganhador]);
+  const fita = useMemo(
+    () => montarFita(participantes.length ? participantes : [ganhador], ganhador, CASAS_PIAO, PARADA_PIAO),
+    [participantes, ganhador],
+  );
   const tambor = useRef<HTMLDivElement>(null);
   const nomes = useRef<(HTMLDivElement | null)[]>([]);
   const [lado, setLado] = useState(0);
   const [parou, setParou] = useState(false);
+  // A reta final: os últimos nomes passando devagar até o ganhador.
+  const [suspense, setSuspense] = useState(false);
 
   // O tamanho do tambor (os nomes e o giro dependem dele).
   useEffect(() => {
@@ -61,12 +106,14 @@ export default function Piao({
     const el = tambor.current;
     if (!el) return;
     const m: Musica = musica ?? { tipo: "padrao" };
-    const tocando = tocarMusica(m, volume);
+    // Em loop: uma música mais curta que o giro não acaba antes do ganhador.
+    const tocando = tocarMusica({ ...m, loop: true }, volume);
     const comMusica = m.tipo !== "nenhuma" && volume > 0;
     const inicio = performance.now();
     let quadro = 0;
     let ultimo = -1;
     let antes = 0;
+    let naRetaFinal = false;
     let fimDaMusica: ReturnType<typeof setTimeout> | undefined;
 
     const desenhar = (agora: number) => {
@@ -74,10 +121,13 @@ export default function Piao({
       const casa = D * 0.5;
       const raio = casa / PASSO;
       const t = Math.min(1, (agora - inicio) / duracaoMs);
-      // Sai rápido e freia devagar até parar em cima do ganhador.
-      const pos = (1 - Math.pow(1 - t, 4)) * PARADA;
+      const pos = posicaoDoPiao(t);
       const borrao = Math.min(5, Math.abs(pos - antes) * 12);
       antes = pos;
+      if (!naRetaFinal && pos > PARADA_PIAO - 2.6) {
+        naRetaFinal = true;
+        setSuspense(true);
+      }
       for (let i = 0; i < fita.length; i++) {
         const n = nomes.current[i];
         if (!n) continue;
@@ -148,6 +198,8 @@ export default function Piao({
           boxShadow: parou
             ? "0 0 0 5px #ffe07a, 0 0 0 11px #ff9d00, 0 0 46px 22px rgba(255,170,0,.75), 0 0 110px 50px rgba(255,130,0,.4)"
             : "0 0 0 5px #ffcf4a, 0 0 0 11px rgba(255,140,0,.9), 0 0 38px 18px rgba(255,140,0,.6), 0 0 90px 40px rgba(255,110,0,.3)",
+          // Na reta final o anel pulsa.
+          animation: suspense && !parou ? "dTensao .42s ease-in-out infinite alternate" : undefined,
           transition: "box-shadow .4s",
         }}
       >
@@ -160,7 +212,7 @@ export default function Piao({
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[62%] w-[54%] -translate-x-1/2 -translate-y-1/2 rounded-[6px] transition-all duration-500"
           style={{
-            border: `${Math.max(2, lado * 0.008)}px solid ${parou ? "#ffd34d" : "rgba(230,230,235,.75)"}`,
+            border: `${Math.max(2, lado * 0.008)}px solid ${parou ? "#ffd34d" : suspense ? "rgba(255,214,110,.9)" : "rgba(230,230,235,.75)"}`,
             boxShadow: parou ? "0 0 26px 6px rgba(255,200,60,.55), inset 0 0 30px rgba(255,200,60,.25)" : "inset 0 0 24px rgba(0,0,0,.45)",
             background: "linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.07), rgba(255,255,255,.02))",
           }}
@@ -178,12 +230,12 @@ export default function Piao({
                 visibility: "hidden",
                 fontSize: tamanhos.get(p.handle) ?? 16,
                 whiteSpace: "nowrap",
-                color: parou && i === PARADA ? "#ffd34d" : "#f4f4f6",
+                color: parou && i === PARADA_PIAO ? "#ffd34d" : "#f4f4f6",
                 textShadow: "0 3px 0 rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.35)",
                 letterSpacing: "-0.02em",
               }}
             >
-              <span className={`block ${parou && i === PARADA ? "d-pulse" : ""}`}>@{p.handle}</span>
+              <span className={`block ${parou && i === PARADA_PIAO ? "d-pulse" : ""}`}>@{p.handle}</span>
             </div>
           ))}
       </div>
@@ -200,7 +252,9 @@ export default function Piao({
           {extra}
         </div>
       ) : (
-        <p className={`mt-6 font-bold uppercase tracking-[0.3em] text-d-ink3 ${grande ? "text-lg" : "text-xs"}`}>rodando o pião…</p>
+        <p className={`mt-6 font-bold uppercase tracking-[0.3em] ${suspense ? "d-pulse text-d-gold" : "text-d-ink3"} ${grande ? "text-lg" : "text-xs"}`}>
+          {suspense ? "e o ganhador é…" : "rodando o pião…"}
+        </p>
       )}
     </div>
   );
