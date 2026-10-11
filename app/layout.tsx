@@ -11,6 +11,7 @@ const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["600", "700", "800"],
   variable: "--font-display",
+  display: "swap",
 });
 
 // Texto e botões; 600 e 700 são os pesos reais dos menus em negrito.
@@ -18,6 +19,10 @@ const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-inter",
+  // "swap": o texto aparece na hora com a fonte do sistema e troca quando a
+  // Inter chega. Mudar as opções também refaz a fonte do zero na Vercel (o
+  // cache dela tinha juntado duas versões e o site ficou sem a Inter).
+  display: "swap",
 });
 
 // Refaz as páginas no máximo a cada hora: assim banners com data (ex.: live)
