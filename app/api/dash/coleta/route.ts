@@ -15,6 +15,7 @@ const CORS = {
 };
 
 const LIMITES = { lives: 6, emocoes: 5000, chat: 3000, vendas: 2000 };
+const TITULO_GENERICO = /^(seller hub|jamble|painel do vendedor|live)$/i;
 
 type Obj = Record<string, unknown>;
 const txt = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
@@ -65,7 +66,8 @@ export async function POST(req: Request) {
       const linha: Obj = { show_id: showId, conta, visto_em: new Date().toISOString() };
       if (l.vendedor !== undefined) linha.vendedor = handle(l.vendedor);
       if (l.vendedorFoto !== undefined) linha.vendedor_foto = url(l.vendedorFoto);
-      if (l.titulo !== undefined) linha.titulo = txt(l.titulo, 200);
+      // O título da aba do painel do vendedor ("Seller Hub") não é o da live.
+      if (l.titulo !== undefined && !TITULO_GENERICO.test(String(l.titulo ?? "").trim())) linha.titulo = txt(l.titulo, 200);
       if (l.capa !== undefined) linha.capa_url = url(l.capa);
       if (l.inicio !== undefined && num(l.inicio)) linha.inicio = quando(l.inicio);
       if (typeof l.aoVivo === "boolean") {
@@ -131,6 +133,8 @@ export async function POST(req: Request) {
       }
 
       let vendasGravadas = 0;
+      // A cópia das lives do Dash TCG chega marcada; o resto é da extensão.
+      const origem = l.origem === "dashtcg" ? "dashtcg" : "extensao";
       if (Array.isArray(l.vendas)) {
         const agora = new Date().toISOString();
         const vendas = (l.vendas as Obj[])
@@ -156,6 +160,7 @@ export async function POST(req: Request) {
               cancelado: v.cancelado === true,
               ts: quando(v.ts),
               atualizado_em: agora,
+              origem,
             };
           });
         await emLotes(vendas, 500, (lote) => db().from("dash_vendas").upsert(lote, { onConflict: "id" }));
@@ -163,9 +168,12 @@ export async function POST(req: Request) {
 
         // Lista completa: o que não veio mais saiu da live (uma compra direta
         // vista ao vivo que depois apareceu na lista Vendidos com outro código).
-        if (l.vendasCompletas === true) {
+        // Só mexe no que a própria extensão mandou, e nunca com a lista vazia:
+        // a aba do painel do vendedor manda a live sem vendas, e isso já
+        // apagou a cópia do Dash TCG da live de 09/10.
+        if (l.vendasCompletas === true && origem === "extensao" && vendas.length > 0) {
           const ficam = new Set(vendas.map((v) => v.id));
-          const { data: existentes } = await db().from("dash_vendas").select("id").eq("show_id", showId).limit(5000);
+          const { data: existentes } = await db().from("dash_vendas").select("id").eq("show_id", showId).eq("origem", "extensao").limit(5000);
           const sobram = (existentes ?? []).map((x) => x.id as string).filter((id) => !ficam.has(id));
           await emLotes(sobram, 100, (lote) => db().from("dash_vendas").delete().in("id", lote));
         }
