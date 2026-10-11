@@ -370,6 +370,239 @@ export function pontosEstimados(
   return Math.round(oficial.pontos + vendasDepois * 3 + gemasDepois * 2);
 }
 
+// ---------- regra de sorteio (o modelo do Dash TCG) ----------
+//
+// Quem concorre (quem mandou emotion, quem comprou ou os dois), quais emotions
+// contam, quando o sorteio é liberado (livre, ou por metas que se somam: a
+// cada N emotions, pontos, itens, reais ou pontos do ranking) e a chance de
+// cada um (por pontos, por quantidade ou igual). A "meta individual" é a
+// mesma regra com um alvo: cada pessoa que chegar nele ganha.
+
+export type MetasDaRegra = {
+  emocoes?: number | null;
+  pontos?: number | null;
+  itens?: number | null;
+  reais?: number | null;
+  ranking?: number | null;
+  metaDaLive?: boolean;
+};
+
+export type Regra = {
+  tipo: "sorteio" | "individual";
+  quem: "emocao" | "compra" | "ambos";
+  icones: string[] | null; // null = todas as emotions, até as que vierem depois
+  liberacao: "metas" | "livre";
+  metas: MetasDaRegra;
+  chance: "pontos" | "quantidade" | "igual";
+  repetir: boolean;
+  excluirSuspeitos: boolean;
+  excluir: string[];
+  alvo?: number | null; // meta individual
+  unidade?: "emocoes" | "pontos"; // meta individual
+};
+
+export function regraPadrao(tipo: Regra["tipo"] = "sorteio"): Regra {
+  return tipo === "individual"
+    ? { tipo, quem: "emocao", icones: null, liberacao: "livre", metas: {}, chance: "quantidade", repetir: false, excluirSuspeitos: true, excluir: [], alvo: 10, unidade: "emocoes" }
+    : { tipo, quem: "emocao", icones: null, liberacao: "metas", metas: { emocoes: 50 }, chance: "quantidade", repetir: true, excluirSuspeitos: true, excluir: [] };
+}
+
+// Sorteios gravados antes do modelo novo (fonte, peso, a cada N) viram regra.
+export function regraDoSorteio(s: {
+  regra?: Partial<Regra> | null;
+  fonte?: string;
+  peso?: string;
+  repetir?: boolean;
+  excluirSuspeitos?: boolean;
+  excluir?: string[];
+  modo?: string;
+  aCada?: number | null;
+}, termos: string[] = [CARPA]): Regra {
+  if (s.regra && s.regra.tipo) {
+    const base = regraPadrao(s.regra.tipo);
+    return { ...base, ...s.regra, metas: { ...(s.regra.metas ?? {}) }, excluir: s.regra.excluir ?? [] } as Regra;
+  }
+  const fonte = s.fonte ?? "emocoes";
+  const r = regraPadrao("sorteio");
+  r.repetir = s.repetir !== false;
+  r.excluirSuspeitos = s.excluirSuspeitos !== false;
+  r.excluir = s.excluir ?? [];
+  r.chance = s.peso === "igual" ? "igual" : "quantidade";
+  r.quem = fonte === "compradores" ? "compra" : "emocao";
+  r.icones = fonte.startsWith("emocao:") ? [fonte.slice(7)] : fonte === "carpas" ? termos.filter((t) => /^[a-z0-9_]+$/.test(t)) : null;
+  if (fonte === "gemas") r.chance = "pontos";
+  r.liberacao = s.modo === "meta" && s.aCada ? "metas" : "livre";
+  r.metas = r.liberacao === "metas" ? (r.quem === "compra" ? { itens: s.aCada } : fonte === "gemas" ? { pontos: s.aCada } : { emocoes: s.aCada }) : {};
+  return r;
+}
+
+const contaEmocao = (regra: Regra, e: Emocao) => !regra.icones || regra.icones.includes(e.icone);
+
+function nomeDasEmocoes(regra: Regra) {
+  return !regra.icones ? "qualquer emotion" : regra.icones.length ? regra.icones.join(", ") : "nenhuma emotion";
+}
+
+// A frase que resume a regra, como no Dash TCG:
+// "1 sorteio a cada 50 emotions (qualquer emotion) · concorrem emotions (qualquer emotion) · emotions por quantidade · pode repetir"
+export function descreverRegra(regra: Regra) {
+  const em = nomeDasEmocoes(regra);
+  if (regra.tipo === "individual") {
+    return `Quem somar ${int(regra.alvo ?? 0)} ${regra.unidade === "pontos" ? "pontos" : "emotions"} (${em}) ganha`;
+  }
+  const partes: string[] = [];
+  if (regra.liberacao === "livre") partes.push("Sorteio livre");
+  else {
+    const m = regra.metas;
+    if (m.metaDaLive) partes.push("1 sorteio quando bater a meta da live");
+    else {
+      const metas: string[] = [];
+      if (m.emocoes) metas.push(`${int(m.emocoes)} emotions (${em})`);
+      if (m.pontos) metas.push(`${int(m.pontos)} pontos`);
+      if (m.itens) metas.push(`${int(m.itens)} itens vendidos`);
+      if (m.reais) metas.push(`${brl(m.reais)} vendidos`);
+      if (m.ranking) metas.push(`${int(m.ranking)} pontos no ranking`);
+      partes.push(metas.length ? `1 sorteio a cada ${metas.join(" ou ")}` : "sem meta marcada");
+    }
+  }
+  const quem = regra.quem === "compra" ? "compradores" : regra.quem === "ambos" ? `emotions (${em}) e compradores` : `emotions (${em})`;
+  partes.push(`concorrem ${quem}`);
+  if (regra.quem !== "compra") {
+    partes.push(regra.chance === "pontos" ? "emotions por pontos" : regra.chance === "igual" ? "chance igual" : "emotions por quantidade");
+  }
+  if (regra.quem !== "emocao" && regra.chance !== "igual") partes.push("1 bilhete por item");
+  partes.push(regra.repetir ? "pode repetir" : "não repete ganhador");
+  if (regra.excluirSuspeitos) partes.push("sem contas em lote");
+  return partes.join(" · ");
+}
+
+// Bilhetes de cada pessoa pela regra (antes de tirar vendedor, suspeitos...).
+export function contagemDaRegra(regra: Regra, dados: { emocoes: Emocao[]; mensagens: Mensagem[]; vendas: Venda[] }): Contagem[] {
+  const m = new Map<string, Contagem>();
+  const pessoa = (handle: unknown, nome?: string | null, foto?: string | null) => {
+    const h = semArroba(handle);
+    if (!h) return null;
+    const p = m.get(h) ?? { handle: h, nome: nome || h, foto: foto || null, n: 0, mensagens: 0, compras: 0 };
+    if (foto && !p.foto) p.foto = foto;
+    m.set(h, p);
+    return p;
+  };
+  if (regra.quem !== "compra") {
+    for (const e of dados.emocoes) {
+      if (!contaEmocao(regra, e)) continue;
+      const p = pessoa(e.handle, e.nome, e.foto);
+      if (p) p.n += regra.chance === "pontos" ? e.gemas || 0 : 1;
+    }
+  }
+  if (regra.quem !== "emocao") {
+    for (const v of vendasValidas(dados.vendas)) {
+      const p = pessoa(v.comprador, null, v.foto);
+      if (p) p.n += v.quantidade || 1;
+    }
+  }
+  // Para marcar conta em lote: quem escreveu ou comprou não é robô.
+  for (const x of dados.mensagens) {
+    const p = m.get(semArroba(x.handle));
+    if (p) p.mensagens++;
+  }
+  for (const v of vendasValidas(dados.vendas)) {
+    const p = m.get(semArroba(v.comprador));
+    if (p) p.compras++;
+  }
+  if (regra.chance === "igual") for (const p of m.values()) if (p.n > 0) p.n = 1;
+  return [...m.values()].filter((p) => p.n > 0);
+}
+
+export function participantesDaRegra(
+  regra: Regra,
+  dados: { emocoes: Emocao[]; mensagens: Mensagem[]; vendas: Venda[] },
+  vendedor?: string | null,
+  jaGanharam: string[] = [],
+): Participante[] {
+  return participantesDeContagem(
+    { fonte: "regra", peso: "quantidade", repetir: regra.repetir, excluirSuspeitos: regra.excluirSuspeitos, excluir: regra.excluir },
+    contagemDaRegra(regra, dados),
+    vendedor,
+    jaGanharam,
+  );
+}
+
+// O que já entrou na live para as metas que liberam sorteio.
+export type TotaisDaRegra = { emocoes: number; pontos: number; itens: number; reais: number; ranking: number; metaDaLive: boolean };
+
+export function totaisDaRegra(
+  regra: Regra,
+  dados: { emocoes: Emocao[]; vendas: Venda[] },
+  extra: { regrasRanking?: { porReal?: number | null; porGema?: number | null } | null; metaDaLiveBatida?: boolean } = {},
+): TotaisDaRegra {
+  let emocoes = 0;
+  let pontos = 0;
+  let gemasTodas = 0;
+  for (const e of dados.emocoes) {
+    gemasTodas += e.gemas || 0;
+    if (!contaEmocao(regra, e)) continue;
+    emocoes++;
+    pontos += e.gemas || 0;
+  }
+  const r = resumoVendas(dados.vendas);
+  return {
+    emocoes,
+    pontos,
+    itens: r.itens,
+    reais: r.total,
+    ranking: pontosDaLive(r.total, gemasTodas, extra.regrasRanking),
+    metaDaLive: !!extra.metaDaLiveBatida,
+  };
+}
+
+// Quantos sorteios a regra já liberou e o que falta para o próximo.
+export function liberacoes(regra: Regra, t: TotaisDaRegra, jaSorteados: number) {
+  if (regra.liberacao === "livre") return { livre: true, liberados: Infinity, disponiveis: Infinity, proximo: null as null | { falta: number; unidade: string; progresso: number } };
+  const m = regra.metas;
+  if (m.metaDaLive) {
+    const liberados = t.metaDaLive ? 1 : 0;
+    return { livre: false, liberados, disponiveis: Math.max(0, liberados - jaSorteados), proximo: liberados ? null : { falta: 1, unidade: "meta da live", progresso: 0 } };
+  }
+  const lista: { a: number; total: number; unidade: string }[] = [];
+  if (m.emocoes) lista.push({ a: m.emocoes, total: t.emocoes, unidade: "emotions" });
+  if (m.pontos) lista.push({ a: m.pontos, total: t.pontos, unidade: "pontos" });
+  if (m.itens) lista.push({ a: m.itens, total: t.itens, unidade: "itens vendidos" });
+  if (m.reais) lista.push({ a: m.reais, total: t.reais, unidade: "reais vendidos" });
+  if (m.ranking) lista.push({ a: m.ranking, total: t.ranking, unidade: "pontos no ranking" });
+  const liberados = lista.reduce((s, x) => s + Math.floor(x.total / x.a), 0);
+  // O próximo é o que está mais perto (em proporção).
+  const proximo = lista
+    .map((x) => ({ falta: x.a - (x.total % x.a), unidade: x.unidade, progresso: (x.total % x.a) / x.a }))
+    .sort((a, b) => b.progresso - a.progresso)[0] ?? null;
+  return { livre: false, liberados, disponiveis: Math.max(0, liberados - jaSorteados), proximo };
+}
+
+// Meta individual: quanto cada pessoa já somou e quem chegou ao alvo.
+export function progressoIndividual(regra: Regra, dados: { emocoes: Emocao[] }, vendedor?: string | null) {
+  const alvo = Number(regra.alvo) || 0;
+  const dono = semArroba(vendedor).toLowerCase();
+  const m = new Map<string, Pessoa & { atual: number }>();
+  for (const e of dados.emocoes) {
+    if (!contaEmocao(regra, e)) continue;
+    const h = semArroba(e.handle);
+    if (!h || h.toLowerCase() === dono) continue;
+    const p = m.get(h) ?? { handle: h, nome: e.nome || h, foto: e.foto || null, atual: 0 };
+    if (e.foto && !p.foto) p.foto = e.foto;
+    p.atual += regra.unidade === "pontos" ? e.gemas || 0 : 1;
+    m.set(h, p);
+  }
+  const lista = [...m.values()].sort((a, b) => b.atual - a.atual);
+  return { alvo, bateram: lista.filter((p) => alvo > 0 && p.atual >= alvo), faltam: lista.filter((p) => !(alvo > 0 && p.atual >= alvo)) };
+}
+
+export function mensagemDoRanking(r: { posicao?: number | null; pontos?: number | null; acima?: { handle: string; pontos: number; posicao: number } | null } | null, estimado?: number | null) {
+  if (!r?.posicao) return "🏆 Bora subir no ranking mensal da Jamble! Cada carpa e cada compra contam pontos 🐟";
+  const pts = estimado ?? r.pontos ?? 0;
+  const falta = r.acima ? Math.max(0, r.acima.pontos - pts) : 0;
+  return falta > 0
+    ? `🏆 Estamos em #${r.posicao} no Ranking Mensal da Jamble! Faltam ${int(falta)} pontos pra passar o #${r.posicao - 1}. Cada R$ vale 3 pts e cada gema 2 pts — bora! 🐟`
+    : `🏆 Estamos em #${r.posicao} no Ranking Mensal da Jamble! Obrigado, galera! 🐟`;
+}
+
 // ---------- metas ----------
 //
 // Meta da live (a live inteira chega a X) ou meta por pessoa (cada um que

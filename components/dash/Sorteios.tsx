@@ -1,734 +1,880 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy, Pencil, Plus, Radio, RotateCcw, Save, Shuffle, Trash2, Tv, UserX, X } from "lucide-react";
-import {
-  FONTES,
-  TIPOS_DE_META,
-  lerTermos,
-  marcos,
-  mensagemDeGanhador,
-  metaPorPessoa,
-  nomeDaFonte,
-  participantes,
-  pontosDaLive,
-  porIcone,
-  progressoMeta,
-  rankingCarpas,
-  resumoVendas,
-  tipoDeMeta,
-  totalDaFonte,
-  type Participante,
-  type Totais,
-} from "@/lib/dash/calculos";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, Maximize2, Pencil, Plus, Sparkles, Target, Timer, Users, Volume2, VolumeX, X } from "lucide-react";
+import { descreverRegra, mensagemDeGanhador, regraPadrao, type Regra } from "@/lib/dash/calculos";
 import type { Meta, Sorteio } from "@/lib/dash/api";
-import { copiar, dataHora, inteiro, linkDaTela, reais, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
+import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
 import { tocar } from "@/lib/dash/som";
 import Roleta from "@/components/dash/Roleta";
-import { AoVivo, Avatar, Barra, Botao, Cartao, campo, IconeEmocao, Rolagem, Selo, Vazio } from "@/components/dash/ui";
+import { Emotions, MensagensChat, useAvisos, useContasLive, useRecados, type Contas, type SorteioCalculado } from "@/components/dash/blocos";
+import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@/components/dash/ui";
 
-type FormSorteio = {
-  id?: string;
-  nome: string;
-  premio: string;
-  fonte: string;
-  peso: "quantidade" | "igual";
-  repetir: boolean;
-  excluirSuspeitos: boolean;
-  excluir: string;
-  modo: "livre" | "meta";
-  aCada: string;
-  ativo: boolean;
-};
+// Sorteios & Metas, no desenho do Dash TCG: barra com "Novo sorteio", "Nova
+// meta individual" e os modelos; a meta da live; as mensagens; as emotions; e
+// um cartão por sorteio, com a roleta, os participantes e os ganhadores.
 
-const FORM_VAZIO: FormSorteio = {
-  nome: "",
-  premio: "",
-  fonte: "carpas",
-  peso: "quantidade",
-  repetir: false,
-  excluirSuspeitos: true,
-  excluir: "",
-  modo: "livre",
-  aCada: "",
-  ativo: true,
-};
+type Pessoa = { handle: string; foto: string | null; bilhetes: number };
+type Giro = { chave: string; sorteioId: string; ganhador: Pessoa; lista: Pessoa[]; premio: string | null; nome: string };
+type Acao = (corpo: Record<string, unknown>) => Promise<{ sorteios: Sorteio[]; ganhador?: Pessoa & { id: string }; roleta?: Pessoa[] } | null>;
 
-type Modelo = Omit<FormSorteio, "id" | "excluir" | "ativo"> & { rotulo: string };
-
-const MODELOS: Modelo[] = [
-  { rotulo: "1 sorteio a cada 50 carpas", nome: "Sorteio das carpas", premio: "", fonte: "carpas", peso: "quantidade", repetir: false, excluirSuspeitos: true, modo: "meta", aCada: "50" },
-  { rotulo: "Compradores da live", nome: "Sorteio dos compradores", premio: "", fonte: "compradores", peso: "quantidade", repetir: false, excluirSuspeitos: true, modo: "livre", aCada: "" },
-  { rotulo: "Quem mandou emotion (1 chance cada)", nome: "Sorteio das emotions", premio: "", fonte: "emocoes", peso: "igual", repetir: false, excluirSuspeitos: true, modo: "livre", aCada: "" },
-  { rotulo: "1 sorteio a cada 5.000 gemas", nome: "Sorteio das gemas", premio: "", fonte: "gemas", peso: "quantidade", repetir: false, excluirSuspeitos: true, modo: "meta", aCada: "5000" },
-  { rotulo: "Quem escreveu no chat", nome: "Sorteio do chat", premio: "", fonte: "chat", peso: "igual", repetir: false, excluirSuspeitos: true, modo: "livre", aCada: "" },
+const MODELOS: { rotulo: string; nome: string; regra: Partial<Regra> }[] = [
+  { rotulo: "Compradores", nome: "Sorteio para compradores", regra: { quem: "compra", liberacao: "livre", chance: "quantidade" } },
+  { rotulo: "Magikarp shiny", nome: "Sorteio para quem enviou magikarp_shiny", regra: { quem: "emocao", icones: ["magikarp_shiny"], liberacao: "livre", chance: "quantidade" } },
+  { rotulo: "Todos que enviaram emotions", nome: "Sorteio para todos que enviaram emotions", regra: { quem: "emocao", icones: null, liberacao: "livre", chance: "quantidade" } },
 ];
 
-function formDe(s: Sorteio): FormSorteio {
-  return {
-    id: s.id,
-    nome: s.nome,
-    premio: s.premio ?? "",
-    fonte: s.fonte,
-    peso: s.peso,
-    repetir: s.repetir,
-    excluirSuspeitos: s.excluirSuspeitos,
-    excluir: s.excluir.join(", "),
-    modo: s.modo,
-    aCada: s.aCada ? String(s.aCada) : "",
-    ativo: s.ativo,
-  };
-}
+// ---------- formulário da regra ----------
 
-function corpoDe(f: FormSorteio) {
-  return {
-    nome: f.nome || "Sorteio",
-    premio: f.premio || null,
-    fonte: f.fonte,
-    peso: f.peso,
-    repetir: f.repetir,
-    excluirSuspeitos: f.excluirSuspeitos,
-    excluir: f.excluir.split(/[\s,;]+/).map((h) => h.replace(/^@/, "")).filter(Boolean),
-    modo: f.modo,
-    aCada: f.modo === "meta" ? Number(f.aCada) || null : null,
-    ativo: f.ativo,
-  };
-}
-
-function dadosDoSorteio(d: LiveCarregada, s: Sorteio) {
-  const termos = lerTermos(d.termos);
-  const validos = s.ganhadores.filter((g) => g.status === "valido");
-  const naoValidos = s.ganhadores.filter((g) => g.status !== "valido").map((g) => g.handle);
-  const base = { emocoes: d.emocoes, mensagens: d.chat, vendas: d.vendas, termos, vendedor: d.live.vendedor };
-  const lista = participantes(
-    { fonte: s.fonte, peso: s.peso, repetir: s.repetir, excluirSuspeitos: s.excluirSuspeitos, excluir: [...s.excluir, ...naoValidos] },
-    base,
-    validos.map((g) => g.handle),
-  );
-  const ok = lista.filter((p) => !p.fora);
-  const bilhetes = ok.reduce((t, p) => t + p.bilhetes, 0);
-  const cru =
-    s.fonte === "gemas"
-      ? d.emocoes.reduce((t, e) => t + e.gemas, 0)
-      : totalDaFonte(
-          participantes({ fonte: s.fonte, peso: "quantidade", repetir: true, excluirSuspeitos: false, excluir: [] }, { ...base, vendedor: null }).map((p) => ({ n: p.bilhetes })),
-        );
-  return { lista, ok, bilhetes, validos, marcos: s.modo === "meta" && s.aCada ? marcos(s.aCada, cru, validos.length) : null, totalFonte: cru };
-}
-
-function CartaoSorteio({
-  s,
+function FormRegra({
   d,
-  showId,
-  aoMudar,
-  aoEditar,
-  aoSortear,
-}: {
-  s: Sorteio;
-  d: LiveCarregada;
-  showId: string;
-  aoMudar: (sorteios: Sorteio[]) => void;
-  aoEditar: () => void;
-  aoSortear: (acao: "sortear" | "resortear") => void;
-}) {
-  const { chamar, eu } = useDash();
-  const [verFora, setVerFora] = useState(false);
-  const [copiado, setCopiado] = useState("");
-  const x = useMemo(() => dadosDoSorteio(d, s), [d, s]);
-  const nomes = Object.fromEntries(Object.entries(d.icones).map(([k, v]) => [k, v.nome ?? k]));
-  const fonte = nomeDaFonte(s.fonte, nomes);
-  const fora = x.lista.filter((p) => p.fora);
-  const travado = !!x.marcos && x.marcos.disponiveis <= 0;
-
-  async function acao(corpo: Record<string, unknown>) {
-    try {
-      const r = await chamar<{ sorteios: Sorteio[] }>(`/api/dash/sorteios/${encodeURIComponent(showId)}`, { corpo: { id: s.id, ...corpo } });
-      aoMudar(r.sorteios);
-    } catch (e) {
-      alert(String((e as Error).message));
-    }
-  }
-
-  const mudarExcluir = (handle: string, tirar: boolean) => {
-    const atual = new Set(s.excluir);
-    if (tirar) atual.add(handle.toLowerCase());
-    else atual.delete(handle.toLowerCase());
-    acao({ acao: "editar", excluir: [...atual] });
-  };
-
-  async function copiarLink(rotulo: string, f: string) {
-    await copiar(linkDaTela(eu.config.telaChave, { v: "sorteio", f, s: s.id }));
-    setCopiado(rotulo);
-    setTimeout(() => setCopiado(""), 1800);
-  }
-
-  return (
-    <Cartao
-      titulo={
-        <span className="flex items-center gap-2">
-          {s.nome}
-          {!s.ativo && <Selo>fora da tela</Selo>}
-        </span>
-      }
-      acao={
-        <span className="flex items-center gap-1">
-          <button title="Editar" onClick={aoEditar} className="rounded p-1 text-white/50 hover:bg-white/10 hover:text-white">
-            <Pencil size={14} />
-          </button>
-          <button
-            title="Excluir"
-            onClick={() => confirm(`Excluir "${s.nome}" e os ganhadores dele?`) && acao({ acao: "excluir" })}
-            className="rounded p-1 text-white/50 hover:bg-white/10 hover:text-[#ff8a8a]"
-          >
-            <Trash2 size={14} />
-          </button>
-        </span>
-      }
-    >
-      <div className="flex flex-wrap items-center gap-2 text-[12px] text-[#8b93a7]">
-        {s.premio && <Selo cor="amarelo">🎁 {s.premio}</Selo>}
-        <span>{fonte.nome}</span>·<span>{s.peso === "igual" ? "1 chance por pessoa" : "chance por quantidade"}</span>·
-        <span>{s.repetir ? "pode repetir ganhador" : "não repete ganhador"}</span>
-        {s.fonte.startsWith("emocao:") && <IconeEmocao id={s.fonte.slice(7)} icones={d.icones} tamanho={18} />}
-      </div>
-
-      {x.marcos ? (
-        <div className="mt-3">
-          <div className="mb-1 flex items-center justify-between text-[12px]">
-            <span>
-              A cada <b>{inteiro(s.aCada ?? 0)}</b> {fonte.unidade}: {x.marcos.liberados} liberado(s), {x.validos.length} sorteado(s)
-            </span>
-            {x.marcos.disponiveis > 0 ? <Selo cor="verde">{x.marcos.disponiveis} para sortear</Selo> : <Selo>faltam {inteiro(x.marcos.faltaParaProximo)}</Selo>}
-          </div>
-          <Barra progresso={x.marcos.progresso} />
-        </div>
-      ) : (
-        <p className="mt-3 text-[12px] text-[#8b93a7]">Sorteio livre: sorteie quando quiser. {inteiro(x.totalFonte)} {fonte.unidade} até agora.</p>
-      )}
-
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Botao cor="amarelo" onClick={() => aoSortear("sortear")} disabled={!x.ok.length || travado} titulo={travado ? "Ainda não liberou" : undefined}>
-          <Shuffle size={14} /> Sortear agora
-        </Botao>
-        <Botao onClick={() => aoSortear("resortear")} disabled={!x.validos.length} titulo="O último ganhador não vale; sorteia outro">
-          <RotateCcw size={14} /> Re-sortear
-        </Botao>
-        <Botao onClick={() => confirm("Apagar todos os ganhadores deste sorteio?") && acao({ acao: "zerar" })} disabled={!s.ganhadores.length}>
-          Zerar
-        </Botao>
-        <Botao ativo={s.ativo} onClick={() => acao({ acao: "editar", ativo: !s.ativo })} titulo="Mostrar este sorteio na tela do OBS">
-          <Tv size={14} /> {s.ativo ? "Na tela" : "Mostrar na tela"}
-        </Botao>
-        <Botao onClick={() => copiarLink("16", "16x9")}>
-          <Copy size={12} /> {copiado === "16" ? "Copiado!" : "Tela 16:9"}
-        </Botao>
-        <Botao onClick={() => copiarLink("9", "9x16")}>
-          <Copy size={12} /> {copiado === "9" ? "Copiado!" : "Tela 9:16"}
-        </Botao>
-      </div>
-
-      {s.ganhadores.length > 0 && (
-        <div className="mt-4">
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-[#8b93a7]">Ganhadores</p>
-          <ul className="space-y-1.5">
-            {s.ganhadores.map((g, i) => (
-              <li key={g.id} className={`flex items-center gap-2 text-[13px] ${g.status !== "valido" ? "opacity-50" : ""}`}>
-                <span className="w-5 text-right text-[11px] text-[#8b93a7]">{i + 1}</span>
-                <Avatar foto={g.foto} nome={g.handle} tamanho={24} />
-                <span className="min-w-0 flex-1 truncate font-semibold">@{g.handle}</span>
-                <span className="text-[11px] text-[#8b93a7]">
-                  {g.bilhetes}/{g.totalBilhetes} bilhetes · {dataHora(g.ts)}
-                </span>
-                {g.status === "valido" ? (
-                  <>
-                    <button title="Copiar mensagem" onClick={() => copiar(mensagemDeGanhador(g.handle, s.premio))} className="rounded p-1 text-white/50 hover:text-white">
-                      <Copy size={13} />
-                    </button>
-                    <button title="Marcar ausente" onClick={() => acao({ acao: "ausente", ganhadorId: g.id })} className="rounded p-1 text-white/50 hover:text-[#ff8a8a]">
-                      <UserX size={13} />
-                    </button>
-                  </>
-                ) : (
-                  <Selo>{g.status}</Selo>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="mt-4">
-        <div className="mb-1.5 flex items-center justify-between">
-          <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-[#8b93a7]">
-            Participantes · {x.ok.length} concorrendo · {inteiro(x.bilhetes)} bilhetes
-          </p>
-          {fora.length > 0 && (
-            <button onClick={() => setVerFora(!verFora)} className="text-[11px] text-brand-yellow hover:underline">
-              {verFora ? "esconder" : "ver"} {fora.length} fora
-            </button>
-          )}
-        </div>
-        <Rolagem altura="max-h-64">
-          {x.ok.length ? (
-            <ul className="space-y-1">
-              {x.ok.slice(0, 200).map((p: Participante) => (
-                <li key={p.handle} className="group flex items-center gap-2 text-[12px]">
-                  <Avatar foto={p.foto} nome={p.handle} tamanho={20} />
-                  <span className="min-w-0 flex-1 truncate">@{p.handle}</span>
-                  <span className="text-[#8b93a7]">{inteiro(p.bilhetes)} 🎟</span>
-                  <span className="w-14 text-right font-semibold">{x.bilhetes ? ((p.bilhetes / x.bilhetes) * 100).toFixed(1) : 0}%</span>
-                  <button title="Tirar do sorteio" onClick={() => mudarExcluir(p.handle, true)} className="text-white/30 opacity-0 hover:text-[#ff8a8a] group-hover:opacity-100">
-                    <X size={13} />
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <Vazio>Ninguém concorrendo ainda.</Vazio>
-          )}
-        </Rolagem>
-        {verFora && (
-          <div className="mt-2 rounded-lg bg-white/[0.03] p-2">
-            <label className="mb-2 flex items-center gap-2 text-[12px]">
-              <input type="checkbox" checked={s.excluirSuspeitos} onChange={(e) => acao({ acao: "editar", excluirSuspeitos: e.target.checked })} className="accent-[#F4AF14]" />
-              tirar contas suspeitas (em lote) deste sorteio
-            </label>
-            <ul className="space-y-1">
-              {fora.map((p) => (
-                <li key={p.handle} className="flex items-center gap-2 text-[12px] text-white/60">
-                  <span className="min-w-0 flex-1 truncate">@{p.handle}</span>
-                  <Selo cor={p.fora === "conta suspeita" ? "vermelho" : "neutro"}>{p.fora}</Selo>
-                  {p.fora === "tirado da lista" && (
-                    <button onClick={() => mudarExcluir(p.handle, false)} className="text-[11px] text-brand-yellow hover:underline">
-                      incluir
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </Cartao>
-  );
-}
-
-function FormularioSorteio({
   inicial,
-  icones,
   aoSalvar,
   aoFechar,
 }: {
-  inicial: FormSorteio;
-  icones: { id: string; nome: string }[];
-  aoSalvar: (f: FormSorteio) => Promise<void>;
+  d: LiveCarregada;
+  inicial: { id?: string; nome: string; premio: string; regra: Regra };
+  aoSalvar: (f: { id?: string; nome: string; premio: string; regra: Regra }) => Promise<void>;
   aoFechar: () => void;
 }) {
-  const { eu, chamar, recarregarEu } = useDash();
-  const [f, setF] = useState(inicial);
+  const [nome, setNome] = useState(inicial.nome);
+  const [premio, setPremio] = useState(inicial.premio);
+  const [r, setR] = useState<Regra>(inicial.regra);
   const [ocupado, setOcupado] = useState(false);
-  const salvos = ((eu.config.preferencias?.modelos as Modelo[] | undefined) ?? []).filter((m) => m && m.rotulo);
-  const muda = (k: Partial<FormSorteio>) => setF({ ...f, ...k });
+  const muda = (x: Partial<Regra>) => setR({ ...r, ...x });
+  const mudaMeta = (k: keyof Regra["metas"], v: number | boolean | null) => setR({ ...r, metas: { ...r.metas, [k]: v } });
+  const individual = r.tipo === "individual";
 
-  async function salvarModelo() {
-    const rotulo = prompt("Nome do modelo:", f.nome || "Meu modelo");
-    if (!rotulo) return;
-    const { id: _id, excluir: _e, ativo: _a, ...resto } = f;
-    const modelos = [...salvos.filter((m) => m.rotulo !== rotulo), { ...resto, rotulo }].slice(-20);
-    await chamar("/api/dash/eu", { metodo: "PATCH", corpo: { preferencias: { modelos } } });
-    recarregarEu();
-  }
+  // Emotions que aparecem para marcar: as da tabela da Jamble e as da live.
+  const todas = useMemo(() => {
+    const vistas = new Map<string, number>();
+    for (const e of d.emocoes) vistas.set(e.icone, (vistas.get(e.icone) ?? 0) + 1);
+    const ids = [...new Set([...vistas.keys(), ...Object.keys(d.icones)])];
+    return ids.sort((a, b) => (vistas.get(b) ?? 0) - (vistas.get(a) ?? 0)).map((id) => ({ id, pts: d.icones[id]?.gemas ?? d.emocoes.find((e) => e.icone === id)?.gemas ?? null }));
+  }, [d.emocoes, d.icones]);
+  const marcada = (id: string) => !r.icones || r.icones.includes(id);
+  const alternar = (id: string) => {
+    const atuais = r.icones ?? todas.map((t) => t.id);
+    muda({ icones: atuais.includes(id) ? atuais.filter((x) => x !== id) : [...atuais, id] });
+  };
+
+  const linhaMeta = (k: "emocoes" | "pontos" | "itens" | "reais" | "ranking", padrao: number, rotulo: string, prefixo?: string) => {
+    const ligada = !!r.metas[k] && !r.metas.metaDaLive;
+    return (
+      <label key={k} className="flex flex-wrap items-center gap-2 text-sm">
+        <input type="checkbox" className="size-4 accent-[rgb(var(--d-brand))]" checked={ligada} onChange={(e) => setR({ ...r, metas: { ...r.metas, metaDaLive: false, [k]: e.target.checked ? padrao : null } })} />
+        <span className="w-16 text-d-ink2">a cada</span>
+        {prefixo && <span className="text-d-ink2">{prefixo}</span>}
+        <input
+          type="number"
+          min={1}
+          disabled={!ligada}
+          className="d-field w-28 disabled:opacity-40"
+          value={(r.metas[k] as number | null) ?? padrao}
+          onChange={(e) => mudaMeta(k, Number(e.target.value) || null)}
+        />
+        <span className={ligada ? "text-d-ink" : "text-d-ink3"}>{rotulo}</span>
+      </label>
+    );
+  };
 
   return (
-    <Cartao titulo={f.id ? "Editar sorteio" : "Novo sorteio"} acao={<button onClick={aoFechar} className="text-white/50 hover:text-white"><X size={16} /></button>}>
-      {!f.id && (
-        <div className="mb-4">
-          <p className="mb-1.5 text-[11px] text-[#8b93a7]">Modelos</p>
-          <div className="flex flex-wrap gap-1.5">
-            {[...MODELOS, ...salvos].map((m) => (
-              <Botao key={m.rotulo} onClick={() => setF({ ...FORM_VAZIO, ...m })}>
-                {m.rotulo}
-              </Botao>
+    <form
+      className="d-pop-in d-card space-y-4 border-d-brand/50 p-5"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        setOcupado(true);
+        await aoSalvar({ id: inicial.id, nome, premio, regra: r });
+        setOcupado(false);
+      }}
+    >
+      <p className="text-lg font-bold">{individual ? "Meta individual" : "Regra de sorteio"}</p>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-sm text-d-ink2">
+          Nome
+          <input className="d-field" value={nome} onChange={(e) => setNome(e.target.value)} />
+        </label>
+        <label className="flex flex-col gap-1 text-sm text-d-ink2">
+          Prêmio (opcional)
+          <input className="d-field" placeholder="Ex.: 1 booster" value={premio} onChange={(e) => setPremio(e.target.value)} />
+        </label>
+      </div>
+
+      {!individual && (
+        <div className="space-y-1.5">
+          <p className="text-sm text-d-ink2">Quem concorre</p>
+          <Escolha
+            className="sm:inline-flex"
+            valor={r.quem}
+            mudar={(quem) => muda({ quem })}
+            opcoes={[
+              ["emocao", "quem mandou emotion"],
+              ["compra", "quem comprou"],
+              ["ambos", "os dois"],
+            ]}
+          />
+        </div>
+      )}
+
+      {(individual || r.quem !== "compra") && (
+        <div className="space-y-2">
+          <p className="text-sm text-d-ink2">Emotions que contam</p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              title="Conta qualquer emotion, inclusive as que aparecerem depois na live"
+              onClick={() => muda({ icones: r.icones ? null : [] })}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                !r.icones ? "border-d-gold bg-d-gold/15 text-d-gold" : "border-d-line bg-d-panel2 text-d-ink2 hover:border-d-ink3"
+              }`}
+            >
+              <Sparkles className="size-3.5 shrink-0" />
+              Todas as emotions
+            </button>
+            {todas.map((t) => (
+              <ChipEmocao key={t.id} id={t.id} icones={d.icones} pts={t.pts} ligado={marcada(t.id)} onClick={() => alternar(t.id)} />
             ))}
           </div>
         </div>
       )}
-      <form
-        onSubmit={async (e) => {
-          e.preventDefault();
-          setOcupado(true);
-          await aoSalvar(f);
-          setOcupado(false);
-        }}
-        className="grid gap-3 sm:grid-cols-2"
-      >
-        <label className="text-[12px]">
-          Nome
-          <input className={`${campo} mt-1`} value={f.nome} onChange={(e) => muda({ nome: e.target.value })} placeholder="Sorteio das carpas" required />
-        </label>
-        <label className="text-[12px]">
-          Prêmio
-          <input className={`${campo} mt-1`} value={f.premio} onChange={(e) => muda({ premio: e.target.value })} placeholder="1 mini booster box" />
-        </label>
-        <label className="text-[12px] sm:col-span-2">
-          Quem concorre (de onde vêm os bilhetes)
-          <select className={`${campo} mt-1`} value={f.fonte} onChange={(e) => muda({ fonte: e.target.value })}>
-            {FONTES.map((x) => (
-              <option key={x.id} value={x.id}>
-                {x.nome}
-              </option>
-            ))}
-            {icones.map((i) => (
-              <option key={i.id} value={`emocao:${i.id}`}>
-                Só quem mandou a emotion {i.nome}
-              </option>
-            ))}
-          </select>
-        </label>
-        <fieldset className="text-[12px]">
-          <legend className="mb-1">Chances</legend>
-          <label className="mr-4 inline-flex items-center gap-1.5">
-            <input type="radio" checked={f.peso === "quantidade"} onChange={() => muda({ peso: "quantidade" })} className="accent-[#F4AF14]" />
-            por quantidade
-          </label>
-          <label className="inline-flex items-center gap-1.5">
-            <input type="radio" checked={f.peso === "igual"} onChange={() => muda({ peso: "igual" })} className="accent-[#F4AF14]" />1 por pessoa
-          </label>
-        </fieldset>
-        <fieldset className="text-[12px]">
-          <legend className="mb-1">Quando sortear</legend>
-          <label className="mr-4 inline-flex items-center gap-1.5">
-            <input type="radio" checked={f.modo === "livre"} onChange={() => muda({ modo: "livre" })} className="accent-[#F4AF14]" />
-            quando eu quiser
-          </label>
-          <label className="inline-flex items-center gap-1.5">
-            <input type="radio" checked={f.modo === "meta"} onChange={() => muda({ modo: "meta" })} className="accent-[#F4AF14]" />a cada
-            <input
-              type="number"
-              min={1}
-              className="w-20 rounded border border-white/10 bg-[#0f1116] px-2 py-0.5"
-              value={f.aCada}
-              onChange={(e) => muda({ aCada: e.target.value, modo: "meta" })}
+
+      {individual ? (
+        <div className="space-y-1.5">
+          <p className="text-sm text-d-ink2">Cada pessoa que somar</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="number" min={1} className="d-field w-28" value={r.alvo ?? 10} onChange={(e) => muda({ alvo: Number(e.target.value) || null })} />
+            <Escolha
+              valor={r.unidade ?? "emocoes"}
+              mudar={(unidade) => muda({ unidade })}
+              opcoes={[
+                ["emocoes", "emotions"],
+                ["pontos", "pontos"],
+              ]}
             />
-            {nomeDaFonte(f.fonte).unidade}
+            <span className="text-sm text-d-ink2">ganha o prêmio</span>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-2 sm:col-span-2">
+            <p className="text-sm text-d-ink2">Quando o sorteio é liberado</p>
+            <Escolha
+              className="inline-flex"
+              valor={r.liberacao}
+              mudar={(liberacao) => muda({ liberacao, metas: liberacao === "metas" && !Object.values(r.metas).some(Boolean) ? { emocoes: 50 } : r.metas })}
+              opcoes={[
+                ["metas", "com metas"],
+                ["livre", "sorteio livre"],
+              ]}
+            />
+            {r.liberacao === "metas" && (
+              <div className="space-y-2 rounded-2xl border border-d-line bg-d-panel2/50 p-3">
+                <p className="text-xs text-d-ink3">Marque uma ou mais metas. Qualquer meta atingida libera 1 sorteio (as liberações se somam).</p>
+                {linhaMeta("emocoes", 50, "emotions")}
+                {linhaMeta("pontos", 5000, "pontos")}
+                {linhaMeta("itens", 10, "itens vendidos")}
+                {linhaMeta("reais", 1000, "vendidos", "R$")}
+                {linhaMeta("ranking", 10000, "pontos ganhos no ranking da Jamble")}
+                <label className="flex flex-wrap items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="size-4 accent-[rgb(var(--d-brand))]"
+                    checked={!!r.metas.metaDaLive}
+                    onChange={(e) => setR({ ...r, metas: e.target.checked ? { metaDaLive: true } : { emocoes: 50 } })}
+                  />
+                  <span className={r.metas.metaDaLive ? "text-d-ink" : "text-d-ink3"}>1 sorteio quando bater a meta da live</span>
+                  <span className="text-xs text-d-ink3">· funciona sozinha (desmarca as outras metas)</span>
+                  <span className="text-xs text-d-ink3">(defina a meta da live no topo da página)</span>
+                </label>
+              </div>
+            )}
+          </div>
+          {r.quem !== "compra" && (
+            <div className="space-y-1.5">
+              <p className="text-sm text-d-ink2">Chance de quem mandou emotion</p>
+              <Escolha
+                valor={r.chance}
+                mudar={(chance) => muda({ chance })}
+                opcoes={[
+                  ["pontos", "por pontos"],
+                  ["quantidade", "por quantidade"],
+                  ["igual", "igual"],
+                ]}
+              />
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-sm text-d-ink2 sm:col-span-2">
+            <input type="checkbox" className="size-4 accent-[rgb(var(--d-brand))]" checked={r.repetir} onChange={(e) => muda({ repetir: e.target.checked })} />
+            Quem já ganhou nesta regra pode ganhar de novo
           </label>
-        </fieldset>
-        <div className="flex flex-wrap gap-4 text-[12px] sm:col-span-2">
-          <label className="inline-flex items-center gap-1.5">
-            <input type="checkbox" checked={f.repetir} onChange={(e) => muda({ repetir: e.target.checked })} className="accent-[#F4AF14]" />
-            pode repetir ganhador
-          </label>
-          <label className="inline-flex items-center gap-1.5">
-            <input type="checkbox" checked={f.excluirSuspeitos} onChange={(e) => muda({ excluirSuspeitos: e.target.checked })} className="accent-[#F4AF14]" />
-            tirar contas suspeitas
-          </label>
-          <label className="inline-flex items-center gap-1.5">
-            <input type="checkbox" checked={f.ativo} onChange={(e) => muda({ ativo: e.target.checked })} className="accent-[#F4AF14]" />
-            mostrar na tela do OBS
+          <label className="flex items-center gap-2 text-sm text-d-ink2 sm:col-span-2">
+            <input type="checkbox" className="size-4 accent-[rgb(var(--d-brand))]" checked={r.excluirSuspeitos} onChange={(e) => muda({ excluirSuspeitos: e.target.checked })} />
+            Tirar contas em lote (nome inventado, nunca escrevem nem compram)
           </label>
         </div>
-        <label className="text-[12px] sm:col-span-2">
-          Tirar da lista (@ separados por vírgula)
-          <input className={`${campo} mt-1`} value={f.excluir} onChange={(e) => muda({ excluir: e.target.value })} placeholder="@fulano, @ciclano" />
-        </label>
-        <div className="flex flex-wrap gap-2 sm:col-span-2">
-          <Botao type="submit" cor="amarelo" disabled={ocupado || (f.modo === "meta" && !(Number(f.aCada) > 0))}>
-            <Save size={14} /> {f.id ? "Salvar" : "Criar sorteio"}
-          </Botao>
-          <Botao onClick={salvarModelo}>Salvar como modelo</Botao>
-        </div>
-      </form>
-    </Cartao>
+      )}
+
+      <p className="rounded-xl bg-d-panel2 px-3 py-2 text-xs text-d-ink2">{descreverRegra(r)}</p>
+      <div className="flex justify-end gap-2">
+        <button type="button" className="d-btn d-btn-secondary px-4 py-2 text-sm" onClick={aoFechar}>
+          Cancelar
+        </button>
+        <button type="submit" disabled={ocupado} className="d-btn d-btn-primary px-5 py-2 text-sm">
+          Salvar regra
+        </button>
+      </div>
+    </form>
   );
 }
 
-function SecaoMetas({ d, showId, totais, aoMudar }: { d: LiveCarregada; showId: string; totais: Totais; aoMudar: (m: Meta[]) => void }) {
-  const { chamar } = useDash();
-  const [aberto, setAberto] = useState(false);
-  const [f, setF] = useState({ nome: "", tipo: "carpas", escopo: "live" as "live" | "pessoa", alvo: "", premio: "" });
-  const [silencio, setSilencio] = usePreferencia("metas-silencio", false);
-  const [som] = usePreferencia("som", { ligado: true, volume: 0.5 });
-  const termos = lerTermos(d.termos);
-  const tipo = tipoDeMeta(f.tipo);
+// ---------- o centro do cartão: liberado? pronto? girando? ----------
 
-  // Toca a fanfarra quando uma meta da live passa do alvo (com esta tela aberta).
-  const batidas = d.metas.filter((m) => m.escopo === "live" && progressoMeta(m, totais).batida).map((m) => m.id).join();
-  const antes = useRef<string | null>(null);
-  useEffect(() => {
-    const ja = antes.current;
-    antes.current = batidas;
-    if (ja === null || silencio || !som.ligado) return;
-    if (batidas.split(",").some((id) => id && !ja.split(",").includes(id))) tocar("meta", som.volume);
-  }, [batidas, silencio, som]);
-
-  async function acao(corpo: Record<string, unknown>) {
-    try {
-      const r = await chamar<{ metas: Meta[] }>(`/api/dash/metas/${encodeURIComponent(showId)}`, { corpo });
-      aoMudar(r.metas);
-      return true;
-    } catch (e) {
-      alert(String((e as Error).message));
-      return false;
-    }
+function Situacao({ s, grande = false }: { s: SorteioCalculado; grande?: boolean }) {
+  if (s.lib.livre) {
+    return (
+      <div>
+        <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>Sorteio livre</p>
+        <p className="text-xs uppercase tracking-widest text-d-ink3">sorteie quando quiser</p>
+      </div>
+    );
   }
-
+  const p = s.lib.proximo;
   return (
-    <Cartao
-      titulo="Metas"
-      acao={
-        <span className="flex items-center gap-2">
-          <Botao ativo={silencio} onClick={() => setSilencio(!silencio)}>
-            {silencio ? "Silenciada" : "Silenciar"}
-          </Botao>
-          <Botao cor="amarelo" onClick={() => setAberto(!aberto)}>
-            <Plus size={14} /> Nova meta
-          </Botao>
-        </span>
-      }
-    >
-      {aberto && (
-        <form
-          className="mb-4 grid gap-3 rounded-lg bg-white/[0.03] p-3 sm:grid-cols-2"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            if (await acao({ acao: "criar", ...f, alvo: Number(f.alvo) })) {
-              setAberto(false);
-              setF({ ...f, nome: "", alvo: "", premio: "" });
-            }
-          }}
-        >
-          <label className="text-[12px]">
-            Nome
-            <input className={`${campo} mt-1`} value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} placeholder="Meta das carpas" />
-          </label>
-          <label className="text-[12px]">
-            Conta o quê
-            <select className={`${campo} mt-1`} value={f.tipo} onChange={(e) => setF({ ...f, tipo: e.target.value, escopo: tipoDeMeta(e.target.value).pessoa ? f.escopo : "live" })}>
-              {TIPOS_DE_META.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nome}
-                </option>
-              ))}
-            </select>
-          </label>
-          <fieldset className="text-[12px]">
-            <legend className="mb-1">De quem</legend>
-            <label className="mr-4 inline-flex items-center gap-1.5">
-              <input type="radio" checked={f.escopo === "live"} onChange={() => setF({ ...f, escopo: "live" })} className="accent-[#F4AF14]" />a live inteira
-            </label>
-            <label className={`inline-flex items-center gap-1.5 ${tipo.pessoa ? "" : "opacity-40"}`}>
-              <input type="radio" disabled={!tipo.pessoa} checked={f.escopo === "pessoa"} onChange={() => setF({ ...f, escopo: "pessoa" })} className="accent-[#F4AF14]" />
-              cada pessoa (individual)
-            </label>
-          </fieldset>
-          <label className="text-[12px]">
-            {f.tipo === "posicao" ? "Chegar ao #" : `Alvo (${tipo.unidade})`}
-            <input type="number" min={1} step="any" className={`${campo} mt-1`} value={f.alvo} onChange={(e) => setF({ ...f, alvo: e.target.value })} required />
-          </label>
-          <label className="text-[12px] sm:col-span-2">
-            Prêmio (opcional)
-            <input className={`${campo} mt-1`} value={f.premio} onChange={(e) => setF({ ...f, premio: e.target.value })} />
-          </label>
-          <div className="sm:col-span-2">
-            <Botao type="submit" cor="amarelo">
-              Criar meta
-            </Botao>
-          </div>
-        </form>
+    <div className="space-y-2">
+      {s.lib.disponiveis > 0 ? (
+        <p className={`font-bold text-d-ok ${grande ? "text-5xl" : "text-3xl"}`}>{s.lib.disponiveis === 1 ? "1 sorteio liberado!" : `${s.lib.disponiveis} sorteios liberados!`}</p>
+      ) : (
+        <p className={`font-bold tabular-nums text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>{p ? `Faltam ${inteiro(Math.ceil(p.falta))}` : "Aguardando"}</p>
       )}
-      {d.metas.length ? (
-        <ul className="space-y-4">
-          {d.metas.map((m) => {
-            const p = progressoMeta(m, totais);
-            const t = tipoDeMeta(m.tipo);
-            const pessoas = m.escopo === "pessoa" ? metaPorPessoa(m, { emocoes: d.emocoes, mensagens: d.chat, vendas: d.vendas, termos }) : null;
-            const dinheiro = m.tipo === "faturamento";
+      <p className="text-xs uppercase tracking-widest text-d-ink3">{p ? `${p.unidade} para o próximo sorteio` : "meta da live"}</p>
+      {p && (
+        <div className="mx-auto max-w-xs">
+          <Barra progresso={p.progresso} />
+        </div>
+      )}
+      <p className="text-xs text-d-ink3">
+        {inteiro(s.lib.liberados)} liberado(s) · {inteiro(s.validos.length)} sorteado(s)
+      </p>
+    </div>
+  );
+}
+
+function Participantes({ s, aberto = false, comBilhetes = true }: { s: SorteioCalculado; aberto?: boolean; comBilhetes?: boolean }) {
+  return (
+    <details className="group border-t border-d-line" open={aberto}>
+      <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-2.5 text-sm font-semibold hover:bg-d-panel2/50">
+        Participantes e chances ({inteiro(s.concorrendo.length)})
+        <ChevronDown className="size-4 shrink-0 text-d-ink3 transition group-open:rotate-180" />
+      </summary>
+      <div className="d-scroll max-h-64 overflow-y-auto">
+        <ol className="divide-y divide-d-line">
+          {s.concorrendo.slice(0, 300).map((p, i) => (
+            <li key={p.handle} className="flex items-center gap-2.5 px-4 py-2">
+              <span className="w-6 text-right text-xs tabular-nums text-d-ink3">{i + 1}</span>
+              <Avatar foto={p.foto} nome={p.handle} tamanho={26} />
+              <span className="min-w-0 flex-1 truncate text-sm">@{p.handle}</span>
+              {comBilhetes && <span className="text-xs tabular-nums text-d-ink3">{inteiro(p.bilhetes)} bil.</span>}
+              <span className="w-14 text-right text-sm font-semibold tabular-nums text-d-brand">
+                {s.bilhetes ? ((p.bilhetes / s.bilhetes) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : 0}%
+              </span>
+            </li>
+          ))}
+        </ol>
+        {s.participantes.some((p) => p.fora) && (
+          <p className="border-t border-d-line px-4 py-2 text-xs text-d-ink3">
+            Fora: {s.participantes.filter((p) => p.fora).map((p) => `@${p.handle} (${p.fora})`).join(", ")}
+          </p>
+        )}
+      </div>
+    </details>
+  );
+}
+
+function Ganhadores({ s, acao, podeEditar }: { s: SorteioCalculado; acao: Acao; podeEditar: boolean }) {
+  const lista = [...s.ganhadores].reverse();
+  return (
+    <div className="border-t border-d-line">
+      <div className="flex items-center justify-between px-5 py-2.5">
+        <h3 className="text-sm font-semibold">Ganhadores ({s.validos.length})</h3>
+        {podeEditar && s.ganhadores.length > 0 && (
+          <button className="text-xs text-d-ink3 hover:text-d-bad" onClick={() => confirm("Apagar todos os ganhadores deste sorteio?") && acao({ acao: "zerar", id: s.id })}>
+            Zerar
+          </button>
+        )}
+      </div>
+      {lista.length > 0 && (
+        <ol className="d-scroll max-h-56 divide-y divide-d-line overflow-y-auto">
+          {lista.map((g) => {
+            const n = s.ganhadores.indexOf(g) + 1;
+            const valido = g.status === "valido";
             return (
-              <li key={m.id}>
-                <div className="flex items-center gap-2 text-[13px]">
-                  <span className="min-w-0 flex-1 truncate font-semibold text-white">
-                    🎯 {m.nome || t.nome} {m.premio && <span className="font-normal text-[#8b93a7]">· 🎁 {m.premio}</span>}
-                  </span>
-                  {m.escopo === "pessoa" ? <Selo cor="azul">individual</Selo> : p.batida && <Selo cor="verde">batida!</Selo>}
-                  <button title="Excluir" onClick={() => confirm("Excluir esta meta?") && acao({ acao: "excluir", id: m.id })} className="text-white/40 hover:text-[#ff8a8a]">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-                {pessoas ? (
-                  <div className="mt-1 text-[12px]">
-                    <p className="text-[#8b93a7]">
-                      Quem chegar a {dinheiro ? reais(m.alvo) : `${inteiro(m.alvo)} ${t.unidade}`}: {pessoas.bateram.length} já chegaram
-                    </p>
-                    <div className="mt-1 flex flex-wrap gap-1.5">
-                      {pessoas.bateram.map((x) => (
-                        <Selo key={x.handle} cor="verde">
-                          @{x.handle}
-                        </Selo>
+              <li key={g.id} className={`flex items-center gap-3 px-5 py-2 ${valido ? "" : "opacity-45"}`}>
+                <span className="w-7 text-sm font-bold text-d-ink3">#{n}</span>
+                <Avatar foto={g.foto} nome={g.handle} tamanho={26} />
+                <span className={`flex-1 truncate text-sm font-medium ${valido ? "" : "line-through"}`}>@{g.handle}</span>
+                {podeEditar && valido && (
+                  <>
+                    <span className="inline-flex items-center gap-1" title="O ganhador estava na live?">
+                      {([true, false] as const).map((v) => (
+                        <button
+                          key={String(v)}
+                          type="button"
+                          onClick={() => acao({ acao: "presente", ganhadorId: g.id, presente: g.presente === v ? null : v })}
+                          className={`inline-flex items-center rounded-md border px-1.5 py-0.5 text-[11px] transition ${
+                            g.presente === v
+                              ? v
+                                ? "border-d-ok bg-d-ok/15 text-d-ok"
+                                : "border-d-bad bg-d-bad/15 text-d-bad"
+                              : "border-d-line text-d-ink3 hover:bg-d-panel2 hover:text-d-ink"
+                          }`}
+                        >
+                          {v ? <Check className="size-3.5" /> : <X className="size-3.5" />}
+                        </button>
                       ))}
-                      {pessoas.perto.slice(0, 3).map((x) => (
-                        <Selo key={x.handle}>
-                          @{x.handle} {dinheiro ? reais(x.atual) : inteiro(x.atual)}
-                        </Selo>
-                      ))}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-1">
-                    {m.tipo !== "posicao" && <Barra progresso={p.progresso} cor={p.batida ? "bg-brand-green" : "bg-brand-yellow"} />}
-                    <p className={`mt-0.5 text-[11px] text-[#8b93a7] ${dinheiro ? "dash-valor" : ""}`}>
-                      {m.tipo === "posicao"
-                        ? `Agora #${p.atual || "?"} · meta #${m.alvo}`
-                        : `${dinheiro ? reais(p.atual) : inteiro(p.atual)} de ${dinheiro ? reais(m.alvo) : inteiro(m.alvo)} ${dinheiro ? "" : t.unidade}${p.falta ? ` · faltam ${dinheiro ? reais(p.falta) : inteiro(p.falta)}` : ""}`}
-                    </p>
-                    {m.batidaEm && (
-                      <button onClick={() => acao({ acao: "reabrir", id: m.id })} className="text-[11px] text-brand-yellow hover:underline">
-                        reabrir
-                      </button>
-                    )}
-                  </div>
+                    </span>
+                    <button
+                      className="rounded-md px-1.5 py-0.5 text-[11px] text-d-ink3 hover:bg-d-panel2 hover:text-d-ink"
+                      title="O ganhador não respondeu: marcar e sortear outro para esta vaga"
+                      onClick={() => acao({ acao: "resortear", id: s.id, ganhadorId: g.id })}
+                    >
+                      Re-sortear
+                    </button>
+                    <button className="rounded-md px-1 text-d-ink3 hover:text-d-ink" title="Copiar mensagem para o chat" onClick={() => copiar(mensagemDeGanhador(g.handle, s.premio))}>
+                      📋
+                    </button>
+                  </>
                 )}
+                {!valido && <span className="text-[11px] text-d-ink3">{g.status === "resorteado" ? "re-sorteado" : "ausente"}</span>}
+                <span className="text-xs text-d-ink3">{hora(g.ts)}</span>
               </li>
             );
           })}
-        </ul>
-      ) : (
-        !aberto && <Vazio>Nenhuma meta. Ex.: 300 carpas na live, chegar ao #5 do ranking, ou cada pessoa que mandar 5.000 gemas ganha um booster.</Vazio>
+        </ol>
       )}
-    </Cartao>
+    </div>
+  );
+}
+
+function abrirJanela(chave: string, s: Sorteio, showId: string, f: "16x9" | "9x16") {
+  const url = linkDaTela(chave, { s: s.id, f }).replace("/dash/tela?", `/dash/tela/sorteio/${encodeURIComponent(showId)}?`);
+  const [w, h] = f === "16x9" ? [1280, 720] : [405, 720];
+  window.open(url, `sorteio-${s.id}-${f}`, `width=${w},height=${h},menubar=no,toolbar=no,location=no`);
+}
+
+export function CartaoSorteio({
+  s,
+  showId,
+  giro,
+  acao,
+  sortear,
+  editar,
+  podeEditar,
+  volume,
+}: {
+  s: SorteioCalculado;
+  showId: string;
+  giro: Giro | null;
+  acao: Acao;
+  sortear: (s: SorteioCalculado) => void;
+  editar?: () => void;
+  podeEditar: boolean;
+  volume: number;
+}) {
+  const chave = useContext(DashContexto)?.eu.config.telaChave;
+  const individual = s.regra.tipo === "individual";
+  const meuGiro = giro?.sorteioId === s.id ? giro : null;
+  const travado = !s.lib.livre && s.lib.disponiveis <= 0;
+  return (
+    <section className="d-card relative flex flex-col overflow-hidden">
+      <header className="space-y-3 border-b border-d-line px-5 py-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide ${individual ? "bg-d-brand/15 text-d-brand" : "bg-d-gold/15 text-d-gold"}`}>
+            {individual ? "Meta individual" : "Sorteio"}
+          </span>
+          <div className="ml-auto flex flex-wrap items-center justify-end gap-1.5">
+            {!individual && podeEditar && chave && (
+              <>
+                <button className="d-btn d-btn-secondary d-btn-sm border-d-gold/50 text-d-gold" title="Abre só este sorteio numa janela horizontal (16:9), para capturar no OBS" onClick={() => abrirJanela(chave, s, showId, "16x9")}>
+                  <Maximize2 className="size-3.5" />
+                  Tela 16:9
+                </button>
+                <button className="d-btn d-btn-secondary d-btn-sm border-d-gold/50 text-d-gold" title="Abre só este sorteio numa janela vertical (9:16), para live no celular" onClick={() => abrirJanela(chave, s, showId, "9x16")}>
+                  <Maximize2 className="size-3.5" />
+                  Tela 9:16
+                </button>
+              </>
+            )}
+            {editar && (
+              <button className="d-btn d-btn-secondary d-btn-sm" title="Editar este sorteio" onClick={editar}>
+                <Pencil className="size-3.5" />
+                Editar
+              </button>
+            )}
+            {podeEditar && (
+              <button className="d-btn d-btn-ghost d-btn-sm text-d-ink3 hover:text-d-bad" title="Excluir este sorteio" onClick={() => confirm(`Excluir "${s.nome}"?`) && acao({ acao: "excluir", id: s.id })}>
+                Excluir
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="min-w-0 space-y-1">
+          <h2 className="text-lg font-bold leading-snug tracking-tight [overflow-wrap:anywhere]">{s.nome}</h2>
+          <p className="text-xs leading-relaxed text-d-ink3">
+            {s.descricao}
+            {s.premio ? ` · prêmio: ${s.premio}` : ""}
+          </p>
+        </div>
+      </header>
+
+      {individual && s.individual ? (
+        <div className="px-5 py-5">
+          <p className="text-center text-3xl font-bold text-d-brand">
+            {inteiro(s.individual.bateram.length)} <span className="text-base font-semibold text-d-ink3">já bateram</span>
+          </p>
+          <p className="text-center text-xs uppercase tracking-widest text-d-ink3">
+            meta: {inteiro(s.individual.alvo)} {s.regra.unidade === "pontos" ? "pontos" : "emotions"}
+          </p>
+          <ul className="d-scroll mt-4 max-h-72 divide-y divide-d-line overflow-y-auto">
+            {[...s.individual.bateram, ...s.individual.faltam.slice(0, 30)].map((p) => {
+              const ok = p.atual >= s.individual!.alvo;
+              return (
+                <li key={p.handle} className="flex items-center gap-3 py-2">
+                  <Avatar foto={p.foto} nome={p.handle} tamanho={26} />
+                  <span className="min-w-0 flex-1 truncate text-sm">@{p.handle}</span>
+                  <span className="w-28">
+                    <Barra progresso={s.individual!.alvo ? p.atual / s.individual!.alvo : 0} cor={ok ? "bg-d-ok" : "bg-d-brand"} />
+                  </span>
+                  <span className={`w-20 text-right text-xs font-semibold tabular-nums ${ok ? "text-d-ok" : "text-d-ink3"}`}>
+                    {ok ? "bateu! ✓" : `${inteiro(p.atual)}/${inteiro(s.individual!.alvo)}`}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+          {!s.individual.bateram.length && !s.individual.faltam.length && <Vazio>Ninguém somou ainda.</Vazio>}
+        </div>
+      ) : (
+        <>
+          <div className="px-5 py-5 text-center">
+            <Situacao s={s} />
+            <div className="mt-5 flex min-h-32 flex-col items-center justify-center gap-2">
+              {meuGiro ? (
+                <Roleta key={meuGiro.chave} participantes={meuGiro.lista} ganhador={meuGiro.ganhador} premio={meuGiro.premio} volume={volume} />
+              ) : (
+                <p className="text-sm text-d-ink3">{s.concorrendo.length ? (travado ? "Ainda não liberou." : "Pronto para sortear.") : "Ninguém concorrendo ainda."}</p>
+              )}
+            </div>
+            {podeEditar && (
+              <button
+                className="d-btn d-btn-primary mt-3 px-7 py-3 disabled:opacity-35"
+                disabled={!s.concorrendo.length || travado || !!giro}
+                onClick={() => sortear(s)}
+              >
+                Sortear agora
+              </button>
+            )}
+            <p className="mt-2 text-xs text-d-ink3">
+              {inteiro(s.concorrendo.length)} participantes · {inteiro(s.bilhetes)} bilhetes
+            </p>
+          </div>
+          <Participantes s={s} />
+          <Ganhadores s={s} acao={acao} podeEditar={podeEditar} />
+        </>
+      )}
+    </section>
+  );
+}
+
+// ---------- palco em tela cheia ----------
+
+export function Palco({
+  d,
+  c,
+  inicial,
+  giro,
+  sortear,
+  aoFechar,
+  editar,
+  podeEditar,
+  volume,
+  mudo,
+  setMudo,
+  soUm = false,
+}: {
+  d: LiveCarregada;
+  c: Contas;
+  inicial?: string;
+  giro: Giro | null;
+  sortear: (s: SorteioCalculado) => void;
+  aoFechar?: () => void;
+  editar?: (s: SorteioCalculado) => void;
+  podeEditar: boolean;
+  volume: number;
+  mudo: boolean;
+  setMudo: (v: boolean) => void;
+  soUm?: boolean;
+}) {
+  const lista = c.sorteios.filter((s) => s.regra.tipo === "sorteio");
+  const [atual, setAtual] = useState(inicial ?? lista[0]?.id ?? "");
+  const s = lista.find((x) => x.id === atual) ?? lista[0];
+  const [min, setMin] = useState(2);
+  const [seg, setSeg] = useState(0);
+  const [fim, setFim] = useState<number | null>(null);
+  const [agora, setAgora] = useState(Date.now());
+  const sortearRef = useRef(sortear);
+  sortearRef.current = sortear;
+
+  useEffect(() => {
+    if (!fim) return;
+    const t = setInterval(() => {
+      const n = Date.now();
+      setAgora(n);
+      if (n >= fim) {
+        setFim(null);
+        if (s) sortearRef.current(s);
+      }
+    }, 200);
+    return () => clearInterval(t);
+  }, [fim, s]);
+
+  const meuGiro = s && giro?.sorteioId === s.id ? giro : null;
+  const travado = !!s && !s.lib.livre && s.lib.disponiveis <= 0;
+  const restante = fim ? Math.max(0, Math.ceil((fim - agora) / 1000)) : 0;
+
+  return (
+    <div className="fixed inset-0 z-[70] flex flex-col overflow-hidden bg-d-bg">
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{ background: "radial-gradient(900px 500px at 50% 35%, rgb(var(--d-brand) / 0.22), transparent 65%), radial-gradient(700px 400px at 50% 110%, rgb(var(--d-gold) / 0.12), transparent 60%)" }}
+      />
+      <header className="relative z-10 flex flex-wrap items-center gap-3 border-b border-d-line/70 px-5 py-3">
+        <p className="text-lg font-bold tracking-tight">
+          Dash <span className="text-d-brand">Village</span> <span className="text-d-gold">· Sorteio</span>
+        </p>
+        {!soUm && (
+          <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+            {lista.map((x) => (
+              <button
+                key={x.id}
+                onClick={() => setAtual(x.id)}
+                className={`rounded-full px-3 py-1 text-sm transition ${x.id === s?.id ? "bg-d-brand font-semibold text-d-on-brand" : "bg-d-panel2 text-d-ink2 hover:text-d-ink"}`}
+              >
+                {x.nome}
+              </button>
+            ))}
+          </div>
+        )}
+        {soUm && <span className="flex-1" />}
+        <button className="d-btn d-btn-secondary d-btn-sm" title={mudo ? "Ligar o som" : "Silenciar"} onClick={() => setMudo(!mudo)}>
+          {mudo ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
+          Som
+        </button>
+        {aoFechar && (
+          <button className="flex items-center gap-1 rounded-xl bg-d-panel2 px-3 py-1.5 text-sm font-semibold hover:bg-d-line" onClick={aoFechar}>
+            <X className="size-4" />
+            Sair
+          </button>
+        )}
+      </header>
+      {s ? (
+        <div className={`relative z-10 grid min-h-0 flex-1 gap-5 p-5 ${soUm ? "" : "lg:grid-cols-[1fr_360px]"}`}>
+          <section className="d-card flex min-h-0 flex-col items-center justify-between gap-6 p-6 text-center">
+            <div className="-mb-2 flex w-full justify-end">
+              {editar && podeEditar && (
+                <button className="d-btn d-btn-secondary d-btn-sm" onClick={() => editar(s)}>
+                  <Pencil className="size-3.5" />
+                  Editar
+                </button>
+              )}
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-bold uppercase tracking-[0.3em] text-d-ink3">{s.nome}</p>
+              <p className="text-xs text-d-ink3">{s.descricao}</p>
+              {s.premio && <p className="text-lg font-semibold text-d-gold">🎁 {s.premio}</p>}
+            </div>
+            <div className="flex w-full flex-1 flex-col items-center justify-center gap-4">
+              {podeEditar && !meuGiro && (
+                <form
+                  className="flex flex-wrap items-center justify-center gap-2 text-sm text-d-ink3"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    setFim(fim ? null : Date.now() + (min * 60 + seg) * 1000);
+                  }}
+                >
+                  <Timer className="size-4" />
+                  <span>Começar em</span>
+                  <input type="number" min={0} className="d-field w-16 px-2 py-1 text-center" value={min} onChange={(e) => setMin(Math.max(0, Number(e.target.value) || 0))} />
+                  <span>min</span>
+                  <input type="number" min={0} max={59} className="d-field w-16 px-2 py-1 text-center" value={seg} onChange={(e) => setSeg(Math.max(0, Math.min(59, Number(e.target.value) || 0)))} />
+                  <span>s</span>
+                  <button type="submit" className="d-btn d-btn-secondary d-btn-sm" disabled={!s.concorrendo.length || travado}>
+                    {fim ? "Parar cronômetro" : "Iniciar cronômetro"}
+                  </button>
+                </form>
+              )}
+              <div className="w-full max-w-3xl">
+                {meuGiro ? (
+                  <Roleta key={meuGiro.chave} participantes={meuGiro.lista} ganhador={meuGiro.ganhador} premio={meuGiro.premio} volume={mudo ? 0 : volume} grande />
+                ) : fim ? (
+                  <div>
+                    <p key={restante} className="text-8xl font-bold tabular-nums text-d-gold" style={{ animation: "dPopIn .4s ease-out" }}>
+                      {Math.floor(restante / 60) > 0 ? `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}` : restante}
+                    </p>
+                    <p className="text-xs uppercase tracking-widest text-d-ink3">o sorteio começa sozinho</p>
+                  </div>
+                ) : (
+                  <Situacao s={s} grande />
+                )}
+              </div>
+            </div>
+            <div className="space-y-2">
+              {podeEditar && (
+                <button
+                  className="rounded-3xl bg-d-gold px-14 py-5 text-3xl font-bold tracking-wide text-d-on-gold shadow-[0_0_60px_rgb(var(--d-gold)/0.35)] transition enabled:hover:brightness-110 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+                  disabled={!s.concorrendo.length || travado || !!giro}
+                  onClick={() => sortear(s)}
+                >
+                  SORTEAR
+                </button>
+              )}
+              <p className="text-sm text-d-ink3">{inteiro(s.concorrendo.length)} participantes concorrendo</p>
+            </div>
+          </section>
+          {!soUm && (
+            <aside className="flex min-h-0 flex-1 flex-col gap-4">
+              <div className="d-card flex min-h-0 flex-1 flex-col overflow-hidden">
+                <header className="d-card-header">
+                  <h2 className="d-card-title">
+                    <Users className="size-4 shrink-0 text-d-brand" />
+                    <span className="truncate">Participantes ({inteiro(s.concorrendo.length)})</span>
+                  </h2>
+                </header>
+                <div className="d-scroll min-h-0 flex-1 overflow-y-auto">
+                  <ol className="divide-y divide-d-line">
+                    {s.concorrendo.slice(0, 200).map((p, i) => (
+                      <li key={p.handle} className="flex items-center gap-2.5 px-4 py-2">
+                        <span className="w-6 text-right text-xs tabular-nums text-d-ink3">{i + 1}</span>
+                        <Avatar foto={p.foto} nome={p.handle} tamanho={26} />
+                        <span className="min-w-0 flex-1 truncate text-sm">@{p.handle}</span>
+                        <span className="text-xs tabular-nums text-d-ink3">{inteiro(p.bilhetes)} bil.</span>
+                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-d-brand">
+                          {s.bilhetes ? ((p.bilhetes / s.bilhetes) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : 0}%
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+              </div>
+              <Emotions d={d} c={c} altura="min-h-0 flex-1" />
+            </aside>
+          )}
+        </div>
+      ) : (
+        <div className="relative z-10 flex flex-1 items-center justify-center text-d-ink3">Nenhum sorteio criado nesta live.</div>
+      )}
+    </div>
+  );
+}
+
+// ---------- sortear (com a roleta) ----------
+
+export function useSortear(showId: string, trocar: (m: { sorteios: Sorteio[] }) => void, volume: number) {
+  const token = useContext(DashContexto)?.token ?? "";
+  const [giro, setGiro] = useState<Giro | null>(null);
+  const [erro, setErro] = useState("");
+
+  const acao: Acao = async (corpo) => {
+    setErro("");
+    if (!token) {
+      setErro("Entre no Dash neste navegador para sortear.");
+      return null;
+    }
+    try {
+      const r = await chamarApi<{ sorteios: Sorteio[]; ganhador?: Pessoa & { id: string }; roleta?: Pessoa[] }>(token, `/api/dash/sorteios/${encodeURIComponent(showId)}`, { corpo });
+      if (r.ganhador && r.roleta) {
+        const s = r.sorteios.find((x) => x.id === corpo.id);
+        setGiro({ chave: r.ganhador.id, sorteioId: String(corpo.id), ganhador: r.ganhador, lista: r.roleta, premio: s?.premio ?? null, nome: s?.nome ?? "" });
+        // A lista nova (com o ganhador) entra quando a roleta para.
+        setTimeout(() => {
+          trocar({ sorteios: r.sorteios });
+          setTimeout(() => setGiro(null), 6000);
+        }, 6800);
+      } else {
+        trocar({ sorteios: r.sorteios });
+      }
+      return r;
+    } catch (e) {
+      setErro(String((e as Error).message));
+      tocar("lance", volume);
+      return null;
+    }
+  };
+  const sortear = (s: SorteioCalculado) => acao({ acao: "sortear", id: s.id });
+  return { giro, erro, setErro, acao, sortear };
+}
+
+// ---------- a página ----------
+
+function MetaDaLive({ d, c, showId, aoMudar }: { d: LiveCarregada; c: Contas; showId: string; aoMudar: (m: Meta[]) => void }) {
+  const { chamar } = useDash();
+  const [alvo, setAlvo] = useState(c.metaLive ? String(c.metaLive.alvo) : "");
+  const [tipo, setTipo] = useState(c.metaLive?.tipo === "emocoes" ? "emocoes" : "ranking");
+  useEffect(() => {
+    setAlvo(c.metaLive ? String(c.metaLive.alvo) : "");
+    if (c.metaLive) setTipo(c.metaLive.tipo === "emocoes" ? "emocoes" : "ranking");
+  }, [c.metaLive?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const mudou = alvo !== (c.metaLive ? String(c.metaLive.alvo) : "") || (c.metaLive && tipo !== c.metaLive.tipo);
+  return (
+    <form
+      className="d-card flex flex-wrap items-center gap-2 px-4 py-3"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const r = await chamar<{ metas: Meta[] }>(`/api/dash/metas/${encodeURIComponent(showId)}`, { corpo: { acao: "meta-live", tipo, alvo: Number(alvo.replace(/\D/g, "")) || 0 } }).catch(() => null);
+        if (r) aoMudar(r.metas);
+      }}
+    >
+      <span className="flex items-center gap-1.5 text-sm text-d-ink2">
+        <Target className="size-4 shrink-0 text-d-brand" />
+        Meta:
+      </span>
+      <input inputMode="numeric" placeholder="ex.: 260000" className="d-field w-32 px-3 py-1.5 text-sm" aria-label="Meta de pontos" value={alvo} onChange={(e) => setAlvo(e.target.value)} />
+      <span className="text-sm text-d-ink2">pontos de</span>
+      <select className="d-field px-3 py-1.5 text-sm" aria-label="Origem dos pontos" value={tipo} onChange={(e) => setTipo(e.target.value)}>
+        <option value="ranking">Ranking mensal da Jamble</option>
+        <option value="emocoes">Emotions desta live</option>
+      </select>
+      <button type="submit" disabled={!mudou} className="d-btn d-btn-primary d-btn-sm">
+        Salvar meta
+      </button>
+      {c.metaLive && (
+        <div className="flex min-w-[220px] flex-1 items-center gap-3">
+          <span className="flex-1">
+            <Barra progresso={c.metaLive.alvo ? c.atualMeta / c.metaLive.alvo : 0} cor={c.metaBatida ? "bg-d-ok" : "bg-d-gold"} />
+          </span>
+          <span className={`text-sm font-semibold tabular-nums ${c.metaBatida ? "text-d-ok" : ""}`}>
+            {c.metaBatida ? "Meta batida! 🎉" : `${inteiro(c.atualMeta)} / ${inteiro(c.metaLive.alvo)}`}
+          </span>
+        </div>
+      )}
+      <p className="w-full text-xs text-d-ink3">
+        Ranking mensal: os pontos que o vendedor já tem no mês (+3 por R$ gasto, +2 por gema), atualizados a cada leitura do ranking
+        {d.ranking ? "" : " — abra o ranking mensal na Jamble uma vez para a extensão ler"}.
+      </p>
+    </form>
   );
 }
 
 export default function Sorteios({ showId }: { showId: string }) {
-  const { chamar } = useDash();
+  const { definirLiveAberta } = useDash();
   const { dados: d, erro, trocar } = useLiveDash(showId);
-  const [form, setForm] = useState<FormSorteio | null>(null);
-  const [roleta, setRoleta] = useState<{ chave: number; nome: string; premio: string | null; ganhador: { handle: string; foto: string | null; bilhetes: number }; lista: { handle: string; foto: string | null; bilhetes: number }[] } | null>(null);
-  const [volume] = usePreferencia("som", { ligado: true, volume: 0.5 });
-  const [erroAcao, setErroAcao] = useState("");
+  const c = useContasLive(d);
+  const [volume, setVolume] = usePreferencia("volume", 1);
+  const [mudo, setMudo] = usePreferencia("sorteio-mudo", false);
+  const [sons] = usePreferencia("sons", true);
+  const [form, setForm] = useState<{ id?: string; nome: string; premio: string; regra: Regra } | null>(null);
+  const [palco, setPalco] = useState(false);
+  const { recados, novo } = useRecados();
+  const { giro, erro: erroAcao, acao, sortear } = useSortear(showId, trocar, mudo ? 0 : volume);
+  useAvisos(d, c, { sons: sons && !mudo, volume, voz: false, novo });
 
-  const extra = useMemo(() => {
-    if (!d) return null;
-    const termos = lerTermos(d.termos);
-    const resumo = resumoVendas(d.vendas);
-    const gemas = d.emocoes.reduce((t, e) => t + e.gemas, 0);
-    const carpas = rankingCarpas(d.emocoes, d.chat, termos).reduce((t, p) => t + p.carpas, 0);
-    const totais: Totais = {
-      gemas,
-      carpas,
-      emocoes: d.emocoes.length,
-      faturamento: resumo.total,
-      itens: resumo.itens,
-      compradores: resumo.compradores,
-      pontosLive: pontosDaLive(resumo.total, gemas, d.ranking?.regras),
-      posicao: d.ranking?.posicao ?? null,
-    };
-    // Emotions que já apareceram nesta live, mais as que a Jamble tem na tabela.
-    const vistas = porIcone(d.emocoes).map((i) => i.icone);
-    const todas = [...new Set([...vistas, ...Object.keys(d.icones)])];
-    const icones = todas.map((id) => ({ id, nome: d.icones[id]?.nome ?? id }));
-    return { totais, icones };
-  }, [d]);
+  useEffect(() => {
+    if (d) definirLiveAberta({ showId, titulo: d.live.titulo, vendedor: d.live.vendedor });
+  }, [d?.live.titulo, d?.live.vendedor, showId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function salvar(f: FormSorteio) {
-    try {
-      const r = await chamar<{ sorteios: Sorteio[] }>(`/api/dash/sorteios/${encodeURIComponent(showId)}`, {
-        corpo: { acao: f.id ? "editar" : "criar", id: f.id, ...corpoDe(f) },
-      });
-      trocar({ sorteios: r.sorteios });
-      setForm(null);
-    } catch (e) {
-      alert(String((e as Error).message));
-    }
+  if (!d || !c) {
+    return (
+      <main className="d-page flex min-h-[60vh] flex-col items-center justify-center gap-3 text-sm text-d-ink3">
+        <span className="size-6 animate-spin rounded-full border-2 border-d-line border-t-d-brand" />
+        {erro ? `Não consegui abrir a live: ${erro}` : "Abrindo a live…"}
+      </main>
+    );
   }
 
-  async function sortear(s: Sorteio, acao: "sortear" | "resortear") {
-    setErroAcao("");
-    try {
-      const r = await chamar<{
-        sorteios: Sorteio[];
-        ganhador: { handle: string; foto: string | null; bilhetes: number };
-        roleta: { handle: string; foto: string | null; bilhetes: number }[];
-      }>(`/api/dash/sorteios/${encodeURIComponent(showId)}`, { corpo: { acao, id: s.id } });
-      setRoleta({ chave: Date.now(), nome: s.nome, premio: s.premio, ganhador: r.ganhador, lista: r.roleta });
-      // A lista nova (com o ganhador) entra quando a roleta para.
-      setTimeout(() => trocar({ sorteios: r.sorteios }), 7000);
-    } catch (e) {
-      setErroAcao(String((e as Error).message));
-      tocar("lance", volume.volume);
-    }
+  async function salvar(f: { id?: string; nome: string; premio: string; regra: Regra }) {
+    const r = await acao({ acao: f.id ? "editar" : "criar", id: f.id, nome: f.nome, premio: f.premio, regra: f.regra });
+    if (r) setForm(null);
   }
 
-  if (!d || !extra) return <p className="py-10 text-center text-[13px] text-[#8b93a7]">{erro ? `Não consegui abrir a live: ${erro}` : "Carregando..."}</p>;
+  const editar = (s: Sorteio) => setForm({ id: s.id, nome: s.nome, premio: s.premio ?? "", regra: s.regra });
 
   return (
-    <div>
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="min-w-0 truncate font-display text-lg font-extrabold text-white">Sorteios & metas</h1>
-        <AoVivo aoVivo={d.live.aoVivo} />
-        <span className="truncate text-[12px] text-[#8b93a7]">{d.live.titulo}</span>
-        <span className="flex-1" />
-        <Link href={`/dash/painel/${encodeURIComponent(showId)}`}>
-          <Botao>
-            <Radio size={14} /> Painel
-          </Botao>
-        </Link>
-        <Botao cor="amarelo" onClick={() => setForm({ ...FORM_VAZIO })}>
-          <Plus size={14} /> Novo sorteio
-        </Botao>
-      </div>
-      {erroAcao && <p className="mb-3 rounded-lg bg-brand-red/10 px-3 py-2 text-[13px] text-[#ff8a8a]">{erroAcao}</p>}
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-        <div className="min-w-0 space-y-4">
-          {form && <FormularioSorteio key={form.id ?? "novo"} inicial={form} icones={extra.icones} aoSalvar={salvar} aoFechar={() => setForm(null)} />}
-          {d.sorteios.length ? (
-            d.sorteios.map((s) => (
-              <CartaoSorteio
-                key={s.id}
-                s={s}
-                d={d}
-                showId={showId}
-                aoMudar={(sorteios) => trocar({ sorteios })}
-                aoEditar={() => setForm(formDe(s))}
-                aoSortear={(acao) => sortear(s, acao)}
-              />
-            ))
-          ) : (
-            !form && (
-              <Cartao>
-                <Vazio>Nenhum sorteio nesta live. Clique em “Novo sorteio” e escolha um modelo.</Vazio>
-              </Cartao>
-            )
-          )}
-        </div>
+    <main className="d-page">
+      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="min-w-0">
-          <SecaoMetas d={d} showId={showId} totais={extra.totais} aoMudar={(metas) => trocar({ metas })} />
+          <h1 className="d-page-title">Sorteios &amp; Metas</h1>
+          <p className="d-page-sub">
+            @{d.live.vendedor} · {d.live.titulo}
+          </p>
         </div>
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatusLive aoVivo={d.live.aoVivo} />
+        </div>
+      </header>
 
-      {roleta && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-3xl">
-            <Roleta
-              key={roleta.chave}
-              titulo={roleta.nome}
-              participantes={roleta.lista}
-              ganhador={roleta.ganhador}
-              premio={roleta.premio}
-              volume={volume.ligado ? volume.volume : 0}
-            />
-            <div className="mt-6 flex justify-center gap-2">
-              <Botao onClick={() => copiar(mensagemDeGanhador(roleta.ganhador.handle, roleta.premio))}>
-                <Copy size={13} /> Copiar mensagem
-              </Botao>
-              <Botao cor="amarelo" onClick={() => setRoleta(null)}>
-                Fechar
-              </Botao>
-            </div>
-          </div>
+      <section className="d-card flex flex-wrap items-center gap-x-4 gap-y-3 p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button className="d-btn d-btn-primary" onClick={() => setForm({ nome: "Novo sorteio", premio: "", regra: regraPadrao("sorteio") })}>
+            <Plus className="size-4 shrink-0" />
+            Novo sorteio
+          </button>
+          <button className="d-btn d-btn-secondary" onClick={() => setForm({ nome: "Nova meta", premio: "", regra: regraPadrao("individual") })}>
+            <Target className="size-4 shrink-0" />
+            Nova meta individual
+          </button>
         </div>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="d-label pr-1">Modelos</span>
+          {MODELOS.map((m) => (
+            <button
+              key={m.rotulo}
+              className="d-chip inline-flex items-center gap-1.5"
+              title={`Novo "${m.nome}" (sorteio livre)`}
+              onClick={() => acao({ acao: "criar", nome: m.nome, regra: { ...regraPadrao("sorteio"), ...m.regra } })}
+            >
+              <Sparkles className="size-3.5 shrink-0 text-d-gold" />
+              {m.rotulo}
+            </button>
+          ))}
+        </div>
+        <div className="ml-auto flex flex-wrap items-center gap-2">
+          <button className="d-btn d-btn-secondary border-d-gold/60 text-d-gold" title="Palco do sorteio em tela cheia, para mostrar na live" onClick={() => setPalco(true)}>
+            <Maximize2 className="size-4 shrink-0" />
+            Tela cheia
+          </button>
+          <button className="d-btn d-btn-secondary px-2.5" title={mudo ? "Ligar o som do sorteio" : "Silenciar o sorteio"} aria-label="Silenciar o sorteio" onClick={() => setMudo(!mudo)}>
+            {mudo ? <VolumeX className="size-4 shrink-0" /> : <Volume2 className="size-4 shrink-0" />}
+          </button>
+          <Volume valor={volume} mudar={setVolume} />
+        </div>
+      </section>
+
+      {erroAcao && <p className="rounded-xl border border-d-bad/40 bg-d-bad/10 px-4 py-2.5 text-sm text-d-bad">{erroAcao}</p>}
+
+      <MetaDaLive d={d} c={c} showId={showId} aoMudar={(metas) => trocar({ metas })} />
+
+      <MensagensChat d={d} c={c} recados={recados} novo={novo} />
+
+      <Emotions d={d} c={c} altura="h-[420px]" />
+
+      {form && <FormRegra key={form.id ?? form.regra.tipo} d={d} inicial={form} aoSalvar={salvar} aoFechar={() => setForm(null)} />}
+
+      {c.sorteios.length ? (
+        <div className="grid gap-5 lg:grid-cols-2">
+          {c.sorteios.map((s) => (
+            <CartaoSorteio key={s.id} s={s} showId={showId} giro={giro} acao={acao} sortear={sortear} editar={() => editar(s)} podeEditar={d.podeEditar} volume={mudo ? 0 : volume} />
+          ))}
+        </div>
+      ) : (
+        !form && (
+          <section className="d-card">
+            <Vazio>Nenhum sorteio nesta live. Clique em “Novo sorteio” ou num modelo.</Vazio>
+          </section>
+        )
       )}
-    </div>
+
+      {palco && (
+        <Palco d={d} c={c} giro={giro} sortear={sortear} aoFechar={() => setPalco(false)} editar={(s) => { setPalco(false); editar(s); }} podeEditar={d.podeEditar} volume={volume} mudo={mudo} setMudo={setMudo} />
+      )}
+    </main>
   );
 }

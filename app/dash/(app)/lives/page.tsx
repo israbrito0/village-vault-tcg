@@ -2,18 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { FileText, Gift, Printer, Radio } from "lucide-react";
 import type { LiveResumo } from "@/lib/dash/api";
 import { dataHora, inteiro, reais, useDash } from "@/lib/dash/cliente";
 import { usePeriodo } from "@/components/dash/Periodo";
-import { AoVivo, Botao, Cartao, Kpi, Vazio } from "@/components/dash/ui";
+import { Avatar, StatusLive, Vazio } from "@/components/dash/ui";
 
-// Lives & relatórios: cada live do período com vendido, pago, itens,
-// compradores, emotions e sorteios, e o relatório em PDF de cada uma.
+// Lives & Relatórios, como no Dash TCG: filtro, período, totais e a tabela com
+// "Abrir" e "Baixar PDF" em cada live.
 export default function Lives() {
   const { chamar } = useDash();
-  const { periodo, seletor } = usePeriodo("30d");
+  const { periodo, campos } = usePeriodo(["hoje", "ontem", "7d", "mes", "tudo"], "tudo");
   const [lives, setLives] = useState<LiveResumo[] | null>(null);
+  const [busca, setBusca] = useState("");
   const [erro, setErro] = useState("");
 
   useEffect(() => {
@@ -23,89 +23,96 @@ export default function Lives() {
       .catch((e) => setErro(String(e.message)));
   }, [chamar, periodo.de, periodo.ate]);
 
-  const total = useMemo(() => {
-    const l = lives ?? [];
-    const soma = (k: keyof LiveResumo) => l.reduce((s, x) => s + (Number(x[k]) || 0), 0);
-    return { lives: l.length, total: soma("total"), pago: soma("pago"), itens: soma("itens"), compradores: soma("compradores"), emocoes: soma("emocoes"), gemas: soma("gemas"), ganhadores: soma("ganhadores") };
-  }, [lives]);
+  const lista = useMemo(() => {
+    const t = busca.trim().replace(/^@/, "").toLowerCase();
+    return (lives ?? []).filter((l) => !t || (l.titulo ?? "").toLowerCase().includes(t) || (l.vendedor ?? "").toLowerCase().includes(t));
+  }, [lives, busca]);
+  const total = lista.reduce((s, l) => s + l.total, 0);
+  const itens = lista.reduce((s, l) => s + l.itens, 0);
 
   return (
-    <div className="dash-impressao">
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <h1 className="font-display text-lg font-extrabold text-white">Lives & relatórios</h1>
-        <span className="text-[12px] text-[#8b93a7]">{periodo.rotulo}</span>
-        <span className="flex-1" />
-        <Botao onClick={() => window.print()} className="dash-sem-impressao">
-          <Printer size={14} /> PDF do período
-        </Botao>
-      </div>
-      <div className="mb-4">{seletor}</div>
-      {erro && <p className="mb-3 text-[13px] text-[#ff8a8a]">{erro}</p>}
+    <main className="d-page">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="d-page-title">Lives &amp; Relatórios</h1>
+          <p className="d-page-sub">Todas as lives salvas no banco. Baixe o relatório em PDF de cada uma.</p>
+        </div>
+        <input placeholder="Filtrar por @vendedor ou título" className="d-field w-full sm:w-72" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      </header>
 
-      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
-        <Kpi rotulo="Lives" valor={inteiro(total.lives)} />
-        <Kpi rotulo="Vendido" valor={reais(total.total)} cor="text-[#6fdc94]" dinheiro />
-        <Kpi rotulo="Pago" valor={reais(total.pago)} dinheiro detalhe={total.total > total.pago ? `${reais(total.total - total.pago)} pendente` : undefined} />
-        <Kpi rotulo="Itens" valor={inteiro(total.itens)} />
-        <Kpi rotulo="Emotions" valor={inteiro(total.emocoes)} detalhe={`${inteiro(total.gemas)} gemas`} />
-        <Kpi rotulo="Sorteios feitos" valor={inteiro(total.ganhadores)} />
-      </div>
+      <section className="d-card flex flex-wrap items-end gap-3 p-4">
+        {campos}
+        <div className="ml-auto flex flex-wrap items-center gap-3">
+          <p className="text-right text-xs text-d-ink3">
+            {inteiro(lista.length)} lives · <span className="dash-valor font-semibold text-d-ok">{reais(total)}</span> · {inteiro(itens)} itens
+          </p>
+          <Link className="d-btn d-btn-primary" target="_blank" href={`/dash/relatorio/periodo?de=${periodo.de}&ate=${periodo.ate}&imprimir=1`}>
+            Baixar relatório do período
+          </Link>
+        </div>
+      </section>
+      {erro && <p className="text-sm text-d-bad">{erro}</p>}
 
-      <Cartao semPadding>
-        {lives === null ? (
-          <Vazio>Carregando...</Vazio>
-        ) : lives.length ? (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-[13px]">
-              <thead className="text-left text-[10px] uppercase tracking-wider text-[#8b93a7]">
-                <tr className="border-b border-white/[0.06]">
-                  <th className="px-4 py-2.5 font-semibold">Live</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Vendido</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Pago</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Itens</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Compradores</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Emotions</th>
-                  <th className="px-2 py-2.5 text-right font-semibold">Sorteios</th>
-                  <th className="dash-sem-impressao px-4 py-2.5" />
+      <div className="d-card overflow-hidden">
+        <div className="d-scroll overflow-x-auto">
+          {lives === null ? (
+            <Vazio>Carregando…</Vazio>
+          ) : lista.length ? (
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="d-table-head">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Live</th>
+                  <th className="px-4 py-3 font-semibold">Data</th>
+                  <th className="px-4 py-3 text-right font-semibold">Vendido</th>
+                  <th className="px-4 py-3 text-right font-semibold">Itens</th>
+                  <th className="px-4 py-3 text-right font-semibold">Compradores</th>
+                  <th className="px-4 py-3 text-right font-semibold">Emotions</th>
+                  <th className="px-4 py-3 text-right font-semibold">Sorteios</th>
+                  <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody>
-                {lives.map((l) => (
-                  <tr key={l.showId} className="border-t border-white/[0.05] hover:bg-white/[0.02]">
-                    <td className="px-4 py-2.5">
-                      <p className="max-w-[340px] truncate font-semibold text-white">{l.titulo || "Live"}</p>
-                      <p className="flex items-center gap-2 text-[11px] text-[#8b93a7]">
-                        {dataHora(l.inicio)} {l.aoVivo && <AoVivo aoVivo />}
-                      </p>
+              <tbody className="divide-y divide-d-line">
+                {lista.map((l) => (
+                  <tr key={l.showId} className="hover:bg-d-panel2/60">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <Avatar foto={l.vendedorFoto} nome={l.vendedor} tamanho={34} />
+                        <div className="min-w-0">
+                          <p className="max-w-[260px] truncate font-semibold">{l.titulo || "Live"}</p>
+                          <p className="flex items-center gap-2 text-xs text-d-ink3">
+                            @{l.vendedor} {l.aoVivo && <StatusLive aoVivo />}
+                          </p>
+                        </div>
+                      </div>
                     </td>
-                    <td className="dash-valor px-2 py-2.5 text-right font-semibold text-[#6fdc94]">{reais(l.total)}</td>
-                    <td className="dash-valor px-2 py-2.5 text-right">{reais(l.pago)}</td>
-                    <td className="px-2 py-2.5 text-right">{inteiro(l.itens)}</td>
-                    <td className="px-2 py-2.5 text-right">{inteiro(l.compradores)}</td>
-                    <td className="px-2 py-2.5 text-right">{inteiro(l.emocoes)}</td>
-                    <td className="px-2 py-2.5 text-right">{inteiro(l.ganhadores)}</td>
-                    <td className="dash-sem-impressao px-4 py-2.5">
-                      <span className="flex justify-end gap-1">
-                        <Link href={`/dash/painel/${encodeURIComponent(l.showId)}`} title="Painel" className="rounded p-1.5 text-white/50 hover:bg-white/10 hover:text-white">
-                          <Radio size={15} />
+                    <td className="whitespace-nowrap px-4 py-3 text-d-ink2">{dataHora(l.inicio)}</td>
+                    <td className="dash-valor px-4 py-3 text-right tabular-nums">
+                      <span className="font-semibold text-d-ok">{reais(l.total)}</span>
+                      <span className="block text-xs text-d-ink3">pago {reais(l.pago)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right tabular-nums">{inteiro(l.itens)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{inteiro(l.compradores)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{inteiro(l.emocoes)}</td>
+                    <td className="px-4 py-3 text-right tabular-nums">{inteiro(l.ganhadores)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Link className="d-btn d-btn-secondary d-btn-sm" href={`/dash/painel/${encodeURIComponent(l.showId)}`}>
+                          Abrir
                         </Link>
-                        <Link href={`/dash/sorteios/${encodeURIComponent(l.showId)}`} title="Sorteios" className="rounded p-1.5 text-white/50 hover:bg-white/10 hover:text-white">
-                          <Gift size={15} />
+                        <Link className="d-btn d-btn-primary d-btn-sm" target="_blank" href={`/dash/relatorio/${encodeURIComponent(l.showId)}?imprimir=1`}>
+                          Baixar PDF
                         </Link>
-                        <Link href={`/dash/relatorio/${encodeURIComponent(l.showId)}`} title="Relatório em PDF" className="rounded p-1.5 text-white/50 hover:bg-white/10 hover:text-white">
-                          <FileText size={15} />
-                        </Link>
-                      </span>
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
-        ) : (
-          <Vazio>Nenhuma live sua neste período. As lives entram aqui conforme a extensão manda.</Vazio>
-        )}
-      </Cartao>
-    </div>
+          ) : (
+            <Vazio>Nenhuma live neste período.</Vazio>
+          )}
+        </div>
+      </div>
+    </main>
   );
 }

@@ -15,8 +15,306 @@ body {
   scrollbar-width: none;
 }
 
-/* Dash Village: "ocultar valores" borra o dinheiro na tela (para compartilhar
-   a tela sem mostrar quanto vendeu). */
+/* ---------- Dash Village (/dash) ----------
+   Mesma estrutura do Dash TCG (menu lateral, cartões, botões), com as cores da
+   Village: escuro com amarelo. O tema fica no atributo data-tema da raiz
+   .dash: "escuro" (padrão), "claro" ou "sistema". */
+
+.dash {
+  --d-bg: 15 17 22;
+  --d-panel: 23 26 33;
+  --d-panel2: 31 35 44;
+  --d-line: 42 47 58;
+  --d-ink: 237 238 242;
+  --d-ink2: 169 176 192;
+  --d-ink3: 125 133 151;
+  --d-brand: 244 175 20;
+  --d-on-brand: 26 20 5;
+  --d-gold: 255 201 74;
+  --d-on-gold: 26 20 5;
+  --d-ok: 61 214 140;
+  --d-warn: 255 181 71;
+  --d-bad: 255 99 105;
+  --d-sombra: 0 1px 2px rgb(0 0 0 / 0.3);
+  --d-sombra-pop: 0 16px 40px -8px rgb(0 0 0 / 0.6);
+  --d-brilho-1: rgb(244 175 20 / 0.1);
+  --d-brilho-2: rgb(21 139 202 / 0.06);
+  color-scheme: dark;
+  min-height: 100vh;
+  background: radial-gradient(1100px 520px at 90% -10%, var(--d-brilho-1), transparent 60%),
+    radial-gradient(900px 480px at -10% 110%, var(--d-brilho-2), transparent 60%), rgb(var(--d-bg));
+  background-attachment: fixed;
+  color: rgb(var(--d-ink));
+  font-family: var(--font-inter), system-ui, sans-serif;
+}
+
+.dash[data-tema="claro"] {
+  --d-bg: 247 247 250;
+  --d-panel: 255 255 255;
+  --d-panel2: 242 242 246;
+  --d-line: 230 230 236;
+  --d-ink: 28 32 36;
+  --d-ink2: 91 97 107;
+  --d-ink3: 139 141 152;
+  --d-brand: 214 148 0;
+  --d-on-brand: 26 20 5;
+  --d-gold: 185 130 0;
+  --d-on-gold: 255 255 255;
+  --d-ok: 24 160 88;
+  --d-warn: 194 120 3;
+  --d-bad: 229 72 77;
+  --d-sombra: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --d-sombra-pop: 0 12px 32px -8px rgb(16 24 40 / 0.18);
+  --d-brilho-1: rgb(244 175 20 / 0.12);
+  --d-brilho-2: rgb(21 139 202 / 0.06);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  .dash[data-tema="sistema"] {
+    --d-bg: 247 247 250;
+    --d-panel: 255 255 255;
+    --d-panel2: 242 242 246;
+    --d-line: 230 230 236;
+    --d-ink: 28 32 36;
+    --d-ink2: 91 97 107;
+    --d-ink3: 139 141 152;
+    --d-brand: 214 148 0;
+    --d-on-brand: 26 20 5;
+    --d-gold: 185 130 0;
+    --d-on-gold: 255 255 255;
+    --d-ok: 24 160 88;
+    --d-warn: 194 120 3;
+    --d-bad: 229 72 77;
+    --d-sombra: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+    --d-sombra-pop: 0 12px 32px -8px rgb(16 24 40 / 0.18);
+    --d-brilho-1: rgb(244 175 20 / 0.12);
+    color-scheme: light;
+  }
+}
+
+/* Tela do OBS com fundo transparente ou verde. */
+.dash[data-fundo="transparente"] {
+  background: transparent;
+}
+.dash[data-fundo="verde"] {
+  background: #00ff00;
+}
+
+@layer components {
+  .d-page,
+  .d-page-wide {
+    width: 100%;
+    max-width: 1500px;
+    margin-inline: auto;
+    padding: 1.5rem 1rem;
+  }
+  .d-page > :not(:last-child),
+  .d-page-wide > :not(:last-child) {
+    margin-bottom: 1.5rem;
+  }
+  @media (min-width: 640px) {
+    .d-page,
+    .d-page-wide {
+      padding: 2rem 1.5rem;
+    }
+  }
+  .d-page-title {
+    font-size: 28px;
+    line-height: 2rem;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+  }
+  .d-page-sub {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: rgb(var(--d-ink3));
+  }
+  .d-card {
+    border-radius: 1rem;
+    border: 1px solid rgb(var(--d-line));
+    background-color: rgb(var(--d-panel));
+    box-shadow: var(--d-sombra);
+  }
+  .d-card-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    column-gap: 0.75rem;
+    row-gap: 0.5rem;
+    border-bottom: 1px solid rgb(var(--d-line));
+    padding: 0.75rem 1rem;
+  }
+  .d-card-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    color: rgb(var(--d-ink));
+  }
+  .d-card-body {
+    padding: 1rem;
+  }
+  .d-label {
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: rgb(var(--d-ink3));
+  }
+  .d-field {
+    border-radius: 0.75rem;
+    border: 1px solid rgb(var(--d-line));
+    background-color: rgb(var(--d-panel));
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    color: rgb(var(--d-ink));
+    box-shadow: var(--d-sombra);
+    outline: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .d-field::placeholder {
+    color: rgb(var(--d-ink3));
+  }
+  .d-field:focus {
+    border-color: rgb(var(--d-brand));
+    box-shadow: 0 0 0 4px rgb(var(--d-brand) / 0.15);
+  }
+  .d-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.75rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    font-weight: 600;
+    white-space: nowrap;
+    user-select: none;
+    transition: all 0.15s;
+  }
+  .d-btn:active {
+    transform: scale(0.98);
+  }
+  .d-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+    transform: none;
+  }
+  .d-btn-sm {
+    border-radius: 0.5rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+  .d-btn-primary {
+    background-color: rgb(var(--d-brand));
+    color: rgb(var(--d-on-brand));
+    box-shadow: var(--d-sombra);
+  }
+  .d-btn-primary:enabled:hover,
+  a.d-btn-primary:hover {
+    filter: brightness(1.1);
+  }
+  .d-btn-gold {
+    background-color: rgb(var(--d-gold));
+    color: rgb(var(--d-on-gold));
+    box-shadow: var(--d-sombra);
+  }
+  .d-btn-secondary {
+    border: 1px solid rgb(var(--d-line));
+    background-color: rgb(var(--d-panel));
+    color: rgb(var(--d-ink));
+    box-shadow: var(--d-sombra);
+  }
+  .d-btn-secondary:enabled:hover,
+  a.d-btn-secondary:hover {
+    background-color: rgb(var(--d-panel2));
+  }
+  .d-btn-ghost {
+    color: rgb(var(--d-ink2));
+  }
+  .d-btn-ghost:enabled:hover,
+  a.d-btn-ghost:hover {
+    background-color: rgb(var(--d-panel2));
+    color: rgb(var(--d-ink));
+  }
+  .d-chip {
+    border-radius: 9999px;
+    border: 1px solid rgb(var(--d-line));
+    background-color: rgb(var(--d-panel));
+    padding: 0.375rem 0.75rem;
+    font-size: 0.75rem;
+    line-height: 1rem;
+    font-weight: 500;
+    color: rgb(var(--d-ink2));
+    transition: all 0.15s;
+  }
+  .d-chip:hover {
+    border-color: rgb(var(--d-ink3));
+    color: rgb(var(--d-ink));
+  }
+  .d-chip-on,
+  .d-chip-on:hover {
+    border-color: rgb(var(--d-brand));
+    background-color: rgb(var(--d-brand) / 0.1);
+    color: rgb(var(--d-brand));
+  }
+  .d-table-head {
+    border-bottom: 1px solid rgb(var(--d-line));
+    background-color: rgb(var(--d-panel2) / 0.6);
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: rgb(var(--d-ink3));
+  }
+  .d-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--d-line)) transparent;
+  }
+  .d-pulse {
+    animation: dPulse 1.4s ease-in-out infinite;
+  }
+  .d-pop-in {
+    animation: dPopIn 0.35s ease-out;
+  }
+}
+
+@keyframes dPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+@keyframes dPopIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes dConfete {
+  to {
+    opacity: 0.6;
+    transform: translateY(110vh) rotate(720deg);
+  }
+}
+
+/* "Ocultar valores" borra o dinheiro na tela (para compartilhar a tela sem
+   mostrar quanto vendeu). */
 .dash-ocultar .dash-valor {
   filter: blur(7px);
   user-select: none;
@@ -30,12 +328,4 @@ body {
     background: #ffffff !important;
     color: #111111 !important;
   }
-}
-
-@keyframes dashEntrar {
-  0% { opacity: 0; transform: translateY(-6px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-.dash-entrar {
-  animation: dashEntrar 0.35s ease-out;
 }

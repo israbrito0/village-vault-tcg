@@ -64,6 +64,7 @@ export async function POST(req: Request) {
       // Só grava o que veio: um envio só de chat não apaga o título nem a audiência.
       const linha: Obj = { show_id: showId, conta, visto_em: new Date().toISOString() };
       if (l.vendedor !== undefined) linha.vendedor = handle(l.vendedor);
+      if (l.vendedorFoto !== undefined) linha.vendedor_foto = url(l.vendedorFoto);
       if (l.titulo !== undefined) linha.titulo = txt(l.titulo, 200);
       if (l.capa !== undefined) linha.capa_url = url(l.capa);
       if (l.inicio !== undefined && num(l.inicio)) linha.inicio = quando(l.inicio);

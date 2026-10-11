@@ -2,23 +2,47 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, Gift, Home, LogOut, Radio, Users } from "lucide-react";
+import { ExternalLink, Home, LayoutDashboard, Laptop, LogOut, Menu, Monitor, Moon, Shield, Sun, Ticket, Users, X } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
-import { chamarApi, DashContexto, type Dash } from "@/lib/dash/cliente";
+import { chamarApi, DashContexto, haQuanto, useAgora, usePreferencia, type Dash, type LiveAberta } from "@/lib/dash/cliente";
 import type { RespostaEu } from "@/lib/dash/api";
 import { destravarAudio } from "@/lib/dash/som";
-import { Botao, campo } from "@/components/dash/ui";
 
-// A moldura do Dash Village: login com a conta do site, o menu e o contexto
-// (token e quem é) para as páginas. Só entra quem está em dash_membros.
+// A moldura do Dash Village, igual à do Dash TCG: menu lateral fixo (no
+// celular, um botão abre o menu), o tema claro/escuro e o login com a conta
+// do site. Só entra quem está em dash_membros.
 
-function Entrar({ erroInicial }: { erroInicial?: string }) {
+export type Tema = "claro" | "escuro" | "sistema";
+
+export function Logo({ tamanho = 32, texto = "text-base" }: { tamanho?: number; texto?: string }) {
+  return (
+    <Link href="/dash" className={`flex items-center gap-2.5 font-bold tracking-tight ${texto}`}>
+      <span className="flex shrink-0 items-center justify-center rounded-[10px] bg-d-brand text-d-on-brand shadow-sm" style={{ width: tamanho, height: tamanho }}>
+        <Shield size={Math.round(tamanho * 0.56)} />
+      </span>
+      <span>
+        Dash <span className="text-d-brand">Village</span>
+      </span>
+    </Link>
+  );
+}
+
+export function MolduraDash({ children, tema, fundo }: { children: ReactNode; tema?: Tema; fundo?: string }) {
+  const [salvo] = usePreferencia<Tema>("tema", "escuro");
+  return (
+    <div className="dash" data-tema={tema ?? salvo} data-fundo={fundo} onPointerDown={destravarAudio}>
+      {children}
+    </div>
+  );
+}
+
+function Entrar() {
   const db = supabaseNavegador();
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState(erroInicial ?? "");
+  const [erro, setErro] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
   async function entrar(e: React.FormEvent) {
@@ -38,26 +62,28 @@ function Entrar({ erroInicial }: { erroInicial?: string }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0f1116] px-4">
-      <form onSubmit={entrar} className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#171a21] p-6">
-        <p className="font-display text-xl font-extrabold text-white">
-          DASH <span className="text-brand-yellow">VILLAGE</span>
-        </p>
-        <p className="mt-1 text-[13px] text-[#8b93a7]">Entre com a sua conta do site Village &amp; Vault.</p>
-        <div className="mt-5 space-y-3">
-          <input className={campo} type="email" autoComplete="email" placeholder="E-mail" value={email} onChange={(e) => setEmail(e.target.value)} required />
-          <input className={campo} type="password" autoComplete="current-password" placeholder="Senha" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-        </div>
-        {erro && <p className="mt-3 text-[12px] text-[#ff8a8a]">{erro}</p>}
-        <Botao type="submit" cor="amarelo" disabled={ocupado} className="mt-4 w-full py-2.5 text-[13px]">
-          {ocupado ? "Entrando..." : "Entrar"}
-        </Botao>
-        <Botao onClick={google} className="mt-2 w-full py-2.5 text-[13px]">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <form onSubmit={entrar} className="d-card w-full max-w-sm space-y-4 p-6">
+        <Logo />
+        <p className="text-sm text-d-ink3">Entre com a sua conta do site Village &amp; Vault.</p>
+        <label className="block space-y-1.5">
+          <span className="d-label">E-mail</span>
+          <input className="d-field w-full" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        </label>
+        <label className="block space-y-1.5">
+          <span className="d-label">Senha</span>
+          <input className="d-field w-full" type="password" autoComplete="current-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+        </label>
+        {erro && <p className="text-xs text-d-bad">{erro}</p>}
+        <button type="submit" disabled={ocupado} className="d-btn d-btn-primary w-full py-2.5">
+          {ocupado ? "Entrando…" : "Entrar"}
+        </button>
+        <button type="button" onClick={google} className="d-btn d-btn-secondary w-full py-2.5">
           Entrar com Google
-        </Botao>
-        <p className="mt-4 text-center text-[11px] text-[#8b93a7]">
+        </button>
+        <p className="text-center text-xs text-d-ink3">
           Esqueceu a senha?{" "}
-          <Link href="/conta" className="text-brand-yellow underline">
+          <Link href="/conta" className="text-d-brand underline">
             Criar uma nova
           </Link>
         </p>
@@ -66,13 +92,111 @@ function Entrar({ erroInicial }: { erroInicial?: string }) {
   );
 }
 
-const MENU = [
-  { href: "/dash", rotulo: "Início", icone: Home, exato: true },
-  { href: "/dash/painel", rotulo: "Painel", icone: Radio },
-  { href: "/dash/sorteios", rotulo: "Sorteios & Metas", icone: Gift },
-  { href: "/dash/lives", rotulo: "Lives", icone: BarChart3 },
-  { href: "/dash/clientes", rotulo: "Clientes", icone: Users },
-];
+type Item = { href: string; rotulo: string; icone: ComponentType<{ className?: string }>; exato?: boolean; novaAba?: boolean };
+
+function ItemMenu({ item, ativo, aoClicar }: { item: Item; ativo: boolean; aoClicar?: () => void }) {
+  const I = item.icone;
+  return (
+    <Link
+      href={item.href}
+      target={item.novaAba ? "_blank" : undefined}
+      onClick={aoClicar}
+      aria-current={ativo ? "page" : undefined}
+      className={`flex h-9 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+        ativo ? "bg-d-brand/10 text-d-brand" : "text-d-ink2 hover:bg-d-panel2 hover:text-d-ink"
+      }`}
+    >
+      <I className="size-[18px] shrink-0" />
+      <span className="truncate">{item.rotulo}</span>
+      {item.novaAba && <ExternalLink className="ml-auto size-3.5 shrink-0 text-d-ink3" />}
+    </Link>
+  );
+}
+
+function Secao({ titulo, children }: { titulo: string; children: ReactNode }) {
+  return (
+    <div className="space-y-0.5">
+      <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-d-ink3">{titulo}</p>
+      {children}
+    </div>
+  );
+}
+
+function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: Tema; setTema: (t: Tema) => void; sair: () => void; aoClicar?: () => void }) {
+  const caminho = usePathname() ?? "/dash";
+  const agora = useAgora(10000);
+  const live = dash.liveAberta;
+  const id = live ? encodeURIComponent(live.showId) : "";
+  const sinal = dash.eu.extensaoVistaEm;
+  const online = !!sinal && agora - sinal < 3 * 60 * 1000;
+
+  const temas: [Tema, string, ComponentType<{ className?: string }>][] = [
+    ["claro", "Claro", Sun],
+    ["escuro", "Escuro", Moon],
+    ["sistema", "Sistema", Laptop],
+  ];
+
+  return (
+    <nav className="d-scroll flex h-full flex-col gap-5 overflow-y-auto px-3 py-5">
+      <div className="px-2 pb-1">
+        <Logo />
+      </div>
+      <Secao titulo="Ao vivo">
+        <ItemMenu item={{ href: "/dash", rotulo: "Início", icone: Home, exato: true }} ativo={caminho === "/dash"} aoClicar={aoClicar} />
+        <ItemMenu
+          item={{ href: id ? `/dash/sorteios/${id}` : "/dash/sorteios", rotulo: "Sorteios & Metas", icone: Ticket }}
+          ativo={caminho.startsWith("/dash/sorteios")}
+          aoClicar={aoClicar}
+        />
+      </Secao>
+      <Secao titulo="Histórico">
+        <ItemMenu item={{ href: "/dash/lives", rotulo: "Lives & Relatórios", icone: Monitor }} ativo={caminho.startsWith("/dash/lives") || caminho.startsWith("/dash/relatorio")} aoClicar={aoClicar} />
+      </Secao>
+      <Secao titulo="Clientes">
+        <ItemMenu item={{ href: "/dash/clientes", rotulo: "Clientes", icone: Users }} ativo={caminho.startsWith("/dash/clientes")} aoClicar={aoClicar} />
+      </Secao>
+      {live && (
+        <Secao titulo="Live aberta">
+          <p className="truncate px-3 pb-1 text-xs text-d-ink2" title={live.titulo ?? ""}>
+            @{live.vendedor} · {live.titulo}
+          </p>
+          <ItemMenu item={{ href: `/dash/painel/${id}`, rotulo: "Painel", icone: LayoutDashboard }} ativo={caminho.startsWith("/dash/painel")} aoClicar={aoClicar} />
+          <ItemMenu item={{ href: `/dash/tela/${id}`, rotulo: "Tela p/ compartilhar", icone: Monitor, novaAba: true }} ativo={false} aoClicar={aoClicar} />
+        </Secao>
+      )}
+      <div className="mt-auto space-y-2 border-t border-d-line pt-4">
+        <div
+          className={`flex items-center gap-2 rounded-xl border border-d-line bg-d-panel2/60 px-3 py-2 text-xs font-medium ${online ? "text-d-ok" : "text-d-ink3"}`}
+          title="A extensão do Edge manda os dados da live a cada poucos segundos"
+        >
+          <span className={`size-2 rounded-full ${online ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
+          {online ? "Extensão online" : sinal ? `Extensão parada ${haQuanto(sinal, agora)}` : "Extensão sem sinal"}
+        </div>
+        <div role="radiogroup" aria-label="Tema" className="flex rounded-xl border border-d-line bg-d-panel2 p-0.5">
+          {temas.map(([t, rotulo, I]) => (
+            <button
+              key={t}
+              role="radio"
+              aria-checked={tema === t}
+              title={rotulo}
+              onClick={() => setTema(t)}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] px-2 py-1.5 text-xs font-medium transition ${
+                tema === t ? "bg-d-panel text-d-ink shadow-sm" : "text-d-ink3 hover:text-d-ink"
+              }`}
+            >
+              <I className="size-4 shrink-0" />
+              <span>{rotulo}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={sair} className="d-btn d-btn-ghost d-btn-sm w-full justify-start">
+          <LogOut className="size-4" />
+          Sair
+        </button>
+      </div>
+    </nav>
+  );
+}
 
 export default function DashShell({ children }: { children: ReactNode }) {
   const db = supabaseNavegador();
@@ -80,6 +204,9 @@ export default function DashShell({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Session | null | undefined>(undefined);
   const [eu, setEu] = useState<RespostaEu | null>(null);
   const [erro, setErro] = useState("");
+  const [tema, setTema] = usePreferencia<Tema>("tema", "escuro");
+  const [menuAberto, setMenuAberto] = useState(false);
+  const [liveAberta, setLiveAberta] = useState<LiveAberta | null>(null);
 
   useEffect(() => {
     if (!db) return setSessao(null);
@@ -87,6 +214,8 @@ export default function DashShell({ children }: { children: ReactNode }) {
     const { data } = db.auth.onAuthStateChange((_e, s) => setSessao(s));
     return () => data.subscription.unsubscribe();
   }, [db]);
+
+  useEffect(() => setMenuAberto(false), [caminho]);
 
   const token = sessao?.access_token ?? "";
 
@@ -107,73 +236,74 @@ export default function DashShell({ children }: { children: ReactNode }) {
     return () => clearInterval(t);
   }, [token, recarregarEu]);
 
-  const valor = useMemo<Dash | null>(
-    () =>
-      token && eu
-        ? { token, eu, recarregarEu, chamar: (c, o) => chamarApi(token, c, o) }
-        : null,
-    [token, eu, recarregarEu],
-  );
+  const valor = useMemo<Dash | null>(() => {
+    if (!token || !eu) return null;
+    const padrao = eu.live ? { showId: eu.live.showId, titulo: eu.live.titulo, vendedor: eu.live.vendedor } : null;
+    return {
+      token,
+      eu,
+      recarregarEu,
+      chamar: (c, o) => chamarApi(token, c, o),
+      liveAberta: liveAberta ?? padrao,
+      definirLiveAberta: setLiveAberta,
+    };
+  }, [token, eu, recarregarEu, liveAberta]);
 
-  if (sessao === undefined) return <div className="min-h-screen bg-[#0f1116]" />;
-  if (!sessao) return <Entrar />;
-  if (erro === "sem acesso") {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1116] px-4 text-center">
-        <div className="max-w-sm rounded-2xl border border-white/10 bg-[#171a21] p-6">
-          <p className="font-display text-lg font-extrabold text-white">Sem acesso ao Dash</p>
-          <p className="mt-2 text-[13px] text-[#8b93a7]">
-            A conta <b className="text-white">{sessao.user.email}</b> não está liberada. Peça para o dono adicionar este e-mail.
+  const sair = () => db?.auth.signOut();
+
+  let conteudo: ReactNode;
+  if (sessao === undefined) conteudo = <div className="min-h-screen" />;
+  else if (!sessao) conteudo = <Entrar />;
+  else if (erro === "sem acesso") {
+    conteudo = (
+      <div className="flex min-h-screen items-center justify-center px-4 text-center">
+        <div className="d-card max-w-sm space-y-3 p-6">
+          <p className="text-lg font-bold">Sem acesso ao Dash</p>
+          <p className="text-sm text-d-ink3">
+            A conta <b className="text-d-ink">{sessao.user.email}</b> não está liberada. Peça para o dono adicionar este e-mail.
           </p>
-          <Botao className="mt-4" onClick={() => db?.auth.signOut()}>
+          <button className="d-btn d-btn-secondary" onClick={sair}>
             Entrar com outra conta
-          </Botao>
+          </button>
         </div>
       </div>
     );
-  }
-  if (!valor) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0f1116] text-[13px] text-[#8b93a7]">
-        {erro ? `Não consegui carregar: ${erro}` : "Carregando..."}
+  } else if (!valor) {
+    conteudo = (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-3 text-sm text-d-ink3">
+        <span className="size-6 animate-spin rounded-full border-2 border-d-line border-t-d-brand" />
+        {erro ? `Não consegui carregar: ${erro}` : "Carregando…"}
       </div>
+    );
+  } else {
+    conteudo = (
+      <DashContexto.Provider value={valor}>
+        <div className="lg:pl-64">
+          <aside className="dash-sem-impressao fixed inset-y-0 left-0 z-30 hidden w-64 border-r border-d-line bg-d-panel lg:block">
+            <Navegacao dash={valor} tema={tema} setTema={setTema} sair={sair} />
+          </aside>
+          <div className="dash-sem-impressao sticky top-0 z-30 flex items-center justify-between border-b border-d-line bg-d-panel/90 px-4 py-2.5 backdrop-blur lg:hidden">
+            <Logo />
+            <button aria-label="Abrir menu" onClick={() => setMenuAberto(true)} className="d-btn d-btn-secondary d-btn-sm px-2">
+              <Menu className="size-[18px] shrink-0" />
+            </button>
+          </div>
+          {menuAberto && (
+            <div className="fixed inset-0 z-40 lg:hidden">
+              <button aria-label="Fechar menu" className="absolute inset-0 bg-black/50" onClick={() => setMenuAberto(false)} />
+              <aside className="d-pop-in absolute inset-y-0 left-0 w-72 border-r border-d-line bg-d-panel">
+                <button aria-label="Fechar menu" onClick={() => setMenuAberto(false)} className="absolute right-3 top-4 text-d-ink3 hover:text-d-ink">
+                  <X className="size-5" />
+                </button>
+                <Navegacao dash={valor} tema={tema} setTema={setTema} sair={sair} aoClicar={() => setMenuAberto(false)} />
+              </aside>
+            </div>
+          )}
+          {children}
+        </div>
+      </DashContexto.Provider>
     );
   }
 
-  return (
-    <DashContexto.Provider value={valor}>
-      <div className="min-h-screen bg-[#0f1116] text-[#e8eaef]" onPointerDown={destravarAudio}>
-        <header className="dash-sem-impressao sticky top-0 z-30 border-b border-white/[0.06] bg-[#0f1116]/95 backdrop-blur">
-          <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-2.5">
-            <Link href="/dash" className="shrink-0 font-display text-[15px] font-extrabold text-white">
-              DASH <span className="text-brand-yellow">VILLAGE</span>
-            </Link>
-            <nav className="no-scrollbar flex min-w-0 flex-1 gap-1 overflow-x-auto">
-              {MENU.map((m) => {
-                const ativo = m.exato ? caminho === m.href : caminho.startsWith(m.href);
-                const Icone = m.icone;
-                return (
-                  <Link
-                    key={m.href}
-                    href={m.href}
-                    className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition ${
-                      ativo ? "bg-white/10 text-white" : "text-white/60 hover:bg-white/5 hover:text-white"
-                    }`}
-                  >
-                    <Icone size={14} />
-                    {m.rotulo}
-                  </Link>
-                );
-              })}
-            </nav>
-            <span className="hidden truncate text-[11px] text-[#8b93a7] md:block">@{valor.eu.membro.conta}</span>
-            <button onClick={() => db?.auth.signOut()} title="Sair" className="shrink-0 rounded-lg p-1.5 text-white/50 hover:bg-white/5 hover:text-white">
-              <LogOut size={16} />
-            </button>
-          </div>
-        </header>
-        <main className="mx-auto max-w-[1600px] px-4 py-4">{children}</main>
-      </div>
-    </DashContexto.Provider>
-  );
+  return <MolduraDash tema={tema}>{conteudo}</MolduraDash>;
 }

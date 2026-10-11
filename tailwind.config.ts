@@ -25,6 +25,22 @@ const config: Config = {
         "brand-red": "#F53A3A",
         "brand-yellow": "#F4AF14",
         "brand-yellow-text": "#A87400",
+        // Dash Village (/dash): cores por variável, que mudam com o tema claro
+        // ou escuro. Em canais RGB para aceitar opacidade (bg-d-gold/15).
+        "d-bg": "rgb(var(--d-bg) / <alpha-value>)",
+        "d-panel": "rgb(var(--d-panel) / <alpha-value>)",
+        "d-panel2": "rgb(var(--d-panel2) / <alpha-value>)",
+        "d-line": "rgb(var(--d-line) / <alpha-value>)",
+        "d-ink": "rgb(var(--d-ink) / <alpha-value>)",
+        "d-ink2": "rgb(var(--d-ink2) / <alpha-value>)",
+        "d-ink3": "rgb(var(--d-ink3) / <alpha-value>)",
+        "d-brand": "rgb(var(--d-brand) / <alpha-value>)",
+        "d-on-brand": "rgb(var(--d-on-brand) / <alpha-value>)",
+        "d-gold": "rgb(var(--d-gold) / <alpha-value>)",
+        "d-on-gold": "rgb(var(--d-on-gold) / <alpha-value>)",
+        "d-ok": "rgb(var(--d-ok) / <alpha-value>)",
+        "d-warn": "rgb(var(--d-warn) / <alpha-value>)",
+        "d-bad": "rgb(var(--d-bad) / <alpha-value>)",
       },
       fontFamily: {
         display: ["var(--font-display)", "sans-serif"],

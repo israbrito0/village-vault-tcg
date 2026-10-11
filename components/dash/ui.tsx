@@ -1,42 +1,50 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Volume2, type LucideIcon } from "lucide-react";
 import type { Icone } from "@/lib/dash/api";
 
-// Peças das telas do Dash (tema escuro, para usar à noite durante a live).
+// Peças das telas do Dash, no mesmo desenho do Dash TCG: cartões com cabeçalho,
+// listas com rolagem própria, números grandes e etiquetas redondas.
+
+type IconeLucide = LucideIcon;
 
 export function Cartao({
   titulo,
-  acao,
+  icone: I,
+  direita,
   children,
   className = "",
-  semPadding = false,
+  semCorpo = false,
 }: {
   titulo?: ReactNode;
-  acao?: ReactNode;
-  children: ReactNode;
+  icone?: IconeLucide;
+  direita?: ReactNode;
+  children?: ReactNode;
   className?: string;
-  semPadding?: boolean;
+  semCorpo?: boolean;
 }) {
   return (
-    <section className={`min-w-0 rounded-xl border border-white/[0.08] bg-[#171a21] ${className}`}>
-      {(titulo || acao) && (
-        <header className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-2.5">
-          <h2 className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase tracking-[0.14em] text-[#8b93a7]">{titulo}</h2>
-          {acao}
+    <section className={`d-card flex min-h-0 flex-col overflow-hidden ${className}`}>
+      {(titulo || direita) && (
+        <header className="d-card-header justify-between">
+          <h2 className="d-card-title">
+            {I && <I className="size-4 shrink-0 text-d-brand" />}
+            <span className="truncate">{titulo}</span>
+          </h2>
+          {direita}
         </header>
       )}
-      <div className={semPadding ? "" : "p-4"}>{children}</div>
+      {semCorpo ? children : <div className="d-scroll min-h-0 flex-1 overflow-y-auto">{children}</div>}
     </section>
   );
 }
 
-export function Kpi({ rotulo, valor, detalhe, cor = "text-white", dinheiro = false }: { rotulo: string; valor: ReactNode; detalhe?: ReactNode; cor?: string; dinheiro?: boolean }) {
+export function Kpi({ rotulo, valor, cor = "", dinheiro = false }: { rotulo: string; valor: ReactNode; cor?: string; dinheiro?: boolean }) {
   return (
-    <div className="min-w-0 rounded-xl border border-white/[0.08] bg-[#171a21] px-4 py-3">
-      <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-[#8b93a7]">{rotulo}</p>
-      <p className={`mt-1 truncate font-display text-2xl font-extrabold ${cor} ${dinheiro ? "dash-valor" : ""}`}>{valor}</p>
-      {detalhe && <p className={`mt-0.5 truncate text-[11px] text-[#8b93a7] ${dinheiro ? "dash-valor" : ""}`}>{detalhe}</p>}
+    <div className="d-card p-4">
+      <p className="text-xs font-medium text-d-ink3">{rotulo}</p>
+      <p className={`mt-1.5 truncate text-2xl font-bold tracking-tight tabular-nums ${cor} ${dinheiro ? "dash-valor" : ""}`}>{valor}</p>
     </div>
   );
 }
@@ -52,105 +60,121 @@ export function Avatar({ foto, nome, tamanho = 28 }: { foto?: string | null; nom
       height={tamanho}
       loading="lazy"
       referrerPolicy="no-referrer"
-      className="shrink-0 rounded-full bg-white/10 object-cover"
+      className="shrink-0 rounded-full bg-d-panel2 object-cover"
       style={{ width: tamanho, height: tamanho }}
     />
   ) : (
     <span
-      className="flex shrink-0 items-center justify-center rounded-full bg-white/10 font-bold text-white/70"
-      style={{ width: tamanho, height: tamanho, fontSize: tamanho * 0.42 }}
+      className="flex shrink-0 items-center justify-center rounded-full bg-d-panel2 font-semibold text-d-ink2"
+      style={{ width: tamanho, height: tamanho, fontSize: Math.max(10, tamanho * 0.42) }}
     >
       {letra}
     </span>
   );
 }
 
-export function IconeEmocao({ id, icones, tamanho = 22 }: { id: string; icones: Record<string, Icone>; tamanho?: number }) {
-  const i = icones[id];
-  if (i?.url) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={i.url} alt={i.nome ?? id} title={i.nome ?? id} width={tamanho} height={tamanho} className="shrink-0 object-contain" style={{ width: tamanho, height: tamanho }} />;
-  }
-  return <span className="shrink-0 rounded bg-white/10 px-1 text-[10px] text-white/70">{id}</span>;
+export function FiguraEmocao({ id, icones, className = "size-6" }: { id: string; icones: Record<string, Icone>; className?: string }) {
+  const url = icones[id]?.url;
+  // eslint-disable-next-line @next/next/no-img-element
+  return url ? <img src={url} alt={id} title={id} className={`${className} shrink-0 object-contain`} /> : <span className="font-mono text-[10px] text-d-ink3">{id}</span>;
 }
 
-export function Botao({
-  children,
+// Etiqueta redonda de emotion, com a figurinha, o código e a contagem.
+export function ChipEmocao({
+  id,
+  icones,
+  qtd,
+  pts,
+  ligado,
   onClick,
-  cor = "neutro",
-  ativo = false,
-  disabled = false,
   titulo,
-  className = "",
-  type = "button",
 }: {
-  children: ReactNode;
+  id: string;
+  icones: Record<string, Icone>;
+  qtd?: number;
+  pts?: number | null;
+  ligado: boolean;
   onClick?: () => void;
-  cor?: "neutro" | "amarelo" | "verde" | "vermelho" | "azul";
-  ativo?: boolean;
-  disabled?: boolean;
   titulo?: string;
-  className?: string;
-  type?: "button" | "submit";
 }) {
-  const cores = {
-    neutro: ativo ? "border-white/30 bg-white/15 text-white" : "border-white/10 bg-white/[0.04] text-white/85 hover:bg-white/10",
-    amarelo: "border-brand-yellow bg-brand-yellow text-ink hover:brightness-110",
-    verde: "border-brand-green bg-brand-green text-white hover:brightness-110",
-    vermelho: ativo ? "border-brand-red bg-brand-red text-white" : "border-brand-red/40 bg-brand-red/10 text-[#ff8a8a] hover:bg-brand-red/20",
-    azul: "border-brand-blue bg-brand-blue text-white hover:brightness-110",
-  };
   return (
     <button
-      type={type}
+      type="button"
+      disabled={!onClick}
       onClick={onClick}
-      disabled={disabled}
       title={titulo}
-      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-[12px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${cores[cor]} ${className}`}
+      className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition ${
+        ligado ? "border-d-gold bg-d-gold/15 text-d-gold" : "border-d-line bg-d-panel2 text-d-ink2 enabled:hover:border-d-ink3"
+      }`}
     >
-      {children}
+      <FiguraEmocao id={id} icones={icones} className="size-4" />
+      <span className="font-mono">{id}</span>
+      {qtd != null && <b className="tabular-nums">{qtd.toLocaleString("pt-BR")}</b>}
+      {pts != null && <span className="text-d-ink3">{pts} pts</span>}
     </button>
   );
 }
 
-export function Selo({ children, cor = "neutro" }: { children: ReactNode; cor?: "neutro" | "vermelho" | "verde" | "amarelo" | "azul" }) {
-  const cores = {
-    neutro: "bg-white/10 text-white/70",
-    vermelho: "bg-brand-red/15 text-[#ff8a8a]",
-    verde: "bg-brand-green/15 text-[#6fdc94]",
-    amarelo: "bg-brand-yellow/15 text-brand-yellow",
-    azul: "bg-brand-blue/15 text-[#7cc7f0]",
-  };
-  return <span className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold ${cores[cor]}`}>{children}</span>;
-}
-
-export function AoVivo({ aoVivo }: { aoVivo: boolean }) {
-  return aoVivo ? (
-    <Selo cor="vermelho">
-      <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-brand-red" />
-      AO VIVO
-    </Selo>
-  ) : (
-    <Selo>encerrada</Selo>
+export function StatusLive({ aoVivo, titulo }: { aoVivo: boolean; titulo?: string }) {
+  return (
+    <span
+      title={titulo ?? (aoVivo ? "Live no ar" : "Live encerrada — mostrando o histórico salvo")}
+      className="inline-flex items-center gap-2 rounded-full border border-d-line bg-d-panel px-3 py-1 text-xs font-semibold shadow-sm"
+    >
+      <span className={`size-2 rounded-full ${aoVivo ? "d-pulse bg-d-bad" : "bg-d-ink3"}`} />
+      {aoVivo ? "Ao vivo" : "Encerrada"}
+    </span>
   );
 }
 
-export function Vazio({ children }: { children: ReactNode }) {
-  return <p className="py-4 text-center text-[12px] text-[#8b93a7]">{children}</p>;
+export function Volume({ valor, mudar }: { valor: number; mudar: (v: number) => void }) {
+  return (
+    <label
+      className="flex items-center gap-1.5 rounded-lg border border-d-line bg-d-panel px-2.5 py-1.5 text-xs text-d-ink2 shadow-sm"
+      title="Volume dos sons (vendas, pagamentos, sorteios e metas)"
+    >
+      <Volume2 className="size-4 shrink-0" />
+      <input
+        type="range"
+        min={0}
+        max={2}
+        step={0.1}
+        value={valor}
+        onChange={(e) => mudar(Number(e.target.value))}
+        className="h-1 w-20 cursor-pointer accent-[rgb(var(--d-gold))]"
+        aria-label="Volume dos sons"
+      />
+      <span className="w-9 text-right tabular-nums">{Math.round(valor * 100)}%</span>
+    </label>
+  );
 }
 
-export function Barra({ progresso, cor = "bg-brand-yellow" }: { progresso: number; cor?: string }) {
+// Grupo de botões em que só um fica marcado (as escolhas dos formulários).
+export function Escolha<T extends string>({ valor, opcoes, mudar, className = "" }: { valor: T; opcoes: [T, string][]; mudar: (v: T) => void; className?: string }) {
   return (
-    <div className="h-2 overflow-hidden rounded-full bg-white/10">
-      <div className={`h-full rounded-full ${cor} transition-[width] duration-700`} style={{ width: `${Math.round(Math.max(0, Math.min(1, progresso)) * 100)}%` }} />
+    <div className={`flex flex-wrap rounded-xl border border-d-line p-0.5 ${className}`}>
+      {opcoes.map(([v, rotulo]) => (
+        <button
+          key={v}
+          type="button"
+          onClick={() => mudar(v)}
+          className={`rounded-lg px-3 py-1.5 text-sm transition ${v === valor ? "bg-d-brand font-semibold text-d-on-brand" : "text-d-ink2 hover:bg-d-panel2"}`}
+        >
+          {rotulo}
+        </button>
+      ))}
     </div>
   );
 }
 
-// Lista com rolagem própria (o painel tem muitas, lado a lado).
-export function Rolagem({ children, altura = "max-h-80" }: { children: ReactNode; altura?: string }) {
-  return <div className={`${altura} overflow-y-auto overscroll-contain pr-1`}>{children}</div>;
+export function Vazio({ children }: { children: ReactNode }) {
+  return <p className="px-4 py-5 text-center text-sm text-d-ink3">{children}</p>;
 }
 
-export const campo =
-  "w-full rounded-lg border border-white/10 bg-[#0f1116] px-3 py-2 text-[13px] text-white placeholder:text-white/30 focus:border-brand-yellow/60 focus:outline-none";
+export function Barra({ progresso, cor = "bg-d-gold" }: { progresso: number; cor?: string }) {
+  return (
+    <div className="h-2 overflow-hidden rounded-full bg-d-panel2">
+      <div className={`h-full rounded-full ${cor} transition-[width] duration-700`} style={{ width: `${Math.round(Math.max(0, Math.min(1, progresso)) * 100)}%` }} />
+    </div>
+  );
+}

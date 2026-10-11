@@ -7,11 +7,16 @@ import type { Icone, LiveInfo, Meta, Ranking, RespostaEu, RespostaLive, Sorteio 
 // O lado do navegador do Dash: quem está logado (contexto) e a live carregada
 // aos poucos -- na primeira vez vem tudo, depois só o que é novo.
 
+export type LiveAberta = { showId: string; titulo: string | null; vendedor: string | null };
+
 export type Dash = {
   token: string;
   eu: RespostaEu;
   recarregarEu: () => Promise<void>;
   chamar: <T = unknown>(caminho: string, opcoes?: { metodo?: string; corpo?: unknown }) => Promise<T>;
+  // A live que aparece em "Live aberta" no menu.
+  liveAberta: LiveAberta | null;
+  definirLiveAberta: (l: LiveAberta | null) => void;
 };
 
 export const DashContexto = createContext<Dash | null>(null);
@@ -25,7 +30,7 @@ export function useDash() {
 export async function chamarApi<T>(token: string, caminho: string, opcoes?: { metodo?: string; corpo?: unknown }): Promise<T> {
   const r = await fetch(caminho, {
     method: opcoes?.metodo ?? (opcoes?.corpo ? "POST" : "GET"),
-    headers: { authorization: `Bearer ${token}`, ...(opcoes?.corpo ? { "content-type": "application/json" } : {}) },
+    headers: { ...(token ? { authorization: `Bearer ${token}` } : {}), ...(opcoes?.corpo ? { "content-type": "application/json" } : {}) },
     body: opcoes?.corpo ? JSON.stringify(opcoes.corpo) : undefined,
     cache: "no-store",
   });
@@ -45,14 +50,16 @@ export type LiveCarregada = {
   termos: string;
   icones: Record<string, Icone>;
   souVendedor: boolean;
+  podeEditar: boolean;
   conta: string;
   atualizadoEm: number;
 };
 
 // Carrega uma live e fica buscando o que chega (a cada 3 s com a aba na
 // frente, 15 s escondida). "intervalo: 0" carrega uma vez só (relatório).
-export function useLiveDash(showId: string, intervalo = 3000) {
-  const { token } = useDash();
+// Fora do login (tela do OBS), entra com a chave da conta.
+export function useLiveDash(showId: string, intervalo = 3000, chave?: string) {
+  const token = useContext(DashContexto)?.token ?? "";
   const [dados, setDados] = useState<LiveCarregada | null>(null);
   const [erro, setErro] = useState("");
   const cursor = useRef({ e: 0, c: 0, vs: "" });
@@ -68,6 +75,7 @@ export function useLiveDash(showId: string, intervalo = 3000) {
       if (cursor.current.e) q.set("e", String(cursor.current.e));
       if (cursor.current.c) q.set("c", String(cursor.current.c));
       if (cursor.current.vs) q.set("vs", cursor.current.vs);
+      if (!token && chave) q.set("k", chave);
       const r = await chamarApi<RespostaLive>(token, `/api/dash/live/${encodeURIComponent(showId)}?${q}`);
       const antes = atual.current;
       const novasE = r.emocoes.filter((e) => !ids.current.e.has(e.id));
@@ -90,6 +98,7 @@ export function useLiveDash(showId: string, intervalo = 3000) {
         termos: r.termos,
         icones: r.icones,
         souVendedor: r.souVendedor,
+        podeEditar: r.podeEditar,
         conta: r.conta,
         atualizadoEm: Date.now(),
       };
@@ -101,7 +110,7 @@ export function useLiveDash(showId: string, intervalo = 3000) {
     } finally {
       ocupado.current = false;
     }
-  }, [token, showId]);
+  }, [token, showId, chave]);
 
   const reconectar = useCallback(() => {
     cursor.current = { e: 0, c: 0, vs: "" };
@@ -112,7 +121,7 @@ export function useLiveDash(showId: string, intervalo = 3000) {
   }, [buscar]);
 
   // Resposta de uma ação (sortear, criar meta...) já traz a lista nova.
-  const trocar = useCallback((mudar: Partial<Pick<LiveCarregada, "sorteios" | "metas">>) => {
+  const trocar = useCallback((mudar: Partial<Pick<LiveCarregada, "sorteios" | "metas" | "termos">>) => {
     if (!atual.current) return;
     atual.current = { ...atual.current, ...mudar };
     setDados(atual.current);

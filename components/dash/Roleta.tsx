@@ -104,11 +104,11 @@ export default function Roleta({
 
   return (
     <div className="w-full">
-      {titulo && <p className={`mb-3 text-center font-display font-extrabold text-white ${grande ? "text-4xl" : "text-xl"}`}>{titulo}</p>}
-      <div ref={caixa} className="relative overflow-hidden rounded-2xl border border-white/10 bg-black/40 py-4">
-        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-1 -translate-x-1/2 bg-brand-yellow shadow-[0_0_18px_#F4AF14]" />
-        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-black/70 to-transparent" />
-        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-black/70 to-transparent" />
+      {titulo && <p className={`mb-3 text-center font-bold text-d-ink ${grande ? "text-4xl" : "text-xl"}`}>{titulo}</p>}
+      <div ref={caixa} className="relative overflow-hidden rounded-2xl border border-d-line bg-d-bg/60 py-4">
+        <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 w-1 -translate-x-1/2 bg-d-gold shadow-[0_0_18px_rgb(var(--d-gold))]" />
+        <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-16 bg-gradient-to-r from-d-bg to-transparent" />
+        <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-16 bg-gradient-to-l from-d-bg to-transparent" />
         <div ref={trilho} className="flex will-change-transform">
           {fita.map((p, i) => (
             <div
@@ -117,7 +117,7 @@ export default function Roleta({
               style={{ width: casa }}
             >
               <Avatar foto={p.foto} nome={p.handle} tamanho={Math.round(64 * escala)} />
-              <span className={`max-w-full truncate font-semibold ${grande ? "text-[16px]" : "text-[12px]"} ${parou && i === PARADA ? "text-brand-yellow" : "text-white/80"}`}>
+              <span className={`max-w-full truncate font-semibold ${grande ? "text-[16px]" : "text-[12px]"} ${parou && i === PARADA ? "text-d-gold" : "text-d-ink2"}`}>
                 @{p.handle}
               </span>
             </div>
@@ -126,8 +126,8 @@ export default function Roleta({
       </div>
       {parou && (
         <div className="dash-entrar mt-5 text-center">
-          <p className={`font-display font-extrabold text-brand-yellow ${grande ? "text-5xl" : "text-3xl"}`}>🎉 @{ganhador.handle}</p>
-          {premio && <p className={`mt-1 text-white/80 ${grande ? "text-2xl" : "text-[15px]"}`}>ganhou {premio}</p>}
+          <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>🎉 @{ganhador.handle}</p>
+          {premio && <p className={`mt-1 text-d-ink2 ${grande ? "text-2xl" : "text-[15px]"}`}>ganhou {premio}</p>}
         </div>
       )}
     </div>

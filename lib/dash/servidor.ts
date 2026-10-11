@@ -9,7 +9,7 @@ import { lerTermos, type Contagem } from "@/lib/dash/calculos";
 //     estar em dash_membros;
 //   - a tela do OBS abre sem login, com a chave da conta no link.
 
-const URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const SUPA_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE = process.env.SUPABASE_SERVICE_ROLE;
 
 // A conta (o @ de vendedor na Jamble) de quem é a extensão.
@@ -17,8 +17,8 @@ export const CONTA_PADRAO = "israelbrito";
 
 let unico: SupabaseClient | null = null;
 export function db() {
-  if (!URL || !SERVICE) throw new Error("Supabase não configurado");
-  if (!unico) unico = createClient(URL, SERVICE, { auth: { persistSession: false } });
+  if (!SUPA_URL || !SERVICE) throw new Error("Supabase não configurado");
+  if (!unico) unico = createClient(SUPA_URL, SERVICE, { auth: { persistSession: false } });
   return unico;
 }
 
@@ -198,6 +198,36 @@ export type RankingLinha = {
   lista: { handle: string; posicao: number; pontos: number }[] | null;
   regras: { porReal?: number | null; porGema?: number | null } | null;
 };
+
+// Quem pode abrir uma live: o membro logado (pode mexer) ou a tela do OBS,
+// com a chave da conta no link (só olha).
+export async function acessoALive(req: Request, showId: string) {
+  const membro = await membroDaRequisicao(req);
+  if (membro) {
+    const live = await liveDoMembro(showId, membro.conta);
+    return live ? { live, conta: membro.conta, membro } : null;
+  }
+  const chave = new URL(req.url).searchParams.get("k");
+  const config = await contaDaChave(chave);
+  if (!config) return null;
+  const live = await liveDoMembro(showId, config.conta);
+  return live ? { live, conta: config.conta, membro: null } : null;
+}
+
+// A live inteira (emotions, chat e vendas), para sortear com a mesma conta
+// que o painel faz.
+export async function dadosDaLive(showId: string) {
+  const [emocoes, chat, vendas] = await Promise.all([
+    todas<Record<string, unknown>>((de, ate) =>
+      db().from("dash_emocoes").select("id, handle, nome, foto, icone, gemas, time, ts").eq("show_id", showId).order("ts").order("id").range(de, ate) as never,
+    ),
+    todas<Record<string, unknown>>((de, ate) =>
+      db().from("dash_chat").select("id, handle, nome, foto, texto, ts").eq("show_id", showId).order("ts").order("id").range(de, ate) as never,
+    ),
+    todas<Record<string, unknown>>((de, ate) => db().from("dash_vendas").select("*").eq("show_id", showId).order("ts").range(de, ate) as never),
+  ]);
+  return { emocoes, chat, vendas };
+}
 
 // Período pedido na URL (?de=&ate= em milissegundos).
 export function periodo(u: URL) {

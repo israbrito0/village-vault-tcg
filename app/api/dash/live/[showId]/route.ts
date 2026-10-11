@@ -8,11 +8,13 @@ import {
   vendaDaLinha,
   type RespostaLive,
 } from "@/lib/dash/api";
-import { configDaConta, db, erro, liveDoMembro, membroDaRequisicao, ok, todas, ultimoRanking } from "@/lib/dash/servidor";
+import { lerTermos } from "@/lib/dash/calculos";
+import { acessoALive, configDaConta, db, erro, ok, todas, ultimoRanking } from "@/lib/dash/servidor";
 
-// Tudo de uma live para o painel. Na primeira vez vem tudo; depois, o painel
-// manda até onde já tem (e = emotions, c = chat, vs = assinatura das vendas)
-// e só vem o que é novo.
+// Tudo de uma live para o painel e para as telas do OBS. Na primeira vez vem
+// tudo; depois, a tela manda até onde já tem (e = emotions, c = chat,
+// vs = assinatura das vendas) e só vem o que é novo.
+// Entra o membro logado ou quem tem o link da tela (?k=), que só olha.
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
@@ -22,11 +24,10 @@ const iso = (v: string | null) => {
 };
 
 export async function GET(req: Request, { params }: { params: { showId: string } }) {
-  const membro = await membroDaRequisicao(req);
-  if (!membro) return erro(401, "sem acesso");
   const showId = decodeURIComponent(params.showId);
-  const linha = await liveDoMembro(showId, membro.conta);
-  if (!linha) return erro(404, "essa live ainda não chegou pela extensão");
+  const acesso = await acessoALive(req, showId);
+  if (!acesso) return erro(401, "sem acesso a esta live");
+  const { live: linha, conta, membro } = acesso;
 
   const u = new URL(req.url);
   const desdeEmocao = iso(u.searchParams.get("e"));
@@ -55,8 +56,8 @@ export async function GET(req: Request, { params }: { params: { showId: string }
     sigAntiga === vendasSig
       ? Promise.resolve(null)
       : todas((de, ate) => db().from("dash_vendas").select("*").eq("show_id", showId).order("ts", { ascending: true }).range(de, ate)),
-    configDaConta(membro.conta),
-    ultimoRanking(membro.conta),
+    configDaConta(conta),
+    ultimoRanking(conta),
     db().from("dash_sorteios").select("*").eq("show_id", showId).order("ordem").order("criado_em"),
     db().from("dash_ganhadores").select("*").eq("show_id", showId).order("ts"),
     db().from("dash_metas").select("*").eq("show_id", showId).order("ordem").order("criado_em"),
@@ -64,6 +65,7 @@ export async function GET(req: Request, { params }: { params: { showId: string }
   ]);
 
   const live = liveDaLinha(linha);
+  const termos = lerTermos(config.termos_carpa);
   const resposta: RespostaLive = {
     live,
     emocoes: emocoes.map(emocaoDaLinha),
@@ -71,13 +73,14 @@ export async function GET(req: Request, { params }: { params: { showId: string }
     vendas: vendas ? vendas.map(vendaDaLinha) : null,
     vendasSig,
     ranking: rankingDaLinha(ranking),
-    sorteios: (sorteios.data ?? []).map((s) => sorteioDaLinha(s, ganhadores.data ?? [])),
+    sorteios: (sorteios.data ?? []).map((s) => sorteioDaLinha(s, ganhadores.data ?? [], termos)),
     metas: (metas.data ?? []).map(metaDaLinha),
     termos: config.termos_carpa,
     icones: Object.fromEntries((icones.data ?? []).map((i) => [i.id, { url: i.url, nome: i.nome, gemas: i.gemas }])),
-    souVendedor: (live.vendedor ?? "").toLowerCase() === membro.conta.toLowerCase(),
-    conta: membro.conta,
+    souVendedor: (live.vendedor ?? "").toLowerCase() === conta.toLowerCase(),
+    podeEditar: !!membro,
+    conta,
     agora: Date.now(),
   };
-  return ok(resposta);
+  return ok(resposta, membro ? undefined : { "access-control-allow-origin": "*" });
 }

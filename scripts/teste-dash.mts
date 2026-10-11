@@ -2,7 +2,15 @@
 import {
   CARPA,
   concorrendo,
+  descreverRegra,
   engajamento,
+  liberacoes,
+  mensagemDoRanking,
+  participantesDaRegra,
+  progressoIndividual,
+  regraDoSorteio,
+  regraPadrao,
+  totaisDaRegra,
   lerTermos,
   marcos,
   mensagemDeStatus,
@@ -148,6 +156,30 @@ conferir(progressoMeta({ tipo: "gemas", alvo: 5000 }, tot).batida, "meta batida 
 conferir(!progressoMeta({ tipo: "posicao", alvo: 5 }, tot).batida && progressoMeta({ tipo: "posicao", alvo: 6 }, tot).batida, "meta de posição: #6 bate a meta #6, não a #5");
 const mp = metaPorPessoa({ tipo: "gemas", alvo: 1000 }, dados);
 conferir(mp.bateram.map((p) => p.handle).join() === "ana" && mp.perto[0].handle === "bia", "meta por pessoa: quem chegou e quem está perto", mp);
+
+// ---------- regra no modelo do Dash TCG ----------
+const r1 = { ...regraPadrao("sorteio"), icones: [CARPA], metas: { emocoes: 2 } };
+conferir(descreverRegra(r1).startsWith("1 sorteio a cada 2 emotions (magikarp_shiny)"), "descreve a regra como o Dash TCG", descreverRegra(r1));
+const pr1 = participantesDaRegra(r1, { emocoes, mensagens: msgs, vendas }, "israelbrito");
+const ok1 = pr1.filter((p) => !p.fora);
+conferir(ok1.map((p) => `${p.handle}:${p.bilhetes}`).join() === "ana:2,bia:1", "emotion da carpa: ana 2, bia 1, sem vendedor e sem suspeito", pr1);
+const t1 = totaisDaRegra(r1, { emocoes, vendas });
+conferir(t1.emocoes === 5 && t1.pontos === 2500 && t1.itens === 5, "totais da regra contam só as emotions dela", t1);
+const lib1 = liberacoes(r1, t1, 1);
+conferir(lib1.liberados === 2 && lib1.disponiveis === 1 && lib1.proximo?.falta === 1, "5 carpas a cada 2: 2 liberados, 1 já sorteado", lib1);
+const r2 = { ...regraPadrao("sorteio"), quem: "ambos" as const, chance: "pontos" as const, liberacao: "livre" as const };
+const pr2 = participantesDaRegra(r2, { emocoes, mensagens: msgs, vendas }, "israelbrito").filter((p) => !p.fora);
+conferir(pr2.find((p) => p.handle === "ana")?.bilhetes === 1000 + 4 && pr2.find((p) => p.handle === "carla")?.bilhetes === 1, "os dois: gemas + 1 por item comprado", pr2);
+const r3 = { ...regraPadrao("sorteio"), chance: "igual" as const, liberacao: "livre" as const, excluirSuspeitos: false };
+conferir(participantesDaRegra(r3, { emocoes, mensagens: msgs, vendas }).every((p) => p.bilhetes === 1), "chance igual: 1 bilhete cada");
+const lib2 = liberacoes({ ...r1, metas: { emocoes: 2, itens: 2 } }, t1, 0);
+conferir(lib2.liberados === 4, "metas se somam: 2 por emotions + 2 por itens", lib2);
+conferir(liberacoes({ ...r1, metas: { metaDaLive: true } }, { ...t1, metaDaLive: true }, 0).liberados === 1, "meta da live libera 1");
+const ind = progressoIndividual({ ...regraPadrao("individual"), alvo: 2 }, { emocoes }, "israelbrito");
+conferir(ind.bateram.map((p) => p.handle).join() === "ana,bia" && !ind.bateram.some((p) => p.handle === "israelbrito"), "meta individual: quem somou 2 emotions", ind);
+const antigo = regraDoSorteio({ fonte: "compradores", peso: "quantidade", modo: "meta", aCada: 10 });
+conferir(antigo.quem === "compra" && antigo.metas.itens === 10 && antigo.liberacao === "metas", "sorteio antigo vira regra nova", antigo);
+conferir(mensagemDoRanking({ posicao: 5, pontos: 900, acima: { handle: "x", pontos: 1000, posicao: 4 } }).includes("Faltam 100"), "mensagem do ranking");
 
 console.log(falhas ? `\n${falhas} FALHA(S)` : "\ntudo certo");
 process.exit(falhas ? 1 : 0);

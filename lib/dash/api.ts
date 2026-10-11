@@ -1,4 +1,4 @@
-import type { Emocao, Mensagem, Venda } from "@/lib/dash/calculos";
+import { regraDoSorteio, type Emocao, type Mensagem, type Regra, type Venda } from "@/lib/dash/calculos";
 
 // O formato das respostas da API do Dash, usado pelas telas e pelas rotas.
 // As linhas do banco viram os tipos de calculos.ts (datas em milissegundos).
@@ -51,6 +51,7 @@ export function vendaDaLinha(r: Linha): Venda {
 export type LiveInfo = {
   showId: string;
   vendedor: string | null;
+  vendedorFoto: string | null;
   titulo: string | null;
   capa: string | null;
   inicio: number | null;
@@ -95,6 +96,7 @@ export function liveDaLinha(r: Linha): LiveInfo {
   return {
     showId: String(r.show_id),
     vendedor: (r.vendedor as string) ?? null,
+    vendedorFoto: (r.vendedor_foto as string) ?? null,
     titulo: (r.titulo as string) ?? null,
     capa: (r.capa_url as string) ?? null,
     inicio: r.inicio ? ms(r.inicio) : null,
@@ -125,6 +127,7 @@ export type Sorteio = {
   ativo: boolean;
   ordem: number;
   criadoEm: number;
+  regra: Regra;
   ganhadores: Ganhador[];
 };
 
@@ -137,10 +140,20 @@ export type Ganhador = {
   participantes: number;
   marco: number | null;
   status: "valido" | "ausente" | "resorteado";
+  presente: boolean | null;
   ts: number;
 };
 
-export function sorteioDaLinha(r: Linha, ganhadores: Linha[]): Sorteio {
+export function sorteioDaLinha(r: Linha, ganhadores: Linha[], termos?: string[]): Sorteio {
+  const antigo = {
+    fonte: String(r.fonte),
+    peso: String(r.peso),
+    repetir: r.repetir !== false,
+    excluirSuspeitos: r.excluir_suspeitos !== false,
+    excluir: (r.excluir as string[]) ?? [],
+    modo: String(r.modo),
+    aCada: (r.a_cada as number) ?? null,
+  };
   return {
     id: String(r.id),
     nome: String(r.nome ?? ""),
@@ -155,6 +168,7 @@ export function sorteioDaLinha(r: Linha, ganhadores: Linha[]): Sorteio {
     ativo: r.ativo !== false,
     ordem: Number(r.ordem) || 0,
     criadoEm: ms(r.criado_em),
+    regra: regraDoSorteio({ ...antigo, regra: (r.regra as Partial<Regra>) ?? null }, termos),
     ganhadores: ganhadores
       .filter((g) => g.sorteio_id === r.id)
       .map((g) => ({
@@ -166,6 +180,7 @@ export function sorteioDaLinha(r: Linha, ganhadores: Linha[]): Sorteio {
         participantes: Number(g.participantes) || 0,
         marco: (g.marco as number) ?? null,
         status: (g.status as Ganhador["status"]) ?? "valido",
+        presente: (g.presente as boolean | null) ?? null,
         ts: ms(g.ts),
       }))
       .sort((a, b) => a.ts - b.ts),
@@ -246,6 +261,7 @@ export type RespostaLive = {
   termos: string;
   icones: Record<string, Icone>;
   souVendedor: boolean;
+  podeEditar: boolean;
   conta: string;
   agora: number;
 };
@@ -254,6 +270,7 @@ export type LiveResumo = {
   showId: string;
   titulo: string | null;
   vendedor: string | null;
+  vendedorFoto: string | null;
   inicio: number;
   aoVivo: boolean;
   total: number;
@@ -277,32 +294,4 @@ export type Cliente = {
   lives: number;
   primeira: number;
   ultima: number;
-};
-
-export type RespostaTela = {
-  conta: string;
-  live: Pick<LiveInfo, "showId" | "titulo" | "vendedor" | "aoVivo" | "audiencia" | "likes" | "leilao" | "batalha"> | null;
-  totais: { gemas: number; carpas: number; emocoes: number; faturamento: number; itens: number; compradores: number; pontosLive: number };
-  ranking: Pick<Ranking, "posicao" | "pontos" | "acima" | "ts"> | null;
-  sorteios: (Omit<Sorteio, "excluir"> & {
-    unidade: string;
-    nomeFonte: string;
-    totalFonte: number;
-    marcos: { liberados: number; disponiveis: number; faltaParaProximo: number; progresso: number } | null;
-    participantes: { handle: string; nome: string; foto: string | null; bilhetes: number }[];
-    totalParticipantes: number;
-    totalBilhetes: number;
-  })[];
-  metas: (Meta & {
-    atual: number;
-    falta: number | null;
-    progresso: number;
-    batida: boolean;
-    unidade: string;
-    bateram?: { handle: string; foto: string | null; atual: number }[];
-    perto?: { handle: string; foto: string | null; atual: number }[];
-  })[];
-  topCarpas: { handle: string; nome: string; foto: string | null; n: number }[];
-  topCompradores: { handle: string; foto: string | null; itens: number; total: number }[];
-  agora: number;
 };

@@ -40,6 +40,19 @@ export async function POST(req: Request, { params }: { params: { showId: string 
   if (!(await liveDoMembro(showId, membro.conta))) return erro(404, "live não encontrada");
   const c = (await req.json().catch(() => ({}))) as Corpo;
 
+  // A meta da live, do topo da página de sorteios: "X pontos de ranking
+  // mensal" ou "de emotions desta live". Uma só por live; alvo vazio apaga.
+  if (c.acao === "meta-live") {
+    await db().from("dash_metas").delete().eq("show_id", showId).eq("escopo", "live").in("tipo", ["ranking", "emocoes"]);
+    if (Number(c.alvo) > 0) {
+      const { error } = await db()
+        .from("dash_metas")
+        .insert({ show_id: showId, conta: membro.conta, nome: "Meta da live", tipo: c.tipo === "emocoes" ? "emocoes" : "ranking", escopo: "live", alvo: Number(c.alvo) });
+      if (error) return erro(500, "não consegui salvar a meta");
+    }
+    return ok({ metas: await listar(showId) });
+  }
+
   if (c.acao === "criar") {
     const m = campos(c);
     if (!m.tipo || !m.alvo) return erro(400, "diga o tipo e o alvo da meta");

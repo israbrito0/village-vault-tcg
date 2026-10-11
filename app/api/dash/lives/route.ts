@@ -16,6 +16,7 @@ export async function GET(req: Request) {
     showId: String(l.show_id),
     titulo: (l.titulo as string) ?? null,
     vendedor: (l.vendedor as string) ?? null,
+    vendedorFoto: (l.vendedor_foto as string) ?? null,
     inicio: new Date(String(l.inicio)).getTime(),
     aoVivo: l.ao_vivo === true,
     total: Number(l.total) || 0,

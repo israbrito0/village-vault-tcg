@@ -28,14 +28,20 @@ function nota(freq: number, inicio: number, dur: number, volume: number, tipo: O
   o.stop(t + dur + 0.02);
 }
 
-export type Som = "venda" | "carpa" | "sorteio" | "meta" | "tique" | "lance";
+export type Som = "venda" | "pagamento" | "carpa" | "sorteio" | "meta" | "tique" | "lance";
 
 export function tocar(som: Som, volume = 0.5) {
-  const v = Math.max(0, Math.min(1, volume)) * 0.35;
+  // Volume de 0 a 200%, como no Dash TCG.
+  const v = Math.max(0, Math.min(2, volume)) * 0.25;
   if (!v) return;
   if (som === "venda") {
-    nota(880, 0, 0.18, v);
-    nota(1320, 0.12, 0.3, v);
+    // Caixa registradora: o "tchan" do sino e a gaveta abrindo.
+    nota(1568, 0, 0.12, v, "square");
+    nota(2093, 0.08, 0.5, v * 0.9);
+    nota(110, 0.02, 0.12, v * 0.6, "sawtooth");
+  } else if (som === "pagamento") {
+    // Moedas caindo.
+    [2637, 3136, 2794, 3520].forEach((f, i) => nota(f, i * 0.07, 0.12, v * 0.6, "triangle"));
   } else if (som === "carpa") {
     nota(660, 0, 0.08, v * 0.7, "triangle");
     nota(990, 0.06, 0.12, v * 0.7, "triangle");
