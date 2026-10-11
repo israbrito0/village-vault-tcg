@@ -381,6 +381,10 @@ const FOTOS_MAX = 8000;
 // leilão, a batalha, mensagens do chat, uma oferta ou um sorteio da Jamble.
 function juntarQuadro(live, q) {
   if (typeof q?.data?.seller?.username === "string") live.vendedor = q.data.seller.username;
+  // A foto do vendedor, para o cabeçalho do Dash (só o endereço da imagem).
+  const fotoVendedor = q?.data?.seller?.profile_image;
+  const urlVendedor = urlDeImagem(typeof fotoVendedor === "string" ? fotoVendedor : fotoVendedor?.low || fotoVendedor?.medium || fotoVendedor?.original_url);
+  if (urlVendedor) live.vendedorFoto = urlVendedor;
 
   const leilao = leilaoDoFrame(q, q?.leilaoAtual);
   if (leilao) {
@@ -644,6 +648,7 @@ function pacoteDash(g, agora = Date.now()) {
 
     const sobre = {
       vendedor: live.vendedor || undefined,
+      vendedorFoto: live.vendedorFoto || undefined,
       titulo: live.titulo || m.titulo || undefined,
       aoVivo: typeof live.aoVivo === "boolean" ? live.aoVivo : typeof m.acabou === "boolean" ? !m.acabou : undefined,
       inicio: m.comecouEm || undefined,
