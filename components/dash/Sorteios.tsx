@@ -1,7 +1,7 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
+import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Check, ChevronDown, Gift, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Ticket, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
 import { descreverRegra, mensagemDeGanhador, regraPadrao, type Mensagem, type Regra } from "@/lib/dash/calculos";
 import type { Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
@@ -9,7 +9,8 @@ import { destravarAudio, tocar } from "@/lib/dash/som";
 import { tocarMusica, tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import Roleta from "@/components/dash/Roleta";
-import Piao, { DURACAO_PIAO } from "@/components/dash/Piao";
+import Piao, { DURACAO_PIAO, PiaoParado } from "@/components/dash/Piao";
+import { Wing } from "@/components/Wordmark";
 import RespostaDoGanhador, { TEMPO_DO_GANHADOR_MS } from "@/components/dash/RespostaDoGanhador";
 import { Emotions, MensagensChat, useAvisos, useContasLive, useRecados, type Contas, type SorteioCalculado } from "@/components/dash/blocos";
 import { Avatar, Barra, ChipEmocao, Escolha, StatusLive, Vazio, Volume } from "@/components/dash/ui";
@@ -625,23 +626,71 @@ export function Palco({
     };
   }, [musicaLigada, d.visual.musica, d.visual.musicaUrl]);
 
+  // Os nomes que passam no pião parado (só muda quando entra alguém novo).
+  const chaveDosNomes = s ? s.concorrendo.slice(0, 40).map((p) => p.handle).join(",") : "";
+  const nomesNoPiao = useMemo(() => (chaveDosNomes ? chaveDosNomes.split(",") : []), [chaveDosNomes]);
+
+  // O tamanho do pião: o que sobra no meio do palco (tirando o espaço do aviso
+  // embaixo, ou do ganhador e da contagem no giro), em qualquer formato de tela.
+  const [tambor, setTambor] = useState(300);
+  const girando = !!meuGiro;
+  const [meio, setMeio] = useState<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!meio) return;
+    const medir = () => {
+      // Na tela estreita (9:16) o cronômetro do ganhador vai para baixo do nome.
+      const reserva = girando ? (meio.clientWidth < 600 ? 285 : 190) : meio.clientWidth < 600 ? 95 : 60;
+      setTambor(Math.round(Math.max(150, Math.min(420, meio.clientHeight - reserva, meio.clientWidth * 0.8))));
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(meio);
+    return () => ro.disconnect();
+  }, [meio, girando]);
+  const maiorBilhete = s ? Math.max(1, ...s.concorrendo.slice(0, 200).map((p) => p.bilhetes)) : 1;
+  const tempo = Math.floor(restante / 60) > 0 ? `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}` : String(restante);
+
+  // O que aparece na placa do meio do pião parado: a contagem ou a marca.
+  const placa = fim ? (
+    <>
+      <span className="text-[6cqw] font-extrabold uppercase tracking-[0.3em] text-d-gold/80">começa em</span>
+      <span key={restante} className="d-ouro font-display text-[30cqw] font-extrabold leading-none tabular-nums" style={{ animation: "dPopIn .4s ease-out" }}>
+        {tempo}
+      </span>
+    </>
+  ) : (
+    <>
+      <span className="text-[6.5cqw] font-extrabold uppercase tracking-[0.35em] text-d-gold/85">Pião da</span>
+      <span className="d-ouro mt-[2cqw] font-display text-[15cqw] font-extrabold leading-[1.02] tracking-wide">
+        VILLAGE
+        <br />
+        TCG
+      </span>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col overflow-hidden bg-d-bg">
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{ background: "radial-gradient(900px 500px at 50% 35%, rgb(var(--d-brand) / 0.22), transparent 65%), radial-gradient(700px 400px at 50% 110%, rgb(var(--d-gold) / 0.12), transparent 60%)" }}
-      />
-      <header className="relative z-10 flex flex-wrap items-center gap-3 border-b border-d-line/70 px-5 py-3">
-        <p className="text-lg font-bold tracking-tight">
-          Dash <span className="text-d-brand">Village</span> <span className="text-d-gold">· Sorteio</span>
-        </p>
+    <div className="d-palco fixed inset-0 z-[70] flex flex-col overflow-hidden">
+      {/* O cenário: holofote, feixes de luz, losangos e os cantos escuros. */}
+      <div className="d-palco-fundo pointer-events-none absolute inset-0" />
+      <div className="d-palco-losangos pointer-events-none absolute inset-0" />
+      <div className="d-palco-feixe d-palco-feixe-esq" />
+      <div className="d-palco-feixe d-palco-feixe-dir" />
+      <div className="d-palco-vinheta pointer-events-none absolute inset-0" />
+
+      <header className="relative z-10 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+        <MarcaDoPiao />
         {!soUm && (
-          <div className="flex min-w-0 flex-1 flex-wrap gap-1.5">
+          <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {lista.map((x) => (
               <button
                 key={x.id}
                 onClick={() => setAtual(x.id)}
-                className={`rounded-full px-3 py-1 text-sm transition ${x.id === s?.id ? "bg-d-brand font-semibold text-d-on-brand" : "bg-d-panel2 text-d-ink2 hover:text-d-ink"}`}
+                className={`max-w-[22rem] shrink-0 truncate rounded-full px-3.5 py-1.5 text-sm transition ${
+                  x.id === s?.id
+                    ? "bg-gradient-to-b from-[#ffe17a] to-[#f4af14] font-bold text-[#1a1405] shadow-[0_0_24px_rgb(244_175_20/0.35)]"
+                    : "border border-d-gold/20 bg-white/[0.04] text-d-ink2 hover:border-d-gold/40 hover:text-d-ink"
+                }`}
               >
                 {x.nome}
               </button>
@@ -649,61 +698,97 @@ export function Palco({
           </div>
         )}
         {soUm && <span className="flex-1" />}
+        {/* O cronômetro do operador (não aparece para quem só olha). */}
+        {s && podeEditar && !meuGiro && (
+          <form
+            className="flex flex-wrap items-center gap-1.5 rounded-full border border-white/10 bg-black/25 px-3 py-1 text-xs text-d-ink3"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setFim(fim ? null : Date.now() + (min * 60 + seg) * 1000);
+            }}
+          >
+            <Timer className="size-3.5" />
+            <input type="number" min={0} className="d-field w-12 px-1.5 py-0.5 text-center text-xs" value={min} onChange={(e) => setMin(Math.max(0, Number(e.target.value) || 0))} />
+            <span>min</span>
+            <input type="number" min={0} max={59} className="d-field w-12 px-1.5 py-0.5 text-center text-xs" value={seg} onChange={(e) => setSeg(Math.max(0, Math.min(59, Number(e.target.value) || 0)))} />
+            <span>s</span>
+            <button type="submit" className="rounded-full bg-white/[0.07] px-2.5 py-0.5 font-semibold text-d-ink2 hover:text-d-ink disabled:opacity-40" disabled={!s.concorrendo.length || travado}>
+              {fim ? "Parar" : "Iniciar cronômetro"}
+            </button>
+          </form>
+        )}
+        {d.live.aoVivo && (
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-[#F53A3A] px-2.5 py-1 text-[11px] font-extrabold uppercase tracking-wider text-white shadow-[0_0_20px_rgb(245_58_58/0.5)]">
+            <span className="size-1.5 animate-pulse rounded-full bg-white" />
+            Ao vivo
+          </span>
+        )}
         {somTravado && (
           <button className="d-btn d-btn-primary d-btn-sm d-pulse" onClick={() => destravarAudio()} title="O navegador só deixa tocar som depois de um clique na página">
             <Volume2 className="size-4" />
             Clique para ligar a música
           </button>
         )}
-        <button className="d-btn d-btn-secondary d-btn-sm" title={mudo ? "Ligar o som" : "Silenciar"} onClick={() => setMudo(!mudo)}>
+        <button
+          className="inline-flex items-center gap-1.5 rounded-full border border-d-gold/20 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-d-ink2 transition hover:border-d-gold/40 hover:text-d-ink"
+          title={mudo ? "Ligar o som" : "Silenciar"}
+          onClick={() => setMudo(!mudo)}
+        >
           {mudo ? <VolumeX className="size-4" /> : <Volume2 className="size-4" />}
           Som
         </button>
         {aoFechar && (
-          <button className="flex items-center gap-1 rounded-xl bg-d-panel2 px-3 py-1.5 text-sm font-semibold hover:bg-d-line" onClick={aoFechar}>
+          <button
+            className="inline-flex items-center gap-1 rounded-full border border-d-gold/20 bg-white/[0.04] px-3 py-1.5 text-sm font-semibold text-d-ink2 transition hover:border-d-gold/40 hover:text-d-ink"
+            onClick={aoFechar}
+          >
             <X className="size-4" />
             Sair
           </button>
         )}
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-d-gold/40 to-transparent" />
       </header>
+
       {s ? (
-        <div className={`relative z-10 grid min-h-0 flex-1 gap-5 p-5 ${soUm ? "" : "lg:grid-cols-[1fr_360px]"}`}>
-          <section className="d-card flex min-h-0 flex-col items-center justify-between gap-6 p-6 text-center">
-            <div className="-mb-2 flex w-full justify-end">
-              {editar && podeEditar && (
-                <button className="d-btn d-btn-secondary d-btn-sm" onClick={() => editar(s)}>
-                  <Pencil className="size-3.5" />
-                  Editar
-                </button>
+        <div className={`relative z-10 grid min-h-0 flex-1 gap-5 p-4 sm:p-5 ${soUm ? "" : "lg:grid-cols-[1fr_370px]"}`}>
+          <section
+            className="d-palco-vidro relative flex min-h-0 flex-col items-center justify-between gap-3 overflow-hidden rounded-[28px] px-5 py-4 text-center sm:px-8"
+            style={{ ["--d-tambor" as string]: `${tambor}px` }}
+          >
+            {editar && podeEditar && (
+              <button
+                className="absolute right-3 top-3 z-10 inline-flex items-center gap-1.5 rounded-full border border-d-gold/20 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-d-ink2 transition hover:text-d-ink"
+                onClick={() => editar(s)}
+              >
+                <Pencil className="size-3.5" />
+                Editar
+              </button>
+            )}
+
+            {/* O nome do sorteio, a regra e o prêmio. */}
+            <div className="flex w-full flex-col items-center gap-2">
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.45em] text-d-gold/80">◆ Sorteio da live ◆</p>
+              <h1 className="d-ouro max-w-5xl font-display text-[clamp(1.2rem,2.2vw,2.1rem)] font-extrabold uppercase leading-[1.08] [text-wrap:balance]">{s.nome}</h1>
+              <p className="line-clamp-2 max-w-3xl text-xs text-d-ink3 [@media(max-height:820px)]:hidden">{s.descricao}</p>
+              {s.premio && (
+                // Na tela em pé, durante o giro o prêmio sai (ele aparece no "ganhou …").
+                <div className={`relative inline-flex items-center gap-3 overflow-hidden rounded-2xl ${meuGiro ? "[@media(max-aspect-ratio:3/4)]:hidden" : ""} border border-d-gold/40 bg-gradient-to-r from-[#f4af14]/15 via-[#f4af14]/[0.06] to-[#f4af14]/15 py-1.5 pl-1.5 pr-5`}>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-[#ffe17a] to-[#f4af14] text-[#1a1405] shadow-[0_0_18px_rgb(244_175_20/0.45)]">
+                    <Gift className="size-5" />
+                  </span>
+                  <span className="text-left">
+                    <span className="block text-[10px] font-extrabold uppercase tracking-[0.3em] text-d-gold">Prêmio</span>
+                    <span className="block font-display text-lg font-extrabold leading-tight sm:text-xl">{s.premio}</span>
+                  </span>
+                  <span className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/15 to-transparent motion-safe:animate-shimmer" />
+                </div>
               )}
             </div>
-            <div className="space-y-1">
-              <p className="text-sm font-bold uppercase tracking-[0.3em] text-d-ink3">{s.nome}</p>
-              <p className="text-xs text-d-ink3">{s.descricao}</p>
-              {s.premio && <p className="text-lg font-semibold text-d-gold">🎁 {s.premio}</p>}
-            </div>
-            <div className="flex w-full flex-1 flex-col items-center justify-center gap-4">
-              {podeEditar && !meuGiro && (
-                <form
-                  className="flex flex-wrap items-center justify-center gap-2 text-sm text-d-ink3"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    setFim(fim ? null : Date.now() + (min * 60 + seg) * 1000);
-                  }}
-                >
-                  <Timer className="size-4" />
-                  <span>Começar em</span>
-                  <input type="number" min={0} className="d-field w-16 px-2 py-1 text-center" value={min} onChange={(e) => setMin(Math.max(0, Number(e.target.value) || 0))} />
-                  <span>min</span>
-                  <input type="number" min={0} max={59} className="d-field w-16 px-2 py-1 text-center" value={seg} onChange={(e) => setSeg(Math.max(0, Math.min(59, Number(e.target.value) || 0)))} />
-                  <span>s</span>
-                  <button type="submit" className="d-btn d-btn-secondary d-btn-sm" disabled={!s.concorrendo.length || travado}>
-                    {fim ? "Parar cronômetro" : "Iniciar cronômetro"}
-                  </button>
-                </form>
-              )}
-              <div className="w-full max-w-3xl">
-                {meuGiro ? (
+
+            {/* O pião: parado (com a marca ou a contagem) ou girando. */}
+            <div ref={setMeio} className="flex min-h-0 w-full flex-1 flex-col items-center justify-center gap-3">
+              {meuGiro ? (
+                <div className="w-full max-w-3xl">
                   <GiroDoSorteio
                     key={meuGiro.chave}
                     giro={meuGiro}
@@ -714,66 +799,169 @@ export function Palco({
                     musicaDaTela
                     aoParar={() => setGanhadorNaTela(true)}
                   />
-                ) : fim ? (
-                  <div>
-                    <p key={restante} className="text-8xl font-bold tabular-nums text-d-gold" style={{ animation: "dPopIn .4s ease-out" }}>
-                      {Math.floor(restante / 60) > 0 ? `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}` : restante}
-                    </p>
-                    <p className="text-xs uppercase tracking-widest text-d-ink3">o sorteio começa sozinho</p>
-                  </div>
-                ) : (
-                  <Situacao s={s} grande />
-                )}
-              </div>
+                </div>
+              ) : (
+                <>
+                  {d.visual.estilo === "fita" ? (
+                    <div className="d-palco-vidro flex aspect-[16/9] w-[min(56vh,520px,84vw)] flex-col items-center justify-center rounded-3xl" style={{ containerType: "inline-size" }}>
+                      <div className="flex w-1/2 flex-col items-center" style={{ containerType: "inline-size" }}>
+                        {placa}
+                      </div>
+                    </div>
+                  ) : (
+                    <PiaoParado nomes={nomesNoPiao} grande>
+                      {placa}
+                    </PiaoParado>
+                  )}
+                  <StatusDoPalco s={s} contando={!!fim} />
+                </>
+              )}
             </div>
+
             {/* Durante o giro e a resposta do ganhador o botão sai (o espaço vai para o pião). */}
             {!meuGiro && (
-              <div className="space-y-2">
+              <div className="flex flex-col items-center gap-3">
                 {podeEditar && (
                   <button
-                    className="rounded-3xl bg-d-gold px-14 py-5 text-3xl font-bold tracking-wide text-d-on-gold shadow-[0_0_60px_rgb(var(--d-gold)/0.35)] transition enabled:hover:brightness-110 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-30"
+                    className="d-botao-sortear px-14 py-3.5 font-display text-[clamp(1.5rem,2.6vw,2.25rem)] font-extrabold tracking-[0.14em] sm:px-20"
                     disabled={!s.concorrendo.length || travado || !!giro}
                     onClick={() => sortear(s)}
                   >
                     SORTEAR
+                    <span className="pointer-events-none absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-transparent via-white/45 to-transparent motion-safe:animate-shimmer" />
                   </button>
                 )}
-                <p className="text-sm text-d-ink3">{inteiro(s.concorrendo.length)} participantes concorrendo</p>
               </div>
             )}
           </section>
+
           {!soUm && (
             <aside className="flex min-h-0 flex-1 flex-col gap-4">
-              <div className="d-card flex min-h-0 flex-1 flex-col overflow-hidden">
-                <header className="d-card-header">
-                  <h2 className="d-card-title">
-                    <Users className="size-4 shrink-0 text-d-brand" />
-                    <span className="truncate">Participantes ({inteiro(s.concorrendo.length)})</span>
-                  </h2>
+              <div className="d-palco-vidro flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl">
+                <header className="flex items-center gap-2 border-b border-d-gold/15 px-4 py-3">
+                  <Users className="size-4 shrink-0 text-d-gold" />
+                  <span className="font-display text-sm font-extrabold uppercase tracking-wider">Quem concorre</span>
+                  <span className="ml-auto rounded-full bg-d-gold/15 px-2.5 py-0.5 text-xs font-bold tabular-nums text-d-gold">{inteiro(s.concorrendo.length)}</span>
                 </header>
-                <div className="d-scroll min-h-0 flex-1 overflow-y-auto">
-                  <ol className="divide-y divide-d-line">
-                    {s.concorrendo.slice(0, 200).map((p, i) => (
-                      <li key={p.handle} className="flex items-center gap-2.5 px-4 py-2">
-                        <span className="w-6 text-right text-xs tabular-nums text-d-ink3">{i + 1}</span>
-                        <Avatar foto={p.foto} nome={p.handle} tamanho={26} />
-                        <span className="min-w-0 flex-1 truncate text-sm">@{p.handle}</span>
-                        <span className="text-xs tabular-nums text-d-ink3">{inteiro(p.bilhetes)} bil.</span>
-                        <span className="w-14 text-right text-sm font-semibold tabular-nums text-d-brand">
-                          {s.bilhetes ? ((p.bilhetes / s.bilhetes) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : 0}%
+                <ol className="d-scroll min-h-0 flex-1 space-y-0.5 overflow-y-auto p-2">
+                  {s.concorrendo.slice(0, 200).map((p, i) => {
+                    const medalha = i < 3 ? MEDALHAS[i] : null;
+                    return (
+                      <li key={p.handle} className="flex items-center gap-2.5 rounded-xl px-2 py-1.5 transition hover:bg-white/[0.03]">
+                        <span className="w-6 text-center text-xs font-extrabold tabular-nums" style={{ color: medalha ?? "rgb(var(--d-ink3))" }}>
+                          {i + 1}
                         </span>
+                        <span className="shrink-0 rounded-full p-[2px]" style={{ background: medalha ?? "rgb(255 255 255 / 0.08)" }}>
+                          <Avatar foto={p.foto} nome={p.handle} tamanho={28} />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-baseline gap-2">
+                            <span className="truncate text-sm font-semibold">@{p.handle}</span>
+                            <span className="ml-auto shrink-0 text-sm font-extrabold tabular-nums text-d-gold">
+                              {s.bilhetes ? ((p.bilhetes / s.bilhetes) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : 0}%
+                            </span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+                              <div className="h-full rounded-full bg-gradient-to-r from-[#b97f00] via-[#f4af14] to-[#ffe17a]" style={{ width: `${(p.bilhetes / maiorBilhete) * 100}%` }} />
+                            </div>
+                            <span className="shrink-0 text-[10px] tabular-nums text-d-ink3">{inteiro(p.bilhetes)} bil.</span>
+                          </div>
+                        </div>
                       </li>
-                    ))}
-                  </ol>
-                </div>
+                    );
+                  })}
+                </ol>
               </div>
               <Emotions d={d} c={c} altura="min-h-0 flex-1" />
             </aside>
           )}
         </div>
       ) : (
-        <div className="relative z-10 flex flex-1 items-center justify-center text-d-ink3">Nenhum sorteio criado nesta live.</div>
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 text-d-ink3">
+          <PiaoParado nomes={[]} grande>
+            {placa}
+          </PiaoParado>
+          Nenhum sorteio criado nesta live.
+        </div>
       )}
+    </div>
+  );
+}
+
+// Ouro, prata e bronze para os três com mais chance.
+const MEDALHAS = ["linear-gradient(135deg, #fff1b0, #f4af14)", "linear-gradient(135deg, #ffffff, #9aa3b5)", "linear-gradient(135deg, #f6c9a0, #b06a2c)"];
+
+// A marca no canto do palco, com as asas do site batendo.
+function MarcaDoPiao() {
+  return (
+    <div className="flex items-center gap-1.5">
+      <Wing gradientId="palco-asa-esq" className="w-7 sm:w-9" />
+      <div className="text-center leading-none">
+        <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">Pião da</p>
+        <p className="mt-0.5 whitespace-nowrap font-display text-lg font-extrabold tracking-wide text-white sm:text-xl">
+          VILLAGE <span className="text-[#F4AF14]">TCG</span>
+        </p>
+      </div>
+      <span className="-scale-x-100">
+        <Wing gradientId="palco-asa-dir" className="block w-7 sm:w-9" />
+      </span>
+    </div>
+  );
+}
+
+// Embaixo do pião parado: se pode girar, quanto falta para liberar ou a
+// contagem para começar.
+function StatusDoPalco({ s, contando }: { s: SorteioCalculado; contando: boolean }) {
+  const numeros = (
+    <>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-d-ink2">
+        <Users className="size-3.5 text-d-gold" />
+        <b className="tabular-nums text-d-ink">{inteiro(s.concorrendo.length)}</b> participantes
+      </span>
+      <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-d-ink2">
+        <Ticket className="size-3.5 text-d-gold" />
+        <b className="tabular-nums text-d-ink">{inteiro(s.bilhetes)}</b> bilhetes
+      </span>
+    </>
+  );
+  if (!s.concorrendo.length) return <p className="text-sm text-d-ink3">Ninguém concorrendo ainda.</p>;
+  const p = s.lib.proximo;
+  let aviso: ReactNode;
+  if (contando) aviso = <span className="text-xs font-bold uppercase tracking-[0.3em] text-d-gold/80">o sorteio começa sozinho</span>;
+  else if (s.lib.livre) {
+    aviso = (
+      <span className="inline-flex items-center gap-2 rounded-full border border-d-gold/30 bg-d-gold/10 px-3.5 py-1 text-xs font-bold uppercase tracking-[0.2em] text-d-gold">
+        <span className="size-1.5 animate-pulse rounded-full bg-d-gold" />
+        Pronto para girar
+      </span>
+    );
+  } else if (s.lib.disponiveis > 0) {
+    aviso = (
+      <span
+        className="inline-flex items-center gap-2 rounded-full border border-d-ok/40 bg-d-ok/10 px-3.5 py-1 font-display text-xs font-extrabold uppercase tracking-wider text-d-ok shadow-[0_0_30px_rgb(61_214_140/0.25)]"
+        title={`${inteiro(s.lib.liberados)} liberado(s) · ${inteiro(s.validos.length)} sorteado(s)`}
+      >
+        <Check className="size-4" />
+        {s.lib.disponiveis === 1 ? "Pião da Village TCG liberado!" : `Pião da Village TCG: ${s.lib.disponiveis} liberados!`}
+      </span>
+    );
+  } else {
+    aviso = (
+      <span className="inline-flex items-center gap-2 rounded-full border border-d-gold/30 bg-d-gold/10 px-3.5 py-1 text-xs font-bold text-d-gold">
+        {p ? `Faltam ${inteiro(Math.ceil(p.falta))} ${p.unidade}` : "Aguardando a meta da live"}
+        {p && (
+          <span className="w-20">
+            <Barra progresso={p.progresso} />
+          </span>
+        )}
+      </span>
+    );
+  }
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-2">
+      {aviso}
+      {numeros}
     </div>
   );
 }

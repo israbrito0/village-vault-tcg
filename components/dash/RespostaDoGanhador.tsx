@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Mensagem } from "@/lib/dash/calculos";
 import { tocar } from "@/lib/dash/som";
-import { tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
+import { tocarSomDaContagem } from "@/lib/dash/musica";
 
 // Depois que o pião para: 10 segundos para o ganhador responder no chat. Se
 // responder, aparece "Respondeu!"; se não, "MAMOU, MAMOU, MAMOU!!!".
@@ -50,21 +50,17 @@ export default function RespostaDoGanhador({
     return () => clearInterval(t);
   }, [fase]);
 
-  // O som da contagem: o arquivo que a conta enviou toca uma vez a partir do
-  // ganhador. Ele pode passar dos 10 segundos (o final mais forte do som cai
-  // no "conferindo o chat…"), então só é cortado quando o ganhador responde
-  // ou quando aparece o "mamou". Sem arquivo, um tique a cada segundo.
-  const somDaContagem = useRef<Tocando | null>(null);
+  // O som da contagem: o arquivo que a conta enviou toca uma vez, inteiro, a
+  // partir do ganhador (o final mais forte dele cai no "conferindo o chat…"),
+  // e é o único som até o fim: sem o "uón uón" do mamou nem as moedas de quem
+  // respondeu. Sem arquivo, o Dash faz os dele: um tique a cada segundo e o
+  // som do resultado.
   useEffect(() => {
     if (!somUrl) return;
     const t = tocarSomDaContagem(somUrl, volume);
-    somDaContagem.current = t;
     return () => t.parar(300);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [somUrl]);
-  useEffect(() => {
-    if (fase === "respondeu" || fase === "mamou") somDaContagem.current?.parar(400);
-  }, [fase]);
   const ultimoTique = useRef(-1);
   useEffect(() => {
     if (!somUrl && fase === "contando" && restam > 0 && restam !== ultimoTique.current) {
@@ -73,9 +69,11 @@ export default function RespostaDoGanhador({
     }
   }, [fase, restam, volume, somUrl]);
   useEffect(() => {
+    if (somUrl) return;
     if (fase === "mamou") tocar("mamou", volume);
     if (fase === "respondeu") tocar("pagamento", volume);
-  }, [fase, volume]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fase]);
 
   if (fase === "respondeu") {
     return (

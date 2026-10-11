@@ -340,6 +340,118 @@ body {
   }
 }
 
+/* ---------- o palco do sorteio (tela cheia e tela do OBS) ----------
+   Sempre escuro, como um palco de TV, mesmo no tema claro: holofote dourado
+   de cima, dois feixes balançando, chão iluminado e os cantos escuros. Os
+   painéis são de vidro com borda dourada, e o botão é o dourado da Village. */
+.d-palco {
+  --d-bg: 9 10 14;
+  --d-panel: 23 26 33;
+  --d-panel2: 31 35 44;
+  --d-line: 52 50 44;
+  --d-ink: 240 240 244;
+  --d-ink2: 178 182 196;
+  --d-ink3: 132 138 156;
+  --d-brand: 244 175 20;
+  --d-on-brand: 26 20 5;
+  --d-gold: 255 201 74;
+  --d-on-gold: 26 20 5;
+  --d-ok: 61 214 140;
+  --d-warn: 255 181 71;
+  --d-bad: 255 99 105;
+  color-scheme: dark;
+  color: rgb(var(--d-ink));
+  background: #07080c;
+}
+.d-palco-fundo {
+  background:
+    radial-gradient(ellipse 55% 60% at 50% -12%, rgb(244 175 20 / 0.3), transparent 70%),
+    radial-gradient(ellipse 70% 30% at 50% 108%, rgb(244 175 20 / 0.16), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 0% 100%, rgb(21 139 202 / 0.1), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 100% 100%, rgb(245 58 58 / 0.08), transparent 70%);
+}
+/* Losangos bem fracos no fundo (os "diamantes"). */
+.d-palco-losangos {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Cpath d='M22 14l6 8-6 8-6-8z' fill='%23F4AF14' fill-opacity='.05'/%3E%3C/svg%3E");
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 75%);
+}
+.d-palco-feixe {
+  position: absolute;
+  top: -10%;
+  width: 34vw;
+  height: 120%;
+  background: linear-gradient(180deg, rgb(255 214 110 / 0.16), rgb(255 214 110 / 0) 75%);
+  filter: blur(18px);
+  clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
+  pointer-events: none;
+}
+.d-palco-feixe-esq {
+  left: 4%;
+  transform-origin: 50% 0;
+  animation: dFeixe 7s ease-in-out infinite alternate;
+}
+.d-palco-feixe-dir {
+  right: 4%;
+  transform-origin: 50% 0;
+  animation: dFeixe 8s ease-in-out infinite alternate-reverse;
+}
+@keyframes dFeixe {
+  from {
+    transform: rotate(-16deg);
+  }
+  to {
+    transform: rotate(-4deg) scaleX(0.9);
+  }
+}
+.d-palco-vinheta {
+  background: radial-gradient(ellipse 85% 85% at 50% 45%, transparent 55%, rgb(0 0 0 / 0.55) 100%);
+}
+.d-palco-vidro {
+  border: 1px solid rgb(244 175 20 / 0.16);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 60px -30px rgb(0 0 0 / 0.8);
+  backdrop-filter: blur(10px);
+}
+.d-palco .d-card {
+  border-color: rgb(244 175 20 / 0.16);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
+  backdrop-filter: blur(10px);
+}
+.d-palco .d-card-header {
+  border-color: rgb(244 175 20 / 0.12);
+}
+/* O texto dourado com brilho (nome do sorteio e da marca). */
+.d-ouro {
+  background: linear-gradient(180deg, #fff3c4 0%, #ffd34d 38%, #f4af14 62%, #b97f00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.45)) drop-shadow(0 0 22px rgb(244 175 20 / 0.25));
+}
+.d-botao-sortear {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #ffe17a 0%, #ffc935 45%, #f4af14 70%, #d48f00 100%);
+  color: #1a1405;
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -4px 0 rgb(122 82 0 / 0.45), 0 12px 0 -4px #8a5d00, 0 0 70px rgb(244 175 20 / 0.45);
+  transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
+}
+.d-botao-sortear:enabled:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1px);
+}
+.d-botao-sortear:enabled:active {
+  transform: translateY(5px);
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -3px 0 rgb(122 82 0 / 0.45), 0 5px 0 -3px #8a5d00, 0 0 50px rgb(244 175 20 / 0.4);
+}
+.d-botao-sortear:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.7) brightness(0.6);
+  box-shadow: none;
+}
+
 /* O anel do pião pulsando na reta final, antes do ganhador. */
 @keyframes dTensao {
   from {

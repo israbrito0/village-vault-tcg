@@ -2,7 +2,7 @@ import Link from "next/link";
 
 // Asa de dragão desenhada para a marca (esquerda; a direita é espelhada).
 // Presa pela borda direita, que é o "ombro" em volta do qual ela bate.
-function Wing({ gradientId, className }: { gradientId: string; className: string }) {
+export function Wing({ gradientId, className }: { gradientId: string; className: string }) {
   return (
     <svg
       viewBox="0 0 120 80"

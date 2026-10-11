@@ -155,8 +155,10 @@ export default function Piao({
       tocando.vitoria();
       if (!comMusica && sons) tocar("sorteio", volume);
       aoTerminar?.();
-      // A música some uns segundos depois do ganhador aparecer.
-      fimDaMusica = setTimeout(() => tocando.parar(1800), m.tipo === "arquivo" ? 4500 : 2600);
+      // A música enviada sai quando o ganhador aparece (aí entra o som dos 10
+      // segundos, como na tela cheia); a marchinha some depois da fanfarra.
+      if (m.tipo === "arquivo") tocando.parar(600);
+      else fimDaMusica = setTimeout(() => tocando.parar(1800), 2600);
     };
     quadro = requestAnimationFrame(desenhar);
     return () => {
@@ -168,46 +170,25 @@ export default function Piao({
   }, [fita]);
 
   const casa = lado * 0.5;
-  // O nome cabe numa linha da casa: mede o texto com a fonte da página e
-  // diminui a letra dos compridos.
-  const tamanhos = useMemo(() => {
-    const mapa = new Map<string, number>();
-    if (!lado || typeof document === "undefined") return mapa;
-    const ctx = document.createElement("canvas").getContext("2d");
-    const familia = getComputedStyle(document.body).fontFamily || "sans-serif";
-    for (const p of fita) {
-      if (mapa.has(p.handle)) continue;
-      let largura = (p.handle.length + 1) * 62;
-      if (ctx) {
-        ctx.font = `900 100px ${familia}`;
-        largura = ctx.measureText(`@${p.handle}`).width;
-      }
-      mapa.set(p.handle, Math.max(10, Math.min(lado * 0.17, ((casa * 0.9) / largura) * 100)));
-    }
-    return mapa;
-  }, [fita, lado, casa]);
+  const tamanhos = useMemo(() => medirNomes(fita.map((p) => p.handle), lado), [fita, lado]);
 
   return (
     <div className="flex w-full flex-col items-center">
       <div
         ref={tambor}
-        className="relative aspect-square overflow-hidden rounded-full"
+        className="relative aspect-square shrink-0 overflow-hidden rounded-full"
         style={{
-          width: grande ? "min(42vh, 440px, 84vw)" : "min(300px, 80vw)",
-          background: "linear-gradient(90deg, #0b0b0d 0%, #2b2c31 16%, #575a61 36%, #6e7179 50%, #575a61 64%, #2b2c31 84%, #0b0b0d 100%)",
+          width: larguraDoTambor(grande),
+          background: FUNDO_DO_TAMBOR,
           boxShadow: parou
             ? "0 0 0 5px #ffe07a, 0 0 0 11px #ff9d00, 0 0 46px 22px rgba(255,170,0,.75), 0 0 110px 50px rgba(255,130,0,.4)"
-            : "0 0 0 5px #ffcf4a, 0 0 0 11px rgba(255,140,0,.9), 0 0 38px 18px rgba(255,140,0,.6), 0 0 90px 40px rgba(255,110,0,.3)",
+            : ANEL,
           // Na reta final o anel pulsa.
           animation: suspense && !parou ? "dTensao .42s ease-in-out infinite alternate" : undefined,
           transition: "box-shadow .4s",
         }}
       >
-        {/* As faixas de cima e de baixo do tambor e os reflexos verticais. */}
-        <div className="pointer-events-none absolute inset-x-0 top-[17%] h-[3%] bg-black/45" />
-        <div className="pointer-events-none absolute inset-x-0 bottom-[17%] h-[3%] bg-black/45" />
-        <div className="pointer-events-none absolute inset-y-0 left-[44%] w-[1.5%] bg-white/10 blur-[2px]" />
-        <div className="pointer-events-none absolute inset-y-0 left-[57%] w-[1%] bg-white/10 blur-[1px]" />
+        <FaixasDoTambor />
         {/* A moldura do meio: onde o ganhador para. */}
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[62%] w-[54%] -translate-x-1/2 -translate-y-1/2 rounded-[6px] transition-all duration-500"
@@ -256,6 +237,140 @@ export default function Piao({
           {suspense ? "e o ganhador é…" : "rodando o pião…"}
         </p>
       )}
+    </div>
+  );
+}
+
+// ---------- o tambor (o mesmo no giro e parado) ----------
+
+// Na tela cheia, o palco pode definir o tamanho (--d-tambor) para caber tudo.
+const larguraDoTambor = (grande: boolean) => (grande ? "var(--d-tambor, min(42vh, 440px, 84vw))" : "min(300px, 80vw)");
+const FUNDO_DO_TAMBOR = "linear-gradient(90deg, #0b0b0d 0%, #2b2c31 16%, #575a61 36%, #6e7179 50%, #575a61 64%, #2b2c31 84%, #0b0b0d 100%)";
+const ANEL = "0 0 0 5px #ffcf4a, 0 0 0 11px rgba(255,140,0,.9), 0 0 38px 18px rgba(255,140,0,.6), 0 0 90px 40px rgba(255,110,0,.3)";
+
+// As faixas de cima e de baixo do tambor e os reflexos verticais.
+function FaixasDoTambor() {
+  return (
+    <>
+      <div className="pointer-events-none absolute inset-x-0 top-[17%] h-[3%] bg-black/45" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-[17%] h-[3%] bg-black/45" />
+      <div className="pointer-events-none absolute inset-y-0 left-[44%] w-[1.5%] bg-white/10 blur-[2px]" />
+      <div className="pointer-events-none absolute inset-y-0 left-[57%] w-[1%] bg-white/10 blur-[1px]" />
+    </>
+  );
+}
+
+// O nome cabe numa linha da casa: mede o texto com a fonte da página e
+// diminui a letra dos compridos.
+function medirNomes(handles: string[], lado: number) {
+  const mapa = new Map<string, number>();
+  if (!lado || typeof document === "undefined") return mapa;
+  const casa = lado * 0.5;
+  const ctx = document.createElement("canvas").getContext("2d");
+  const familia = getComputedStyle(document.body).fontFamily || "sans-serif";
+  for (const h of handles) {
+    if (mapa.has(h)) continue;
+    let largura = (h.length + 1) * 62;
+    if (ctx) {
+      ctx.font = `900 100px ${familia}`;
+      largura = ctx.measureText(`@${h}`).width;
+    }
+    mapa.set(h, Math.max(10, Math.min(lado * 0.17, ((casa * 0.9) / largura) * 100)));
+  }
+  return mapa;
+}
+
+// O pião parado na tela do sorteio, antes de girar: o mesmo tambor, com os
+// nomes de quem concorre passando devagar atrás de uma placa no meio (a marca,
+// a contagem ou o aviso) e o anel respirando.
+export function PiaoParado({ nomes, grande = false, children }: { nomes: string[]; grande?: boolean; children?: ReactNode }) {
+  const tambor = useRef<HTMLDivElement>(null);
+  const casas = useRef<(HTMLDivElement | null)[]>([]);
+  const inicio = useRef<number | null>(null);
+  const [lado, setLado] = useState(0);
+  const lista = useMemo(() => (nomes.length ? nomes.slice(0, 40) : ["villagetcg"]), [nomes]);
+  const tamanhos = useMemo(() => medirNomes(lista, lado), [lista, lado]);
+
+  useEffect(() => {
+    const el = tambor.current;
+    if (!el) return;
+    const medir = () => setLado(el.clientWidth);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Seis casas que vão trocando de nome enquanto o tambor gira devagar.
+  useEffect(() => {
+    const el = tambor.current;
+    if (!el || !lado) return;
+    // O giro continua de onde estava quando entra alguém novo na lista.
+    inicio.current ??= performance.now();
+    const desde = inicio.current;
+    let quadro = 0;
+    const desenhar = (agora: number) => {
+      const casa = lado * 0.5;
+      const raio = casa / PASSO;
+      const pos = ((agora - desde) / 1000) * 0.5;
+      const base = Math.floor(pos);
+      for (let j = 0; j < 6; j++) {
+        const n = casas.current[j];
+        if (!n) continue;
+        const k = base - 2 + j;
+        const ang = (k - pos) * PASSO;
+        if (Math.abs(ang) >= Math.PI / 2) {
+          n.style.visibility = "hidden";
+          continue;
+        }
+        const nome = lista[((k % lista.length) + lista.length) % lista.length];
+        if (n.dataset.nome !== nome) {
+          n.dataset.nome = nome;
+          n.textContent = `@${nome}`;
+          n.style.fontSize = `${tamanhos.get(nome) ?? 16}px`;
+        }
+        const c = Math.cos(ang);
+        n.style.visibility = "visible";
+        n.style.transform = `translate(-50%, -50%) translateX(${(raio * Math.sin(ang)).toFixed(1)}px) scaleX(${c.toFixed(3)})`;
+        n.style.opacity = (0.15 + 0.6 * c * c).toFixed(3);
+      }
+      quadro = requestAnimationFrame(desenhar);
+    };
+    quadro = requestAnimationFrame(desenhar);
+    return () => cancelAnimationFrame(quadro);
+  }, [lista, lado, tamanhos]);
+
+  return (
+    <div
+      ref={tambor}
+      className="relative aspect-square shrink-0 overflow-hidden rounded-full"
+      style={{ width: larguraDoTambor(grande), background: FUNDO_DO_TAMBOR, boxShadow: ANEL, animation: "dTensao 1.9s ease-in-out infinite alternate" }}
+    >
+      <FaixasDoTambor />
+      {lado > 0 &&
+        [0, 1, 2, 3, 4, 5].map((j) => (
+          <div
+            key={j}
+            ref={(n) => {
+              casas.current[j] = n;
+            }}
+            className="pointer-events-none absolute left-1/2 top-1/2 z-10 flex items-center justify-center text-center font-black leading-none text-[#f4f4f6] will-change-transform"
+            style={{ width: lado * 0.5, visibility: "hidden", whiteSpace: "nowrap", textShadow: "0 3px 0 rgba(0,0,0,.55)", letterSpacing: "-0.02em" }}
+          />
+        ))}
+      {/* A placa do meio, por cima dos nomes. */}
+      <div
+        className="absolute left-1/2 top-1/2 z-20 flex h-[62%] w-[54%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center rounded-[8px] px-2 text-center"
+        style={{
+          // As letras de dentro (em cqw) seguem o tamanho da placa.
+          containerType: "inline-size",
+          border: `${Math.max(2, lado * 0.008)}px solid #ffd34d`,
+          background: "radial-gradient(120% 90% at 50% 0%, #2a2414 0%, #121216 70%)",
+          boxShadow: "0 0 26px 4px rgba(255,200,60,.35), inset 0 0 30px rgba(255,200,60,.12)",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
