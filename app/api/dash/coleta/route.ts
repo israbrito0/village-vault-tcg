@@ -15,7 +15,8 @@ const CORS = {
 };
 
 const LIMITES = { lives: 6, emocoes: 5000, chat: 3000, vendas: 2000 };
-const TITULO_GENERICO = /^(seller hub|jamble|painel do vendedor|live)$/i;
+// "@israelbrito ao vivo" é o nome que a Jamble dá à live depois que ela acaba.
+const TITULO_GENERICO = /^(seller hub|jamble|painel do vendedor|live|@?[\w.]+ ao vivo)$/i;
 
 type Obj = Record<string, unknown>;
 const txt = (v: unknown, max = 200) => (typeof v === "string" && v.trim() ? v.trim().slice(0, max) : null);
