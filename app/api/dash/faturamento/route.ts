@@ -9,7 +9,7 @@ import { db, erro, membroDaRequisicao, ok, todas } from "@/lib/dash/servidor";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const PRIMEIRO_MES = "2026-09";
+const PRIMEIRO_MES = "2026-06";
 type Linha = Record<string, unknown>;
 
 const mesDeHoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 7);
@@ -73,12 +73,12 @@ export async function GET(req: Request) {
 
   const [vendidos, vendedores, pontos, fotos, noAr] = await Promise.all([
     todas<Linha>((a, b) => db().rpc("dash_jamble_vendido", { p_mes: mes }).range(a, b) as never),
-    todas<Linha>((a, b) => db().from("dash_jamble_vendedores").select("seller_id, completo_desde").range(a, b) as never),
+    todas<Linha>((a, b) => db().from("dash_jamble_vendedores").select("seller_id, handle, completo_desde, perfil_lido_em").range(a, b) as never),
     mes === ultimoRanking
       ? todas<Linha>((a, b) => db().from("dash_ranking_jamble").select("seller_id, posicao, pontos").eq("mes", mes).range(a, b) as never)
       : Promise.resolve([] as Linha[]),
     ultimoRanking
-      ? todas<Linha>((a, b) => db().from("dash_ranking_jamble").select("seller_id, foto").eq("mes", ultimoRanking).range(a, b) as never)
+      ? todas<Linha>((a, b) => db().from("dash_ranking_jamble").select("seller_id, foto, posicao").eq("mes", ultimoRanking).range(a, b) as never)
       : Promise.resolve([] as Linha[]),
     todas<Linha>((a, b) => db().from("dash_jamble_lives").select("seller_id").eq("acabou", false).range(a, b) as never),
   ]);
@@ -113,5 +113,14 @@ export async function GET(req: Request) {
       };
     })
     .sort((a, b) => b.vendido - a.vendido);
-  return ok({ ...base, temPontos: mes === ultimoRanking, total: lista.reduce((t, l) => t + l.vendido, 0), vendedores: lista });
+  // Quem não aparece no mês porque a Jamble não mostra as lives dele dessa
+  // época (o perfil só tem as 20 mais recentes e começa depois do mês).
+  const naLista = new Set(lista.map((l) => l.id));
+  const posDe = new Map(fotos.map((f) => [String(f.seller_id), Number(f.posicao) || null]));
+  const semDados = vendedores
+    .filter((v) => v.completo_desde && Date.parse(String(v.completo_desde)) > inicio && !naLista.has(String(v.seller_id)))
+    .map((v) => ({ handle: String(v.handle ?? ""), desde: Date.parse(String(v.completo_desde)), posicaoPontos: posDe.get(String(v.seller_id)) ?? null }))
+    .sort((a, b) => (a.posicaoPontos ?? 1e9) - (b.posicaoPontos ?? 1e9));
+  const perfisLendo = vendedores.filter((v) => !v.perfil_lido_em).length;
+  return ok({ ...base, temPontos: mes === ultimoRanking, total: lista.reduce((t, l) => t + l.vendido, 0), vendedores: lista, semDados, perfisLendo });
 }

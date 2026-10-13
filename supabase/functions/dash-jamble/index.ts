@@ -24,9 +24,9 @@ const UA = { "user-agent": "Mozilla/5.0 (Village Dash)", accept: "application/js
 const ORCAMENTO_MS = 95_000;
 const PARALELO = 2;
 const PAUSA_MS = 150;
-const PERFIS_POR_RODADA = 12;
-// Começo de setembro de 2026 em Brasília: o que vem antes não interessa.
-const DESDE = Date.parse("2026-09-01T03:00:00Z");
+const PERFIS_POR_RODADA = 40;
+// Começo de junho de 2026 em Brasília: o que vem antes não interessa.
+const DESDE = Date.parse("2026-06-01T03:00:00Z");
 
 type Obj = Record<string, unknown>;
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);

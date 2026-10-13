@@ -13,7 +13,7 @@ export const maxDuration = 60;
 
 const VELHO_MS = 15 * 60 * 1000;
 // O primeiro mês com vendidos lidos.
-const PRIMEIRO_MES = "2026-09";
+const PRIMEIRO_MES = "2026-06";
 
 type Linha = Record<string, unknown>;
 

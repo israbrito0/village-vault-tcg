@@ -159,6 +159,8 @@ salvar("faturamento-vendedores.json", {
   aba: "vendedores",
   temPontos: true,
   total: 4709574.4,
+  perfisLendo: 120,
+  semDados: [{ handle: "formulaminis", desde: T(-18 * 86400e3), posicaoPontos: 1 }, { handle: "dittostore", desde: T(-19 * 86400e3), posicaoPontos: 9 }],
   vendedores: nomes.slice(0, 30).map((h, i) => {
     const vendido = 205031 - i * 6500;
     const lives = 4 + (i % 8);

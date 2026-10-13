@@ -39,7 +39,8 @@ type Comprador = {
   ultima: number | null;
 };
 type Base = { meses: string[]; mes: string; conta: string; atualizadoEm: number | null };
-type RespVendedores = Base & { aba: "vendedores"; temPontos: boolean; total: number; vendedores: Vendedor[] };
+type SemDados = { handle: string; desde: number; posicaoPontos: number | null };
+type RespVendedores = Base & { aba: "vendedores"; temPontos: boolean; total: number; vendedores: Vendedor[]; semDados: SemDados[]; perfisLendo: number };
 type RespCompradores = Base & { aba: "compradores"; livesFaltando: number; compradores: Comprador[] };
 
 const NOMES = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
@@ -145,8 +146,35 @@ export default function Faturamento() {
 
       {aba === "vendedores" ? (
         <>
+          {vend && vend.perfisLendo > 0 && (
+            <p className="rounded-xl border border-d-warn/40 bg-d-warn/10 px-4 py-2.5 text-xs text-d-warn">
+              Relendo os perfis dos vendedores para buscar as lives mais antigas: {inteiro(vend.perfisLendo)} na fila. Os números sobem conforme a leitura anda, e a página se
+              atualiza sozinha.
+            </p>
+          )}
+          {vend && vend.semDados.length > 0 && (
+            <div className="rounded-xl border border-d-line bg-d-panel2/60 px-4 py-3 text-xs text-d-ink2">
+              <p className="font-semibold text-d-ink">
+                {inteiro(vend.semDados.length)} {vend.semDados.length === 1 ? "vendedor não aparece" : "vendedores não aparecem"} em {atual ? nomeDoMes(atual) : ""}: a Jamble só
+                mostra as 20 lives mais recentes de cada um, e elas começam depois deste mês. Não dá para saber quanto eles venderam aqui.
+              </p>
+              <p className="mt-1.5 leading-relaxed">
+                {vend.semDados.slice(0, 25).map((s, i) => (
+                  <span key={s.handle}>
+                    {i ? " · " : ""}@{s.handle}
+                    {s.posicaoPontos ? <span className="text-d-ink3"> (#{s.posicaoPontos} hoje)</span> : null}
+                  </span>
+                ))}
+                {vend.semDados.length > 25 ? ` · e mais ${inteiro(vend.semDados.length - 25)}` : ""}
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-            <Kpi rotulo={`Jamble inteira em ${atual ? nomeDoMes(atual).split(" ")[0].toLowerCase() : "…"}`} valor={vend ? reais(vend.total) : "—"} dinheiro />
+            <Kpi
+              rotulo={`Jamble inteira em ${atual ? nomeDoMes(atual).split(" ")[0].toLowerCase() : "…"}${vend && (vend.semDados.length || vend.vendedores.some((v) => v.parcialDesde)) ? " (o que dá para ver)" : ""}`}
+              valor={vend ? reais(vend.total) : "—"}
+              dinheiro
+            />
             <Kpi rotulo={`Sua posição (@${vend?.conta ?? ""})`} valor={eu ? `#${eu.pos} de ${inteiro(vendedores.length)}` : "—"} cor="text-d-gold" />
             <Kpi rotulo="Seu faturamento" valor={eu ? reais(eu.vendido) : "—"} dinheiro />
             <Kpi
