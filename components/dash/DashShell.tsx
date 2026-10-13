@@ -38,6 +38,10 @@ export function MolduraDash({ children, tema, fundo }: { children: ReactNode; te
   );
 }
 
+// Convidados entram só com um usuário (ex.: "leooliva"): por trás, a conta
+// deles no login do site é <usuário>@usuarios.villagetcg.com.br.
+const DOMINIO_DE_USUARIOS = "usuarios.villagetcg.com.br";
+
 function Entrar() {
   const db = supabaseNavegador();
   const [email, setEmail] = useState("");
@@ -50,9 +54,10 @@ function Entrar() {
     if (!db) return;
     setErro("");
     setOcupado(true);
-    const { error } = await db.auth.signInWithPassword({ email: email.trim(), password: senha });
+    const login = email.trim();
+    const { error } = await db.auth.signInWithPassword({ email: login.includes("@") ? login : `${login.toLowerCase()}@${DOMINIO_DE_USUARIOS}`, password: senha });
     setOcupado(false);
-    if (error) setErro(error.message.includes("confirm") ? "Confirme seu e-mail antes de entrar." : "E-mail ou senha incorretos.");
+    if (error) setErro(error.message.includes("confirm") ? "Confirme seu e-mail antes de entrar." : "Usuário, e-mail ou senha incorretos.");
   }
 
   async function google() {
@@ -67,8 +72,8 @@ function Entrar() {
         <Logo />
         <p className="text-sm text-d-ink3">Entre com a sua conta do site Village &amp; Vault.</p>
         <label className="block space-y-1.5">
-          <span className="d-label">E-mail</span>
-          <input className="d-field w-full" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+          <span className="d-label">E-mail ou usuário</span>
+          <input className="d-field w-full" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
         <label className="block space-y-1.5">
           <span className="d-label">Senha</span>

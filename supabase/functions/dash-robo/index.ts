@@ -20,11 +20,10 @@ const NAVEGADOR = { "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) App
 const OUVIR_MS = 80_000;
 const GRAVAR_A_CADA_MS = 6_000;
 const MAX_MONITORES = 8;
-// A conta dona do Dash: a live dela é acompanhada sozinha quando começa.
-const CONTA = "israelbrito";
-const CONTA_SELLER_ID = "8wzVnl8IpOhixyX23yNplYK3XGn2";
-
 type Obj = Record<string, unknown>;
+// As contas do Dash (dash_config com o id de vendedor da Jamble): a live de
+// cada uma é acompanhada sozinha quando começa.
+type Conta = { conta: string; seller_id: string };
 const n = (v: unknown) => (Number.isFinite(Number(v)) ? Number(v) : 0);
 const ms = (v: unknown) => (v ? Math.round(Number(v) * 1000) : null);
 const iso = (t: number | null | undefined) => new Date(t && t > 1.5e12 && t < 4.2e12 ? t : Date.now()).toISOString();
@@ -56,28 +55,34 @@ async function emLotes<T>(linhas: T[], tam: number, fazer: (l: T[]) => PromiseLi
   }
 }
 
-// ---------- a live da própria conta liga sozinha ----------
+// ---------- a live de cada conta liga sozinha ----------
+
+async function contasSeguidas() {
+  const { data, error } = await db.from("dash_config").select("conta, seller_id").not("seller_id", "is", null);
+  if (error) throw new Error(error.message);
+  return (data ?? []) as Conta[];
+}
 
 // A página de perfil (/u/<@>) diz a live em andamento ("ongoingShow") e as
 // agendadas ("upcomingShows"). Se a live já começou, liga o robô nela; senão
 // devolve a próxima agendada (o Início mostra, como no Dash TCG).
-async function verificarPropriaLive(token: string) {
-  const r = await fetch(`${BASE}/u/${CONTA}`, { headers: NAVEGADOR });
+async function verificarPropriaLive(token: string, c: Conta) {
+  const r = await fetch(`${BASE}/u/${c.conta}`, { headers: NAVEGADOR });
   const h = r.ok ? (await r.text()).replace(/\\+"/g, '"') : "";
   let showId = h.match(/"ongoingShow":\{"id":"([A-Za-z0-9]+)"/)?.[1] ?? null;
   if (!showId) {
     // Se a página mudar: o endereço /live/<@> leva para a live de agora.
-    const rr = await fetch(`${BASE}/live/${CONTA}`, { headers: UA, redirect: "manual" });
+    const rr = await fetch(`${BASE}/live/${c.conta}`, { headers: UA, redirect: "manual" });
     showId = (rr.headers.get("location") ?? "").match(/\/live\/[^/]+\/([A-Za-z0-9]+)/)?.[1] ?? null;
   }
   if (showId) {
-    const s = await api(token, `/api/live/show?seller_id=${CONTA_SELLER_ID}&show_id=${showId}`);
+    const s = await api(token, `/api/live/show?seller_id=${c.seller_id}&show_id=${showId}`);
     const show = (s?.show ?? {}) as Obj;
     if (show.id && show.hasStarted && !show.isOver) {
       await db
         .from("dash_monitores")
         .upsert(
-          { conta: CONTA, show_id: showId, seller_id: CONTA_SELLER_ID, vendedor: CONTA, titulo: show.title ?? null, ativo: true, automatico: true, ate: new Date(Date.now() + 14 * 3600e3).toISOString() },
+          { conta: c.conta, show_id: showId, seller_id: c.seller_id, vendedor: c.conta, titulo: show.title ?? null, ativo: true, automatico: true, ate: new Date(Date.now() + 14 * 3600e3).toISOString() },
           { onConflict: "conta,show_id", ignoreDuplicates: true },
         );
       return null;
@@ -90,7 +95,7 @@ async function verificarPropriaLive(token: string) {
   if (!id) return null;
   const inicio = ms(t.match(/"startingAt":([\d.]+)/)?.[1]);
   return {
-    conta: CONTA,
+    conta: c.conta,
     showId: id,
     titulo: t.match(/"title":"([^"]*)"/)?.[1] ?? null,
     inicio: inicio ? new Date(inicio).toISOString() : null,
@@ -104,8 +109,8 @@ async function verificarPropriaLive(token: string) {
 // acima e abaixo), no mesmo formato que a extensão grava: o "Ranking #N" e as
 // mensagens de status do Painel seguem funcionando sem ela. A cada 3 min com
 // a live no ar, a cada 30 min fora dela.
-async function atualizarRanking(token: string, noAr: boolean) {
-  const { data: ultima } = await db.from("dash_ranking").select("ts").eq("conta", CONTA).order("ts", { ascending: false }).limit(1);
+async function atualizarRanking(token: string, c: Conta, noAr: boolean) {
+  const { data: ultima } = await db.from("dash_ranking").select("ts").eq("conta", c.conta).order("ts", { ascending: false }).limit(1);
   const idade = ultima?.[0] ? Date.now() - new Date(String(ultima[0].ts)).getTime() : Infinity;
   if (idade < (noAr ? 3 : 30) * 60e3) return;
   const lista: { handle: string; posicao: number; pontos: number }[] = [];
@@ -114,7 +119,7 @@ async function atualizarRanking(token: string, noAr: boolean) {
   let titulo = "";
   let depois: string | null = null;
   for (let i = 0; i < 12; i++) {
-    const q = new URLSearchParams({ seller_id: CONTA_SELLER_ID });
+    const q = new URLSearchParams({ seller_id: c.seller_id });
     if (depois) q.set("after", depois);
     const p = await api(token, `/api/live/seller-ranking?${q}`);
     if (!p) break;
@@ -131,12 +136,12 @@ async function atualizarRanking(token: string, noAr: boolean) {
   }
   if (!eu || !n(eu.rank)) return;
   const posicao = n(eu.rank);
-  const proprio = { handle: CONTA, posicao, pontos: n(eu.points) };
+  const proprio = { handle: c.conta, posicao, pontos: n(eu.points) };
   if (!lista.some((l) => l.posicao === posicao)) lista.push(proprio);
   lista.sort((a, b) => a.posicao - b.posicao);
   const pontosDe = (icone: string) => n(regras.find((r) => r.icon === icone)?.entryPoints) || null;
   const { error } = await db.from("dash_ranking").insert({
-    conta: CONTA,
+    conta: c.conta,
     ts: new Date().toISOString(),
     mes: titulo || "Ranking Mensal de Vendedores",
     pontos: proprio.pontos,
@@ -478,10 +483,19 @@ async function ciclo() {
   if (!vaga) return;
   try {
     const token = await visitante();
-    detalhes.agendada = await verificarPropriaLive(token).catch((e) => {
-      detalhes.propria = String(e);
-      return null;
-    });
+    const contas = await contasSeguidas();
+    const erros: Obj = {};
+    const agendadas = await Promise.all(
+      contas.map((c) =>
+        verificarPropriaLive(token, c).catch((e) => {
+          erros[c.conta] = String(e);
+          return null;
+        }),
+      ),
+    );
+    // A próxima live agendada de cada conta (o Início mostra a da conta logada).
+    detalhes.agendadas = agendadas.filter(Boolean);
+    if (Object.keys(erros).length) detalhes.propria = erros;
     await db.from("dash_monitores").update({ ativo: false }).eq("ativo", true).lt("ate", new Date().toISOString());
     const { data } = await db
       .from("dash_monitores")
@@ -491,14 +505,17 @@ async function ciclo() {
       .order("criado_em", { ascending: false })
       .limit(MAX_MONITORES);
     const lista = (data ?? []) as Monitor[];
-    const noAr = lista.some((m) => m.vendedor === CONTA);
     await Promise.all([
       ...lista.map((m) =>
         monitorar(m, token).catch(async (e) => {
           await db.from("dash_monitores").update({ ultimo_erro: String(e?.message ?? e).slice(0, 300), ultimo_ciclo: new Date().toISOString() }).eq("id", m.id);
         }),
       ),
-      atualizarRanking(token, noAr).catch((e) => (detalhes.ranking = String(e?.message ?? e))),
+      ...contas.map((c) =>
+        atualizarRanking(token, c, lista.some((m) => m.vendedor === c.conta)).catch((e) => {
+          detalhes.ranking = { ...((detalhes.ranking as Obj) ?? {}), [c.conta]: String(e?.message ?? e) };
+        }),
+      ),
     ]);
     await db.from("dash_robo").update({ ultimo_ciclo: new Date().toISOString(), ultimo_erro: null, monitores: lista.length, detalhes }).eq("id", 1);
   } catch (e) {

@@ -25,10 +25,12 @@ export async function GET(req: Request) {
     db().from("dash_monitores").select("id", { count: "exact", head: true }).eq("conta", membro.conta).eq("ativo", true),
   ]);
   const ms = (v: unknown) => (v ? new Date(String(v)).getTime() : null);
-  // A próxima live da conta que o robô viu na Jamble (ainda não começou).
+  // A próxima live da conta que o robô viu na Jamble (ainda não começou). Ele
+  // guarda uma por conta que acompanha.
   const agendadaDa = (d: unknown, conta: string) => {
-    const a = (d as { agendada?: Record<string, unknown> } | null)?.agendada;
-    if (!a || a.conta !== conta || typeof a.showId !== "string") return null;
+    const det = d as { agendadas?: Record<string, unknown>[]; agendada?: Record<string, unknown> } | null;
+    const a = (det?.agendadas ?? [det?.agendada]).find((x) => x?.conta === conta);
+    if (!a || typeof a.showId !== "string") return null;
     return { showId: a.showId, titulo: (a.titulo as string) ?? null, inicio: ms(a.inicio), capa: (a.capa as string) ?? null };
   };
   const resposta: RespostaEu = {
