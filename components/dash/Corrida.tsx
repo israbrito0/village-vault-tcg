@@ -164,18 +164,23 @@ export default function Corrida({ showId }: { showId: string }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [d ? 1 : 0, cheia]);
-  // Uma folga em cima para o nome do macaco da primeira raia não cortar.
-  const FOLGA = 22;
-  const raia = corredores.length ? Math.max(0, medida.h - FOLGA) / corredores.length : 0;
-  // Com muita gente a raia fica fina: o macaco é maior que ela (fica um
+  // Com muita gente a raia fica fina: o macaco é bem maior que ela (fica um
   // bando, um na frente do outro) e a largada é em grade, três fileiras
   // escalonadas que se desfazem conforme a corrida anda.
-  const tamanho = Math.max(28, Math.min(64, raia * 2));
+  const n = corredores.length;
+  const tamanho = Math.max(44, Math.min(110, n ? (medida.h / n) * 3.2 : 0));
+  // Folga em cima (meio macaco e o nome da primeira raia) e embaixo (meio
+  // macaco da última), para ninguém cortar na borda da pista.
+  const FOLGA = tamanho * 0.5 + 18;
+  const raia = n ? Math.max(0, medida.h - FOLGA - tamanho * 0.45) / n : 0;
   const emGrade = raia < tamanho;
+  // As fileiras da grade, um macaco inteiro de distância: vizinhos de raia
+  // ficam lado a lado, não um em cima do outro.
+  const passoDaGrade = tamanho * 0.95;
   // A largada fica longe o bastante da borda para caber a grade atrás dela.
-  const inicioX = Math.max(medida.w * LINHA_LARGADA, tamanho * (emGrade ? 2.75 : 0.9) + 6);
+  const inicioX = Math.max(medida.w * LINHA_LARGADA, tamanho * 0.9 + (emGrade ? 2 * passoDaGrade : 0) + 6);
   const fimX = medida.w * LINHA_CHEGADA;
-  const xDe = (p: number, i: number) => inicioX + p * (fimX - inicioX) - tamanho * 0.85 - (emGrade ? (i % 3) * tamanho * 0.9 * (1 - p) : 0);
+  const xDe = (p: number, i: number) => inicioX + p * (fimX - inicioX) - tamanho * 0.85 - (emGrade ? (i % 3) * passoDaGrade * (1 - p) : 0);
   // A animação lê a medida de agora (a tela pode mudar de tamanho no meio).
   const xAgora = useRef(xDe);
   xAgora.current = xDe;
@@ -354,7 +359,7 @@ export default function Corrida({ showId }: { showId: string }) {
                 }`}
                 // O nome sai da cabeça para a direita na largada e vai passando para a
                 // esquerda conforme o macaco avança (perto da chegada não corta na borda).
-                style={{ fontSize: Math.max(9, Math.min(15, tamanho * 0.3)), transform: "translateX(calc(var(--p, 0) * -100%))" }}
+                style={{ fontSize: Math.max(10, Math.min(17, tamanho * 0.26)), transform: "translateX(calc(var(--p, 0) * -100%))" }}
               >
                 @{p.handle}
               </span>
