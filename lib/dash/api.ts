@@ -300,14 +300,27 @@ export type VisualDoSorteio = {
   contagem: "padrao" | "arquivo";
   contagemUrl: string | null;
   contagemNome: string | null;
+  // O nome do pião da conta (o da Village é o padrão; cada convidado pode ter o seu).
+  nome: string;
 };
+
+export const NOME_DO_PIAO = "Pião da Village TCG";
+
+// "Pião do Diglett" → ["Pião do", "Diglett"]: a marca e a placa do pião
+// mostram o nome em duas linhas.
+export function partesDoPiao(nome: string): [string, string] {
+  const m = nome.match(/^(pião\s+d[aoe]s?)\s+(.+)$/i);
+  return m ? [m[1], m[2]] : ["", nome];
+}
 
 export function visualDoSorteio(preferencias: Record<string, unknown> | null | undefined): VisualDoSorteio {
   const s = (preferencias?.sorteio ?? {}) as Partial<VisualDoSorteio>;
   const https = (u: unknown) => (typeof u === "string" && u.startsWith("https://") ? u : null);
   const url = https(s.musicaUrl);
   const contagemUrl = https(s.contagemUrl);
+  const nome = typeof s.nome === "string" ? s.nome.trim().slice(0, 40) : "";
   return {
+    nome: nome || NOME_DO_PIAO,
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,

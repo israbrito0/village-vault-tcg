@@ -93,7 +93,7 @@ export default function Painel({ showId }: { showId: string }) {
           </div>
         </div>
         <button
-          title={sons ? "Sons ligados: venda (caixa registradora), pagamento (moedas), Pião da Village TCG liberado e meta batida — clique para silenciar" : "Sons desligados"}
+          title={sons ? `Sons ligados: venda (caixa registradora), pagamento (moedas), ${d.visual.nome} liberado e meta batida — clique para silenciar` : "Sons desligados"}
           className={`d-btn d-btn-secondary d-btn-sm ${sons ? "text-d-gold" : "text-d-ink3"}`}
           onClick={() => setSons(!sons)}
         >

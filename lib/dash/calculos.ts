@@ -724,8 +724,9 @@ export function mensagemDeStatus(d: {
   return partes.join(" · ");
 }
 
-export function mensagemDeSorteioLiberado(nome: string, premio?: string | null) {
-  return `🎉 Pião da Village TCG liberado: ${nome}${premio ? ` — prêmio: ${premio}` : ""}! Valendo agora, fica na live!`;
+// "piao" é o nome do pião da conta (VisualDoSorteio.nome).
+export function mensagemDeSorteioLiberado(nome: string, premio: string | null | undefined, piao: string) {
+  return `🎉 ${piao} liberado: ${nome}${premio ? ` — prêmio: ${premio}` : ""}! Valendo agora, fica na live!`;
 }
 
 export function mensagemDeGanhador(handle: string, premio?: string | null) {

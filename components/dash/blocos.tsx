@@ -120,12 +120,12 @@ export function useRecados() {
   return { recados, novo };
 }
 
-function textoDeStatus(c: Contas) {
+function textoDeStatus(c: Contas, piao: string) {
   const linhas: string[] = [];
   for (const s of c.sorteios) {
     if (!s.ativo || s.regra.tipo !== "sorteio") continue;
     if (s.lib.livre) continue;
-    if (s.lib.disponiveis > 0) linhas.push(`🎉 ${s.nome}: Pião da Village TCG liberado!`);
+    if (s.lib.disponiveis > 0) linhas.push(`🎉 ${s.nome}: ${piao} liberado!`);
     else if (s.lib.proximo) linhas.push(`🎁 ${s.nome}: faltam ${inteiro(Math.ceil(s.lib.proximo.falta))} ${s.lib.proximo.unidade} pro próximo sorteio${s.premio ? ` (${s.premio})` : ""}!`);
   }
   if (c.metaLive && !c.metaBatida) linhas.push(`🎯 Meta da live: faltam ${inteiro(c.metaLive.alvo - c.atualMeta)} pontos!`);
@@ -136,11 +136,11 @@ function textoDeStatus(c: Contas) {
 export function MensagensChat({ d, c, recados, novo }: { d: LiveCarregada; c: Contas; recados: Recado[]; novo: (t: string) => void }) {
   const [minutos, setMinutos] = usePreferencia("status-minutos", 0);
   const [copiado, setCopiado] = useState("");
-  const ref = useRef(c);
-  ref.current = c;
+  const ref = useRef({ c, piao: d.visual.nome });
+  ref.current = { c, piao: d.visual.nome };
   useEffect(() => {
     if (!minutos) return;
-    const t = setInterval(() => novo(textoDeStatus(ref.current)), minutos * 60000);
+    const t = setInterval(() => novo(textoDeStatus(ref.current.c, ref.current.piao)), minutos * 60000);
     return () => clearInterval(t);
   }, [minutos, novo]);
 
@@ -173,7 +173,7 @@ export function MensagensChat({ d, c, recados, novo }: { d: LiveCarregada; c: Co
             Ranking {posicao ? `#${posicao}` : ""}
           </button>
         )}
-        <button className="d-btn d-btn-primary d-btn-sm" title="Monta agora as mensagens de quanto falta para cada sorteio" onClick={() => novo(textoDeStatus(c))}>
+        <button className="d-btn d-btn-primary d-btn-sm" title="Monta agora as mensagens de quanto falta para cada sorteio" onClick={() => novo(textoDeStatus(c, d.visual.nome))}>
           Gerar status agora
         </button>
       </header>
@@ -198,7 +198,7 @@ export function MensagensChat({ d, c, recados, novo }: { d: LiveCarregada; c: Co
           ))}
         </ul>
       ) : (
-        <p className="px-4 py-5 text-center text-sm text-d-ink3">As mensagens aparecem aqui quando o Pião da Village TCG for liberado, alguém bater uma meta ou ao gerar o status.</p>
+        <p className="px-4 py-5 text-center text-sm text-d-ink3">As mensagens aparecem aqui quando o {d.visual.nome} for liberado, alguém bater uma meta ou ao gerar o status.</p>
       )}
     </section>
   );
@@ -258,8 +258,8 @@ export function useAvisos(
       const lib = agora.liberados[s.id] ?? 0;
       if (!s.lib.livre && lib > (a.liberados[s.id] ?? 0)) {
         if (sons) tocar("sorteio", volume);
-        dizer(`Pião da Village TCG liberado: ${s.nome}`);
-        novo(mensagemDeSorteioLiberado(s.nome, s.premio));
+        dizer(`${d.visual.nome} liberado: ${s.nome}`);
+        novo(mensagemDeSorteioLiberado(s.nome, s.premio, d.visual.nome));
       }
       const bateram = agora.bateram[s.id] ?? 0;
       if (s.individual && bateram > (a.bateram[s.id] ?? 0)) {

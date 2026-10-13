@@ -103,7 +103,9 @@ export function useLiveDash(showId: string, intervalo = 3000, chave?: string) {
         souVendedor: r.souVendedor,
         podeEditar: r.podeEditar,
         conta: r.conta,
-        visual: r.visual ?? visualDoSorteio(null),
+        // Passa de novo pelo visualDoSorteio: o que faltar (ex.: o nome do pião)
+        // fica no padrão.
+        visual: visualDoSorteio({ sorteio: r.visual }),
         atualizadoEm: Date.now(),
         desvio: r.agora ? r.agora - Date.now() : antes?.desvio ?? 0,
       };

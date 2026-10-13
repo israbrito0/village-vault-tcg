@@ -1,9 +1,9 @@
 "use client";
 
-import { useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Fragment, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CalendarClock, Check, ChevronDown, Gem, Gift, Maximize2, Music, Pencil, Play, Plus, Sparkles, Square, Target, Ticket, Timer, Upload, Users, Volume2, VolumeX, X } from "lucide-react";
 import { descreverRegra, mensagemDeGanhador, regraPadrao, type Emocao, type Mensagem, type Regra } from "@/lib/dash/calculos";
-import type { Icone, Meta, Sorteio, VisualDoSorteio } from "@/lib/dash/api";
+import { NOME_DO_PIAO, partesDoPiao, type Icone, type Meta, type Sorteio, type VisualDoSorteio } from "@/lib/dash/api";
 import { chamarApi, copiar, DashContexto, hora, inteiro, linkDaTela, useDash, useLiveDash, usePreferencia, type LiveCarregada } from "@/lib/dash/cliente";
 import { destravarAudio, tocar } from "@/lib/dash/som";
 import { tocarMusica, tocarSomDaContagem, type Tocando } from "@/lib/dash/musica";
@@ -80,11 +80,14 @@ function GiroDoSorteio({
   );
 }
 
-const MODELOS: { rotulo: string; nome: string; regra: Partial<Regra> }[] = [
+const MODELOS: { rotulo: string; nome: string; regra: Partial<Regra>; paraTodos?: boolean }[] = [
   { rotulo: "Compradores", nome: "Sorteio para compradores", regra: { quem: "compra", liberacao: "livre", chance: "quantidade" } },
   { rotulo: "Magikarp shiny", nome: "Sorteio para quem enviou magikarp_shiny", regra: { quem: "emocao", icones: ["magikarp_shiny"], liberacao: "livre", chance: "quantidade" } },
-  { rotulo: "Todos que enviaram diamantes", nome: "Vai começar o sorteio do Pião do Pokémon de Maceió", regra: { quem: "emocao", icones: null, liberacao: "livre", chance: "quantidade" } },
+  { rotulo: "Todos que enviaram diamantes", nome: "Vai começar o sorteio do Pião do Pokémon de Maceió", regra: { quem: "emocao", icones: null, liberacao: "livre", chance: "quantidade" }, paraTodos: true },
 ];
+
+// O sorteio "para todos" leva o nome do pião da conta (o da Village fala de Maceió).
+const nomeDoModelo = (m: (typeof MODELOS)[number], piao: string) => (m.paraTodos && piao !== NOME_DO_PIAO ? `Vai começar o sorteio do ${piao}` : m.nome);
 
 // ---------- formulário da regra ----------
 
@@ -291,11 +294,11 @@ function FormRegra({
 
 // ---------- o centro do cartão: liberado? pronto? girando? ----------
 
-function Situacao({ s, grande = false }: { s: SorteioCalculado; grande?: boolean }) {
+function Situacao({ s, nome, grande = false }: { s: SorteioCalculado; nome: string; grande?: boolean }) {
   if (s.lib.livre) {
     return (
       <div>
-        <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>Pião da Village TCG</p>
+        <p className={`font-bold text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>{nome}</p>
         <p className="text-xs uppercase tracking-widest text-d-ink3">sorteie quando quiser</p>
       </div>
     );
@@ -304,7 +307,7 @@ function Situacao({ s, grande = false }: { s: SorteioCalculado; grande?: boolean
   return (
     <div className="space-y-2">
       {s.lib.disponiveis > 0 ? (
-        <p className={`font-bold text-d-ok ${grande ? "text-5xl" : "text-3xl"}`}>{s.lib.disponiveis === 1 ? "Pião da Village TCG liberado!" : `Pião da Village TCG: ${s.lib.disponiveis} liberados!`}</p>
+        <p className={`font-bold text-d-ok ${grande ? "text-5xl" : "text-3xl"}`}>{s.lib.disponiveis === 1 ? `${nome} liberado!` : `${nome}: ${s.lib.disponiveis} liberados!`}</p>
       ) : (
         <p className={`font-bold tabular-nums text-d-gold ${grande ? "text-5xl" : "text-3xl"}`}>{p ? `Faltam ${inteiro(Math.ceil(p.falta))}` : "Aguardando"}</p>
       )}
@@ -528,7 +531,7 @@ export function CartaoSorteio({
       ) : (
         <>
           <div className="px-5 py-5 text-center">
-            <Situacao s={s} />
+            <Situacao s={s} nome={visual.nome} />
             <div className="mt-5 flex min-h-32 flex-col items-center justify-center gap-2">
               {meuGiro ? (
                 <GiroDoSorteio key={meuGiro.chave} giro={meuGiro} visual={visual} volume={volume} chat={chat} />
@@ -660,6 +663,7 @@ export function Palco({
   const tempo = Math.floor(restante / 60) > 0 ? `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, "0")}` : String(restante);
 
   // O que aparece na placa do meio do pião parado: a contagem ou a marca.
+  const [nomeEmCima, nomeGrande] = partesDoPiao(d.visual.nome);
   const placa = fim ? (
     <>
       <span className="text-[6cqw] font-extrabold uppercase tracking-[0.3em] text-d-gold/80">começa em</span>
@@ -669,11 +673,14 @@ export function Palco({
     </>
   ) : (
     <>
-      <span className="text-[6.5cqw] font-extrabold uppercase tracking-[0.35em] text-d-gold/85">Pião da</span>
-      <span className="d-ouro mt-[2cqw] font-display text-[15cqw] font-extrabold leading-[1.02] tracking-wide">
-        VILLAGE
-        <br />
-        TCG
+      {nomeEmCima && <span className="text-[6.5cqw] font-extrabold uppercase tracking-[0.35em] text-d-gold/85">{nomeEmCima}</span>}
+      <span className="d-ouro mt-[2cqw] font-display text-[15cqw] font-extrabold uppercase leading-[1.02] tracking-wide [overflow-wrap:anywhere]">
+        {nomeGrande.split(" ").map((p, i) => (
+          <Fragment key={i}>
+            {i > 0 && <br />}
+            {p}
+          </Fragment>
+        ))}
       </span>
     </>
   );
@@ -688,7 +695,7 @@ export function Palco({
       <div className="d-palco-vinheta pointer-events-none absolute inset-0" />
 
       <header className="relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-        <MarcaDoPiao />
+        <MarcaDoPiao nome={d.visual.nome} />
         {!soUm && (
           <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {lista.map((x) => (
@@ -807,7 +814,7 @@ export function Palco({
                       {placa}
                     </PiaoParado>
                   )}
-                  <StatusDoPalco s={s} restante={fim ? restante : null} />
+                  <StatusDoPalco s={s} nome={d.visual.nome} restante={fim ? restante : null} />
                 </>
               )}
             </div>
@@ -888,15 +895,20 @@ export function Palco({
 // Ouro, prata e bronze para os três com mais chance.
 const MEDALHAS = ["linear-gradient(135deg, #fff1b0, #f4af14)", "linear-gradient(135deg, #ffffff, #9aa3b5)", "linear-gradient(135deg, #f6c9a0, #b06a2c)"];
 
-// A marca no canto do palco, com as asas do site batendo.
-function MarcaDoPiao() {
+// A marca no canto do palco, com as asas do site batendo. A última palavra do
+// nome sai em amarelo ("VILLAGE TCG", "DIGLETT").
+function MarcaDoPiao({ nome }: { nome: string }) {
+  const [emCima, grande] = partesDoPiao(nome);
+  const palavras = grande.split(" ");
+  const ultima = palavras.pop();
   return (
     <div className="flex items-center gap-1.5">
       <Wing gradientId="palco-asa-esq" className="w-7 sm:w-9" />
       <div className="text-center leading-none">
-        <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">Pião da</p>
-        <p className="mt-0.5 whitespace-nowrap font-display text-lg font-extrabold tracking-wide text-white sm:text-xl">
-          VILLAGE <span className="text-[#F4AF14]">TCG</span>
+        {emCima && <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">{emCima}</p>}
+        <p className="mt-0.5 whitespace-nowrap font-display text-lg font-extrabold uppercase tracking-wide text-white sm:text-xl">
+          {palavras.length ? `${palavras.join(" ")} ` : ""}
+          <span className="text-[#F4AF14]">{ultima}</span>
         </p>
       </div>
       <span className="-scale-x-100">
@@ -908,7 +920,7 @@ function MarcaDoPiao() {
 
 // Embaixo do pião parado: se pode girar, quanto falta para liberar ou a
 // contagem para começar.
-function StatusDoPalco({ s, restante }: { s: SorteioCalculado; restante: number | null }) {
+function StatusDoPalco({ s, nome, restante }: { s: SorteioCalculado; nome: string; restante: number | null }) {
   const numeros = (
     <>
       <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1 text-xs text-d-ink2">
@@ -954,7 +966,7 @@ function StatusDoPalco({ s, restante }: { s: SorteioCalculado; restante: number 
         title={`${inteiro(s.lib.liberados)} liberado(s) · ${inteiro(s.validos.length)} sorteado(s)`}
       >
         <Check className="size-4" />
-        {s.lib.disponiveis === 1 ? "Pião da Village TCG liberado!" : `Pião da Village TCG: ${s.lib.disponiveis} liberados!`}
+        {s.lib.disponiveis === 1 ? `${nome} liberado!` : `${nome}: ${s.lib.disponiveis} liberados!`}
       </span>
     );
   } else {
@@ -1508,8 +1520,8 @@ export default function Sorteios({ showId }: { showId: string }) {
             <button
               key={m.rotulo}
               className="d-chip inline-flex items-center gap-1.5"
-              title={`Novo "${m.nome}" (sorteio livre)`}
-              onClick={() => acao({ acao: "criar", nome: m.nome, regra: { ...regraPadrao("sorteio"), ...m.regra } })}
+              title={`Novo "${nomeDoModelo(m, d.visual.nome)}" (sorteio livre)`}
+              onClick={() => acao({ acao: "criar", nome: nomeDoModelo(m, d.visual.nome), regra: { ...regraPadrao("sorteio"), ...m.regra } })}
             >
               <Sparkles className="size-3.5 shrink-0 text-d-gold" />
               {m.rotulo}
