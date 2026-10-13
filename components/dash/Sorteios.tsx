@@ -770,10 +770,10 @@ export function Palco({
               </button>
             )}
 
-            {/* O nome do sorteio, a regra e o prêmio. */}
+            {/* O nome do sorteio (ou a chamada da conta, com o nome em cima), a regra e o prêmio. */}
             <div className="relative z-10 flex w-full flex-col items-center gap-2">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.45em] text-d-gold/80">◆ Sorteio da live ◆</p>
-              <h1 className="d-ouro max-w-5xl font-display text-[clamp(1.2rem,2.2vw,2.1rem)] font-extrabold uppercase leading-[1.08] [text-wrap:balance]">{s.nome}</h1>
+              <p className="text-[11px] font-extrabold uppercase tracking-[0.45em] text-d-gold/80">◆ {d.visual.chamada ? s.nome : "Sorteio da live"} ◆</p>
+              <h1 className="d-ouro max-w-5xl font-display text-[clamp(1.2rem,2.2vw,2.1rem)] font-extrabold uppercase leading-[1.08] [text-wrap:balance]">{d.visual.chamada ?? s.nome}</h1>
               <p className="line-clamp-2 max-w-3xl text-xs text-d-ink3 [@media(max-height:820px)]:hidden">{s.descricao}</p>
               {s.premio && (
                 // Na tela em pé, durante o giro o prêmio sai (ele aparece no "ganhou …").

@@ -92,11 +92,17 @@ export async function liveDoMembro(showId: string, conta: string) {
   return data as LiveLinha | null;
 }
 
-// A live "atual" da conta: a que está no ar agora, senão a última vista.
+// A live "atual" da conta: a que está no ar agora, senão a que começou por
+// último (lives antigas relidas pelo robô ficam com "visto_em" de agora, então
+// ele só desempata).
 export async function liveAtual(conta: string, soDaConta = true) {
   let q = db().from("dash_lives").select("*").eq("conta", conta);
   if (soDaConta) q = q.eq("vendedor", conta);
-  const { data } = await q.order("ao_vivo", { ascending: false }).order("visto_em", { ascending: false }).limit(1);
+  const { data } = await q
+    .order("ao_vivo", { ascending: false })
+    .order("inicio", { ascending: false, nullsFirst: false })
+    .order("visto_em", { ascending: false })
+    .limit(1);
   return ((data ?? [])[0] as LiveLinha | undefined) ?? null;
 }
 

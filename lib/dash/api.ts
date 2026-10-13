@@ -311,6 +311,10 @@ export type VisualDoSorteio = {
   // As cores do palco (data-paleta no globals.css, ex.: "oliva"); sem ela, o
   // dourado da Village.
   paleta: string | null;
+  // O título grande do palco, igual em todo sorteio da conta (ex.: "Vai
+  // começar o sorteio do Pião do Diglett"); o nome do sorteio vai para cima
+  // dele. Sem chamada, o título é o nome do sorteio.
+  chamada: string | null;
 };
 
 export const NOME_DO_PIAO = "Pião da Village TCG";
@@ -337,6 +341,7 @@ export function visualDoSorteio(preferencias: Record<string, unknown> | null | u
     logoUrl: https(s.logoUrl),
     letreiroUrl: https(s.letreiroUrl),
     paleta: typeof s.paleta === "string" && /^[a-z]{1,20}$/.test(s.paleta) ? s.paleta : null,
+    chamada: typeof s.chamada === "string" && s.chamada.trim() ? s.chamada.trim().slice(0, 80) : null,
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,
