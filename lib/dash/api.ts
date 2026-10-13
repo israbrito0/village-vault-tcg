@@ -308,6 +308,9 @@ export type VisualDoSorteio = {
   // canto (sem elas, ficam o nome do pião e as asas da Village).
   logoUrl: string | null;
   letreiroUrl: string | null;
+  // As cores do palco (data-paleta no globals.css, ex.: "oliva"); sem ela, o
+  // dourado da Village.
+  paleta: string | null;
 };
 
 export const NOME_DO_PIAO = "Pião da Village TCG";
@@ -333,6 +336,7 @@ export function visualDoSorteio(preferencias: Record<string, unknown> | null | u
     semResposta: semResposta || FRASE_SEM_RESPOSTA,
     logoUrl: https(s.logoUrl),
     letreiroUrl: https(s.letreiroUrl),
+    paleta: typeof s.paleta === "string" && /^[a-z]{1,20}$/.test(s.paleta) ? s.paleta : null,
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,

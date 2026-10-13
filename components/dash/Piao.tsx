@@ -181,7 +181,7 @@ export default function Piao({
           width: larguraDoTambor(grande),
           background: FUNDO_DO_TAMBOR,
           boxShadow: parou
-            ? "0 0 0 5px #ffe07a, 0 0 0 11px #ff9d00, 0 0 46px 22px rgba(255,170,0,.75), 0 0 110px 50px rgba(255,130,0,.4)"
+            ? "0 0 0 5px rgb(var(--p-anel-claro, 255 224 122)), 0 0 0 11px rgb(var(--p-anel-forte, 255 157 0)), 0 0 46px 22px rgb(var(--p-anel-forte, 255 170 0) / .75), 0 0 110px 50px rgb(var(--p-anel-luz, 255 130 0) / .4)"
             : ANEL,
           // Na reta final o anel pulsa.
           animation: suspense && !parou ? "dTensao .42s ease-in-out infinite alternate" : undefined,
@@ -193,8 +193,8 @@ export default function Piao({
         <div
           className="pointer-events-none absolute left-1/2 top-1/2 z-20 h-[62%] w-[54%] -translate-x-1/2 -translate-y-1/2 rounded-[6px] transition-all duration-500"
           style={{
-            border: `${Math.max(2, lado * 0.008)}px solid ${parou ? "#ffd34d" : suspense ? "rgba(255,214,110,.9)" : "rgba(230,230,235,.75)"}`,
-            boxShadow: parou ? "0 0 26px 6px rgba(255,200,60,.55), inset 0 0 30px rgba(255,200,60,.25)" : "inset 0 0 24px rgba(0,0,0,.45)",
+            border: `${Math.max(2, lado * 0.008)}px solid ${parou ? "rgb(var(--p-medio, 255 211 77))" : suspense ? "rgb(var(--p-luz, 255 214 110) / .9)" : "rgba(230,230,235,.75)"}`,
+            boxShadow: parou ? "0 0 26px 6px rgb(var(--p-medio, 255 200 60) / .55), inset 0 0 30px rgb(var(--p-medio, 255 200 60) / .25)" : "inset 0 0 24px rgba(0,0,0,.45)",
             background: "linear-gradient(90deg, rgba(255,255,255,.02), rgba(255,255,255,.07), rgba(255,255,255,.02))",
           }}
         />
@@ -211,7 +211,7 @@ export default function Piao({
                 visibility: "hidden",
                 fontSize: tamanhos.get(p.handle) ?? 16,
                 whiteSpace: "nowrap",
-                color: parou && i === PARADA_PIAO ? "#ffd34d" : "#f4f4f6",
+                color: parou && i === PARADA_PIAO ? "rgb(var(--p-medio, 255 211 77))" : "#f4f4f6",
                 textShadow: "0 3px 0 rgba(0,0,0,.55), 0 0 18px rgba(0,0,0,.35)",
                 letterSpacing: "-0.02em",
               }}
@@ -246,7 +246,8 @@ export default function Piao({
 // Na tela cheia, o palco pode definir o tamanho (--d-tambor) para caber tudo.
 const larguraDoTambor = (grande: boolean) => (grande ? "var(--d-tambor, min(42vh, 440px, 84vw))" : "min(300px, 80vw)");
 const FUNDO_DO_TAMBOR = "linear-gradient(90deg, #0b0b0d 0%, #2b2c31 16%, #575a61 36%, #6e7179 50%, #575a61 64%, #2b2c31 84%, #0b0b0d 100%)";
-const ANEL = "0 0 0 5px #ffcf4a, 0 0 0 11px rgba(255,140,0,.9), 0 0 38px 18px rgba(255,140,0,.6), 0 0 90px 40px rgba(255,110,0,.3)";
+const ANEL =
+  "0 0 0 5px rgb(var(--p-anel, 255 207 74)), 0 0 0 11px rgb(var(--p-anel-luz, 255 140 0) / .9), 0 0 38px 18px rgb(var(--p-anel-luz, 255 140 0) / .6), 0 0 90px 40px rgb(var(--p-anel-luz, 255 110 0) / .3)";
 
 // As faixas de cima e de baixo do tambor e os reflexos verticais.
 function FaixasDoTambor() {
@@ -364,9 +365,9 @@ export function PiaoParado({ nomes, grande = false, children }: { nomes: string[
         style={{
           // As letras de dentro (em cqw) seguem o tamanho da placa.
           containerType: "inline-size",
-          border: `${Math.max(2, lado * 0.008)}px solid #ffd34d`,
+          border: `${Math.max(2, lado * 0.008)}px solid rgb(var(--p-medio, 255 211 77))`,
           background: "radial-gradient(120% 90% at 50% 0%, #2a2414 0%, #121216 70%)",
-          boxShadow: "0 0 26px 4px rgba(255,200,60,.35), inset 0 0 30px rgba(255,200,60,.12)",
+          boxShadow: "0 0 26px 4px rgb(var(--p-medio, 255 200 60) / .35), inset 0 0 30px rgb(var(--p-medio, 255 200 60) / .12)",
         }}
       >
         {children}

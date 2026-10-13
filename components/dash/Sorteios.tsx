@@ -690,7 +690,7 @@ export function Palco({
   );
 
   return (
-    <div className="d-palco fixed inset-0 z-[70] flex flex-col overflow-hidden">
+    <div className="d-palco fixed inset-0 z-[70] flex flex-col overflow-hidden" data-paleta={d.visual.paleta ?? undefined}>
       {/* O cenário: holofote, feixes de luz, losangos e os cantos escuros. */}
       <div className="d-palco-fundo pointer-events-none absolute inset-0" />
       <div className="d-palco-losangos pointer-events-none absolute inset-0" />
@@ -708,7 +708,7 @@ export function Palco({
                 onClick={() => setAtual(x.id)}
                 className={`max-w-[22rem] shrink-0 truncate rounded-full px-3.5 py-1.5 text-sm transition ${
                   x.id === s?.id
-                    ? "bg-gradient-to-b from-[#ffe17a] to-[#f4af14] font-bold text-[#1a1405] shadow-[0_0_24px_rgb(244_175_20/0.35)]"
+                    ? "bg-gradient-to-b from-[rgb(var(--p-claro))] to-d-brand font-bold text-d-on-brand shadow-[0_0_24px_rgb(var(--d-brand)/0.35)]"
                     : "border border-d-gold/20 bg-white/[0.04] text-d-ink2 hover:border-d-gold/40 hover:text-d-ink"
                 }`}
               >
@@ -777,8 +777,8 @@ export function Palco({
               <p className="line-clamp-2 max-w-3xl text-xs text-d-ink3 [@media(max-height:820px)]:hidden">{s.descricao}</p>
               {s.premio && (
                 // Na tela em pé, durante o giro o prêmio sai (ele aparece no "ganhou …").
-                <div className={`relative inline-flex items-center gap-3 overflow-hidden rounded-2xl ${meuGiro ? "[@media(max-aspect-ratio:3/4)]:hidden" : ""} border border-d-gold/40 bg-gradient-to-r from-[#f4af14]/15 via-[#f4af14]/[0.06] to-[#f4af14]/15 py-1.5 pl-1.5 pr-5`}>
-                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-[#ffe17a] to-[#f4af14] text-[#1a1405] shadow-[0_0_18px_rgb(244_175_20/0.45)]">
+                <div className={`relative inline-flex items-center gap-3 overflow-hidden rounded-2xl ${meuGiro ? "[@media(max-aspect-ratio:3/4)]:hidden" : ""} border border-d-gold/40 bg-gradient-to-r from-d-brand/15 via-d-brand/[0.06] to-d-brand/15 py-1.5 pl-1.5 pr-5`}>
+                  <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-gradient-to-b from-[rgb(var(--p-claro))] to-d-brand text-d-on-brand shadow-[0_0_18px_rgb(var(--d-brand)/0.45)]">
                     <Gift className="size-5" />
                   </span>
                   <span className="text-left">
@@ -870,7 +870,7 @@ export function Palco({
                           </div>
                           <div className="mt-1 flex items-center gap-2">
                             <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/[0.07]">
-                              <div className="h-full rounded-full bg-gradient-to-r from-[#b97f00] via-[#f4af14] to-[#ffe17a]" style={{ width: `${(p.bilhetes / maiorBilhete) * 100}%` }} />
+                              <div className="h-full rounded-full bg-gradient-to-r from-[rgb(var(--p-escuro))] via-d-brand to-[rgb(var(--p-claro))]" style={{ width: `${(p.bilhetes / maiorBilhete) * 100}%` }} />
                             </div>
                             <span className="shrink-0 text-[10px] tabular-nums text-d-ink3">{inteiro(p.bilhetes)} bil.</span>
                           </div>
@@ -900,23 +900,15 @@ export function Palco({
 const MEDALHAS = ["linear-gradient(135deg, #fff1b0, #f4af14)", "linear-gradient(135deg, #ffffff, #9aa3b5)", "linear-gradient(135deg, #f6c9a0, #b06a2c)"];
 
 // A marca no canto do palco, com as asas do site batendo. A última palavra do
-// nome sai em amarelo ("VILLAGE TCG", "DIGLETT"). Conta com letreiro próprio
-// (ex.: OLIVA PACKS) mostra o letreiro no lugar das asas.
+// nome sai na cor da paleta ("VILLAGE TCG"). Conta com letreiro próprio
+// (ex.: OLIVA PACKS) mostra só o letreiro.
 function MarcaDoPiao({ nome, letreiro }: { nome: string; letreiro?: string | null }) {
   const [emCima, grande] = partesDoPiao(nome);
   const palavras = grande.split(" ");
   const ultima = palavras.pop();
   if (letreiro) {
-    return (
-      <div className="flex items-center gap-2.5">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={letreiro} alt="" className="h-9 w-auto rounded-lg shadow-[0_0_22px_rgb(190_80_255/0.45)] sm:h-11" />
-        <div className="text-left leading-none">
-          {emCima && <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">{emCima}</p>}
-          <p className="mt-0.5 whitespace-nowrap font-display text-base font-extrabold uppercase tracking-wide text-[#F4AF14] sm:text-lg">{grande}</p>
-        </div>
-      </div>
-    );
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={letreiro} alt={nome} className="h-10 w-auto rounded-lg shadow-[0_0_24px_rgb(var(--d-brand)/0.5)] sm:h-12" />;
   }
   return (
     <div className="flex items-center gap-1.5">
@@ -925,7 +917,7 @@ function MarcaDoPiao({ nome, letreiro }: { nome: string; letreiro?: string | nul
         {emCima && <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">{emCima}</p>}
         <p className="mt-0.5 whitespace-nowrap font-display text-lg font-extrabold uppercase tracking-wide text-white sm:text-xl">
           {palavras.length ? `${palavras.join(" ")} ` : ""}
-          <span className="text-[#F4AF14]">{ultima}</span>
+          <span className="text-d-brand">{ultima}</span>
         </p>
       </div>
       <span className="-scale-x-100">
@@ -1035,7 +1027,7 @@ function AgendarSorteio({ s, acao, restante }: { s: SorteioCalculado; acao: Acao
   return (
     <div className="relative">
       <button
-        className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] px-3.5 py-1.5 text-sm font-bold text-[#1a1405] shadow-[0_0_20px_rgb(244_175_20/0.35)] transition hover:brightness-105"
+        className="inline-flex items-center gap-1.5 rounded-full bg-gradient-to-b from-[rgb(var(--p-claro))] to-d-brand px-3.5 py-1.5 text-sm font-bold text-d-on-brand shadow-[0_0_20px_rgb(var(--d-brand)/0.35)] transition hover:brightness-105"
         onClick={() => setAberto(!aberto)}
       >
         <CalendarClock className="size-4" />
@@ -1052,7 +1044,7 @@ function AgendarSorteio({ s, acao, restante }: { s: SorteioCalculado; acao: Acao
             {MINUTOS.map((m) => (
               <button
                 key={m}
-                className={`rounded-full px-3 py-1 text-xs font-bold transition ${m === min ? "bg-d-gold text-[#1a1405]" : "border border-white/10 bg-white/[0.05] text-d-ink2 hover:text-d-ink"}`}
+                className={`rounded-full px-3 py-1 text-xs font-bold transition ${m === min ? "bg-d-gold text-d-on-brand" : "border border-white/10 bg-white/[0.05] text-d-ink2 hover:text-d-ink"}`}
                 onClick={() => setMin(m)}
               >
                 {m} min
@@ -1076,7 +1068,7 @@ function AgendarSorteio({ s, acao, restante }: { s: SorteioCalculado; acao: Acao
             </button>
             <button
               disabled={enviando}
-              className="rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] px-4 py-1.5 text-xs font-bold text-[#1a1405] disabled:opacity-50"
+              className="rounded-full bg-gradient-to-b from-[rgb(var(--p-claro))] to-d-brand px-4 py-1.5 text-xs font-bold text-d-on-brand disabled:opacity-50"
               onClick={agendar}
             >
               {enviando ? "Agendando…" : `Começar daqui a ${min} min`}
@@ -1135,10 +1127,10 @@ function DiamantesEmVolta({ emocoes, icones }: { emocoes: Emocao[]; icones: Reco
           <div style={{ transform: `scale(${b.tam})` }}>
             <div className="flex flex-col items-center" style={{ animation: "dBalanca 1.6s ease-in-out infinite alternate" }}>
               <div className="relative">
-                <span className="block rounded-full bg-gradient-to-b from-[#ffe17a] to-[#f4af14] p-[2px] shadow-[0_0_18px_rgb(244_175_20/0.45)]">
+                <span className="block rounded-full bg-gradient-to-b from-[rgb(var(--p-claro))] to-d-brand p-[2px] shadow-[0_0_18px_rgb(var(--d-brand)/0.45)]">
                   <Avatar foto={b.foto} nome={b.handle} tamanho={46} />
                 </span>
-                <span className="absolute -bottom-1 -right-2 grid size-7 place-items-center rounded-full bg-[#121216] ring-2 ring-[#f4af14]/70">
+                <span className="absolute -bottom-1 -right-2 grid size-7 place-items-center rounded-full bg-[#121216] ring-2 ring-d-brand/70">
                   <FiguraEmocao id={b.icone} icones={icones} className="size-5" />
                 </span>
               </div>

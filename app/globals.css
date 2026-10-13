@@ -343,7 +343,9 @@ body {
 /* ---------- o palco do sorteio (tela cheia e tela do OBS) ----------
    Sempre escuro, como um palco de TV, mesmo no tema claro: holofote dourado
    de cima, dois feixes balançando, chão iluminado e os cantos escuros. Os
-   painéis são de vidro com borda dourada, e o botão é o dourado da Village. */
+   painéis são de vidro com borda dourada, e o botão é o dourado da Village.
+   As cores de destaque são variáveis (--p-*, em canais RGB): a paleta de cada
+   conta troca todas de uma vez (data-paleta, ex.: "oliva"). */
 .d-palco {
   --d-bg: 9 10 14;
   --d-panel: 23 26 33;
@@ -359,28 +361,71 @@ body {
   --d-ok: 61 214 140;
   --d-warn: 255 181 71;
   --d-bad: 255 99 105;
+  /* A paleta da Village: do mais claro ao mais escuro, a luz dos feixes, o
+     anel do pião e os dois brilhos dos cantos de baixo. */
+  --p-brilho: 255 243 196;
+  --p-claro: 255 225 122;
+  --p-medio: 255 211 77;
+  --p-escuro: 185 127 0;
+  --p-fundo-botao: 212 143 0;
+  --p-sombra: 138 93 0;
+  --p-sombra-rgb: 122 82 0;
+  --p-luz: 255 214 110;
+  --p-anel: 255 207 74;
+  --p-anel-claro: 255 224 122;
+  --p-anel-forte: 255 157 0;
+  --p-anel-luz: 255 140 0;
+  --p-canto-esq: 21 139 202;
+  --p-canto-dir: 245 58 58;
   color-scheme: dark;
   color: rgb(var(--d-ink));
   background: #07080c;
 }
+/* Oliva Packs: o roxo e o magenta neon da logo, com o azul elétrico e o rosa
+   do fundo dela nos cantos. */
+.d-palco[data-paleta="oliva"] {
+  --d-line: 52 40 66;
+  --d-brand: 200 77 255;
+  --d-on-brand: 29 6 48;
+  --d-gold: 236 150 255;
+  --d-on-gold: 29 6 48;
+  --p-brilho: 253 234 255;
+  --p-claro: 243 178 255;
+  --p-medio: 233 139 255;
+  --p-escuro: 142 43 214;
+  --p-fundo-botao: 157 52 224;
+  --p-sombra: 79 20 117;
+  --p-sombra-rgb: 70 14 110;
+  --p-luz: 236 150 255;
+  --p-anel: 233 139 255;
+  --p-anel-claro: 246 196 255;
+  --p-anel-forte: 177 60 255;
+  --p-anel-luz: 186 60 255;
+  --p-canto-esq: 60 200 255;
+  --p-canto-dir: 255 79 163;
+  background: #0a0612;
+}
 .d-palco-fundo {
   background:
-    radial-gradient(ellipse 55% 60% at 50% -12%, rgb(244 175 20 / 0.3), transparent 70%),
-    radial-gradient(ellipse 70% 30% at 50% 108%, rgb(244 175 20 / 0.16), transparent 70%),
-    radial-gradient(ellipse 45% 40% at 0% 100%, rgb(21 139 202 / 0.1), transparent 70%),
-    radial-gradient(ellipse 45% 40% at 100% 100%, rgb(245 58 58 / 0.08), transparent 70%);
+    radial-gradient(ellipse 55% 60% at 50% -12%, rgb(var(--d-brand) / 0.3), transparent 70%),
+    radial-gradient(ellipse 70% 30% at 50% 108%, rgb(var(--d-brand) / 0.16), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 0% 100%, rgb(var(--p-canto-esq) / 0.1), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 100% 100%, rgb(var(--p-canto-dir) / 0.08), transparent 70%);
 }
 /* Losangos bem fracos no fundo (os "diamantes"). */
 .d-palco-losangos {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Cpath d='M22 14l6 8-6 8-6-8z' fill='%23F4AF14' fill-opacity='.05'/%3E%3C/svg%3E");
   mask-image: radial-gradient(ellipse 80% 70% at 50% 40%, #000 20%, transparent 75%);
 }
+.d-palco[data-paleta="oliva"] .d-palco-losangos {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Cpath d='M22 14l6 8-6 8-6-8z' fill='%23C84DFF' fill-opacity='.06'/%3E%3C/svg%3E");
+}
 .d-palco-feixe {
   position: absolute;
   top: -10%;
   width: 34vw;
   height: 120%;
-  background: linear-gradient(180deg, rgb(255 214 110 / 0.16), rgb(255 214 110 / 0) 75%);
+  background: linear-gradient(180deg, rgb(var(--p-luz) / 0.16), rgb(var(--p-luz) / 0) 75%);
   filter: blur(18px);
   clip-path: polygon(44% 0, 56% 0, 100% 100%, 0 100%);
   pointer-events: none;
@@ -407,35 +452,42 @@ body {
   background: radial-gradient(ellipse 85% 85% at 50% 45%, transparent 55%, rgb(0 0 0 / 0.55) 100%);
 }
 .d-palco-vidro {
-  border: 1px solid rgb(244 175 20 / 0.16);
+  border: 1px solid rgb(var(--d-brand, 244 175 20) / 0.16);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.05), rgb(255 255 255 / 0.015));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 30px 60px -30px rgb(0 0 0 / 0.8);
   backdrop-filter: blur(10px);
 }
 .d-palco .d-card {
-  border-color: rgb(244 175 20 / 0.16);
+  border-color: rgb(var(--d-brand) / 0.16);
   background: linear-gradient(180deg, rgb(255 255 255 / 0.045), rgb(255 255 255 / 0.015));
   box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.05);
   backdrop-filter: blur(10px);
 }
 .d-palco .d-card-header {
-  border-color: rgb(244 175 20 / 0.12);
+  border-color: rgb(var(--d-brand) / 0.12);
 }
-/* O texto dourado com brilho (nome do sorteio e da marca). */
+/* O texto dourado com brilho (nome do sorteio e da marca); no palco, na cor
+   da paleta da conta. */
 .d-ouro {
-  background: linear-gradient(180deg, #fff3c4 0%, #ffd34d 38%, #f4af14 62%, #b97f00 100%);
+  background: linear-gradient(
+    180deg,
+    rgb(var(--p-brilho, 255 243 196)) 0%,
+    rgb(var(--p-medio, 255 211 77)) 38%,
+    rgb(var(--d-brand, 244 175 20)) 62%,
+    rgb(var(--p-escuro, 185 127 0)) 100%
+  );
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.45)) drop-shadow(0 0 22px rgb(244 175 20 / 0.25));
+  filter: drop-shadow(0 2px 0 rgb(0 0 0 / 0.45)) drop-shadow(0 0 22px rgb(var(--d-brand, 244 175 20) / 0.25));
 }
 .d-botao-sortear {
   position: relative;
   overflow: hidden;
   border-radius: 9999px;
-  background: linear-gradient(180deg, #ffe17a 0%, #ffc935 45%, #f4af14 70%, #d48f00 100%);
-  color: #1a1405;
-  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -4px 0 rgb(122 82 0 / 0.45), 0 12px 0 -4px #8a5d00, 0 0 70px rgb(244 175 20 / 0.45);
+  background: linear-gradient(180deg, rgb(var(--p-claro)) 0%, rgb(var(--p-medio)) 45%, rgb(var(--d-brand)) 70%, rgb(var(--p-fundo-botao)) 100%);
+  color: rgb(var(--d-on-brand));
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -4px 0 rgb(var(--p-sombra-rgb) / 0.45), 0 12px 0 -4px rgb(var(--p-sombra)), 0 0 70px rgb(var(--d-brand) / 0.45);
   transition: transform 0.15s, filter 0.15s, box-shadow 0.15s;
 }
 .d-botao-sortear:enabled:hover {
@@ -444,7 +496,7 @@ body {
 }
 .d-botao-sortear:enabled:active {
   transform: translateY(5px);
-  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -3px 0 rgb(122 82 0 / 0.45), 0 5px 0 -3px #8a5d00, 0 0 50px rgb(244 175 20 / 0.4);
+  box-shadow: inset 0 2px 0 rgb(255 255 255 / 0.55), inset 0 -3px 0 rgb(var(--p-sombra-rgb) / 0.45), 0 5px 0 -3px rgb(var(--p-sombra)), 0 0 50px rgb(var(--d-brand) / 0.4);
 }
 .d-botao-sortear:disabled {
   cursor: not-allowed;
@@ -483,9 +535,9 @@ body {
 /* O anel do pião pulsando na reta final, antes do ganhador. */
 @keyframes dTensao {
   from {
-    box-shadow: 0 0 0 5px #ffcf4a, 0 0 0 11px rgba(255, 140, 0, 0.9), 0 0 26px 10px rgba(255, 140, 0, 0.4), 0 0 60px 26px rgba(255, 110, 0, 0.18);
+    box-shadow: 0 0 0 5px rgb(var(--p-anel, 255 207 74)), 0 0 0 11px rgb(var(--p-anel-luz, 255 140 0) / 0.9), 0 0 26px 10px rgb(var(--p-anel-luz, 255 140 0) / 0.4), 0 0 60px 26px rgb(var(--p-anel-luz, 255 140 0) / 0.18);
   }
   to {
-    box-shadow: 0 0 0 5px #ffe07a, 0 0 0 11px #ff9d00, 0 0 52px 26px rgba(255, 170, 0, 0.85), 0 0 125px 58px rgba(255, 130, 0, 0.45);
+    box-shadow: 0 0 0 5px rgb(var(--p-anel-claro, 255 224 122)), 0 0 0 11px rgb(var(--p-anel-forte, 255 157 0)), 0 0 52px 26px rgb(var(--p-anel-forte, 255 157 0) / 0.85), 0 0 125px 58px rgb(var(--p-anel-luz, 255 140 0) / 0.45);
   }
 }
