@@ -829,8 +829,10 @@ export function Palco({
             )}
           </section>
 
+          {/* As listas só na tela larga: na estreita (celular, janela em pé) o
+              palco precisa da altura toda para o pião não cobrir o prêmio. */}
           {!soUm && (
-            <aside className="flex min-h-0 flex-1 flex-col gap-4">
+            <aside className="hidden min-h-0 flex-1 flex-col gap-4 lg:flex">
               <div className="d-palco-vidro flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl">
                 <header className="flex items-center gap-2 border-b border-d-gold/15 px-4 py-3">
                   <Users className="size-4 shrink-0 text-d-gold" />

@@ -79,19 +79,30 @@ const live = {
 const regraEmocao = { tipo: "sorteio", quem: "emocao", icones: null, liberacao: "metas", metas: { emocoes: 100 }, chance: "quantidade", repetir: true, excluirSuspeitos: true, excluir: [] };
 const sorteios = [
   {
-    id: "s1", nome: "Sorteio para todos que enviaram emotions", premio: "1 Booster 30th Inglês", fonte: "emocoes", peso: "quantidade", repetir: true, excluirSuspeitos: true, excluir: [], modo: "meta", aCada: 100, ativo: true, ordem: 0, criadoEm: T(-DUR), regra: regraEmocao,
+    id: "s1", nome: "Vai começar o sorteio do Pião do Pokémon de Maceió", premio: "1 Booster 30th Inglês", fonte: "emocoes", peso: "quantidade", repetir: true, excluirSuspeitos: true, excluir: [], modo: "meta", aCada: 100, ativo: true, ordem: 0, criadoEm: T(-DUR), regra: regraEmocao,
     ganhadores: [0, 1, 2].map((k) => ({ id: `g${k}`, handle: nomes[k * 4], foto: null, bilhetes: 10 + k, totalBilhetes: 300, participantes: 20, marco: k + 1, status: "valido", presente: k === 1 ? false : null, ts: T(-DUR + (k + 1) * 40 * MIN) })),
   },
   { id: "s2", nome: "Compradores da noite", premio: "1 Triplo Tech Sticker", fonte: "compradores", peso: "igual", repetir: false, excluirSuspeitos: true, excluir: [], modo: "livre", aCada: null, ativo: true, ordem: 1, criadoEm: T(-DUR), regra: { ...regraEmocao, quem: "compra", liberacao: "livre", metas: {}, chance: "igual", repetir: false }, ganhadores: [] },
 ];
 const ranking = { ts: T(-10 * MIN), mes: "2026-10", pontos: 1464175, posicao: 5, acima: { handle: "japexz", posicao: 4, pontos: 1500000 }, abaixo: { handle: "amoeba", posicao: 6, pontos: 1400000 }, lista: [], regras: { porReal: 3, porGema: 2 } };
 const iconesMap = Object.fromEntries(Object.entries(icones).map(([i, g]) => [i, { url: urlIcone(i), nome: null, gemas: g }]));
+// Os sons enviados pela conta (bucket público dash-musicas), para o teste soar como a live.
+const SONS = "https://iaklmoktayimunxvtsum.supabase.co/storage/v1/object/public/dash-musicas/israelbrito/";
+const visual = {
+  estilo: "piao",
+  musica: "arquivo",
+  musicaUrl: SONS + "musica-sorteio-20261011.mp3",
+  musicaNome: "Música do sorteio (Untitled.mp3)",
+  contagem: "arquivo",
+  contagemUrl: SONS + "som-10-segundos-20261011.mp3",
+  contagemNome: "Som dos 10 segundos (Untitled (1).mp3)",
+};
 
-salvar("live.json", { live, emocoes, chat, vendas, vendasSig: "60:x", ranking, sorteios, metas: [], termos: "magikarp_shiny", icones: iconesMap, souVendedor: true, podeEditar: true, conta: "israelbrito", agora: T(0) });
+salvar("live.json", { live, emocoes, chat, vendas, vendasSig: "60:x", ranking, sorteios, metas: [], termos: "magikarp_shiny", icones: iconesMap, souVendedor: true, podeEditar: true, conta: "israelbrito", agora: T(0), visual });
 const outra = { ...live, showId: "OUTRA1", vendedor: "japexz", titulo: "MEGA BATALHA 30 ANOS", audiencia: 18, metricas: { robo: true }, leilao: null, vistoEm: T(-30e3) };
 salvar("eu.json", {
   membro: { email: "teste@exemplo.com", conta: "israelbrito", papel: "dono", recursos: [] },
-  config: { telaChave: "0".repeat(36), termosCarpa: "magikarp_shiny", preferencias: {} },
+  config: { telaChave: "0".repeat(36), termosCarpa: "magikarp_shiny", preferencias: { sorteio: visual } },
   live,
   outras: [outra],
   ranking,
