@@ -83,6 +83,8 @@ const sorteios = [
     ganhadores: [0, 1, 2].map((k) => ({ id: `g${k}`, handle: nomes[k * 4], foto: null, bilhetes: 10 + k, totalBilhetes: 300, participantes: 20, marco: k + 1, status: "valido", presente: k === 1 ? false : null, ts: T(-DUR + (k + 1) * 40 * MIN) })),
   },
   { id: "s2", nome: "Compradores da noite", premio: "1 Triplo Tech Sticker", fonte: "compradores", peso: "igual", repetir: false, excluirSuspeitos: true, excluir: [], modo: "livre", aCada: null, ativo: true, ordem: 1, criadoEm: T(-DUR), regra: { ...regraEmocao, quem: "compra", liberacao: "livre", metas: {}, chance: "igual", repetir: false }, ganhadores: [] },
+  // A Corrida dos Macacos (aba própria): o mesmo sorteio de compradores.
+  { id: "s3", nome: "Corrida dos Macacos", premio: "1 Booster 30th", fonte: "compradores", peso: "quantidade", repetir: true, excluirSuspeitos: true, excluir: [], modo: "livre", aCada: null, ativo: true, ordem: 2, criadoEm: T(-DUR), regra: { ...regraEmocao, quem: "compra", liberacao: "livre", metas: {}, chance: "quantidade" }, ganhadores: [] },
 ];
 const ranking = { ts: T(-10 * MIN), mes: "2026-10", pontos: 1464175, posicao: 5, acima: { handle: "japexz", posicao: 4, pontos: 1500000 }, abaixo: { handle: "amoeba", posicao: 6, pontos: 1400000 }, lista: [], regras: { porReal: 3, porGema: 2 } };
 const iconesMap = Object.fromEntries(Object.entries(icones).map(([i, g]) => [i, { url: urlIcone(i), nome: null, gemas: g }]));

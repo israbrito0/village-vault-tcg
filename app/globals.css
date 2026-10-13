@@ -532,6 +532,44 @@ body {
   }
 }
 
+/* A Corrida dos Macacos: pernas e braços balançando e o corpo pulando
+   enquanto corre; parado na largada, só um pulinho de leve. */
+@keyframes dPerna {
+  from {
+    transform: rotate(-38deg);
+  }
+  to {
+    transform: rotate(38deg);
+  }
+}
+@keyframes dPulo {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-9%);
+  }
+}
+.d-macaco .perna,
+.d-macaco .braco {
+  transform-box: fill-box;
+  transform-origin: 50% 0%;
+}
+.d-macaco.correndo .perna-a,
+.d-macaco.correndo .braco-b {
+  animation: dPerna 0.22s ease-in-out infinite alternate;
+}
+.d-macaco.correndo .perna-b,
+.d-macaco.correndo .braco-a {
+  animation: dPerna 0.22s ease-in-out infinite alternate-reverse;
+}
+.d-macaco.correndo svg {
+  animation: dPulo 0.22s ease-in-out infinite alternate;
+}
+.d-macaco.parado svg {
+  animation: dPulo 1.3s ease-in-out infinite alternate;
+}
+
 /* O anel do pião pulsando na reta final, antes do ganhador. */
 @keyframes dTensao {
   from {

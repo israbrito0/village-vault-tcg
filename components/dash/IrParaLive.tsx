@@ -5,8 +5,8 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useDash } from "@/lib/dash/cliente";
 
-// /dash/painel e /dash/sorteios sem live escolhida: vai para a live aberta.
-export default function IrParaLive({ destino }: { destino: "painel" | "sorteios" }) {
+// /dash/painel, /dash/sorteios e /dash/corrida sem live escolhida: vai para a live aberta.
+export default function IrParaLive({ destino }: { destino: "painel" | "sorteios" | "corrida" }) {
   const { liveAberta, eu } = useDash();
   const router = useRouter();
   const live = liveAberta ?? (eu.outras[0] ? { showId: eu.outras[0].showId } : null);

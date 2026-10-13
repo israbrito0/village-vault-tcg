@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { BarChart3, ExternalLink, Home, LayoutDashboard, Laptop, LogOut, Menu, Monitor, Moon, Shield, Sun, Ticket, Trophy, Users, X } from "lucide-react";
+import { BarChart3, ExternalLink, Flag, Home, LayoutDashboard, Laptop, LogOut, Menu, Monitor, Moon, Shield, Sun, Ticket, Trophy, Users, X } from "lucide-react";
 import { supabaseNavegador } from "@/lib/supabase-navegador";
 import { chamarApi, DashContexto, haQuanto, useAgora, usePreferencia, type Dash, type LiveAberta } from "@/lib/dash/cliente";
 import type { RespostaEu } from "@/lib/dash/api";
@@ -153,6 +153,11 @@ function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: 
         <ItemMenu
           item={{ href: id ? `/dash/sorteios/${id}` : "/dash/sorteios", rotulo: "Sorteios & Metas", icone: Ticket }}
           ativo={caminho.startsWith("/dash/sorteios")}
+          aoClicar={aoClicar}
+        />
+        <ItemMenu
+          item={{ href: id ? `/dash/corrida/${id}` : "/dash/corrida", rotulo: "Corrida dos Macacos", icone: Flag }}
+          ativo={caminho.startsWith("/dash/corrida")}
           aoClicar={aoClicar}
         />
       </Secao>
