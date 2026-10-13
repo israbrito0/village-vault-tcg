@@ -175,6 +175,9 @@ async function somarLive(l: { show_id: string; seller_id: string }) {
   let depois: string | null = null;
   let vendido = 0, cancelado = 0, itens = 0, vendas = 0;
   const porMes: Record<string, { vendido: number; itens: number; vendas: number }> = {};
+  // Quem comprou, por mês: a aba Faturamento soma os compradores da Jamble inteira.
+  type Compra = { show_id: string; seller_id: string; chave: string; buyer_id: string | null; username: string | null; foto: string | null; mes: string; total: number; compras: number; itens: number; ultima: number };
+  const compras = new Map<string, Compra>();
   let completa = false;
   for (let i = 0; i < 120; i++) {
     const q = new URLSearchParams({ seller_id: l.seller_id, show_id: l.show_id, section: "sold" });
@@ -194,11 +197,31 @@ async function somarLive(l: { show_id: string; seller_id: string }) {
       vendido += valor;
       itens += qtd;
       vendas++;
-      const mes = mesDe(quando(s.createdAt) ?? Date.now());
+      const ts = quando(s.createdAt) ?? Date.now();
+      const mes = mesDe(ts);
       const m = (porMes[mes] ??= { vendido: 0, itens: 0, vendas: 0 });
       m.vendido += valor;
       m.itens += qtd;
       m.vendas++;
+      const chave = s.buyerId ? String(s.buyerId) : `@${semArroba(s.buyerUsername) || "?"}`;
+      const c = compras.get(`${mes}|${chave}`) ?? {
+        show_id: l.show_id,
+        seller_id: l.seller_id,
+        chave,
+        buyer_id: s.buyerId ? String(s.buyerId) : null,
+        username: semArroba(s.buyerUsername) || null,
+        foto: typeof s.buyerAvatarUrl === "string" ? s.buyerAvatarUrl : null,
+        mes,
+        total: 0,
+        compras: 0,
+        itens: 0,
+        ultima: 0,
+      };
+      c.total += valor;
+      c.compras++;
+      c.itens += qtd;
+      c.ultima = Math.max(c.ultima, ts);
+      compras.set(`${mes}|${chave}`, c);
     }
     if (!d.hasNextPage || !d.nextCursor || d.nextCursor === depois) {
       completa = true;
@@ -211,9 +234,13 @@ async function somarLive(l: { show_id: string; seller_id: string }) {
     await db.from("dash_jamble_lives").update({ erro: "lista de vendidos não veio inteira", lido_em: new Date().toISOString() }).eq("show_id", l.show_id);
     return;
   }
+  // Os compradores da live são regravados inteiros a cada leitura.
+  const linhas = [...compras.values()].map((c) => ({ ...c, total: Math.round(c.total * 100) / 100, ultima: iso(c.ultima) }));
+  const apagou = await db.from("dash_jamble_compras").delete().eq("show_id", l.show_id);
+  const gravou = apagou.error ? apagou : linhas.length ? await db.from("dash_jamble_compras").insert(linhas) : { error: null };
   await db
     .from("dash_jamble_lives")
-    .update({ vendido, cancelado, itens, vendas, por_mes: porMes, lido_em: new Date().toISOString(), erro: null })
+    .update({ vendido, cancelado, itens, vendas, por_mes: porMes, lido_em: new Date().toISOString(), erro: null, compras_lidas: !gravou.error })
     .eq("show_id", l.show_id);
 }
 

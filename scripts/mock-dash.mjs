@@ -152,6 +152,26 @@ salvar("sortear.json", {
 });
 salvar("ranking-jamble-09.json", { meses: mesesRanking, mes: "2026-09", temPontos: false, conta: "israelbrito", leitura, lista: nomes.slice(0, 15).map((h, i) => vendedor(h, i, null)) });
 
+// Faturamento Jamble: vendedores e compradores do mês.
+const baseFat = { meses: ["2026-10", "2026-09"], mes: "2026-10", conta: "israelbrito", atualizadoEm: T(-40e3) };
+salvar("faturamento-vendedores.json", {
+  ...baseFat,
+  aba: "vendedores",
+  temPontos: true,
+  total: 4709574.4,
+  vendedores: nomes.slice(0, 30).map((h, i) => {
+    const vendido = 205031 - i * 6500;
+    const lives = 4 + (i % 8);
+    return { id: `v${i}`, handle: i === 3 ? "israelbrito" : h, foto: null, vendido, vendas: 300 + i * 7, itens: 320 + i * 7, lives, porLive: vendido / lives, posicaoPontos: ((i * 7) % 30) + 1, pontos: 1000000 - i * 9000, parcialDesde: null, noAr: i === 11, pendentes: 0 };
+  }),
+});
+salvar("faturamento-compradores.json", {
+  ...baseFat,
+  aba: "compradores",
+  livesFaltando: 1200,
+  compradores: nomes.slice(0, 30).map((h, i) => ({ chave: `c${i}`, handle: h, foto: null, total: 52354.58 - i * 1500, compras: 230 - i * 5, itens: 240 - i * 5, vendedores: 15 - (i % 10), lives: 30 - i, onde: nomes[(i + 5) % nomes.length], ondeValor: 15614.7 - i * 300, comigo: i % 4 === 1 ? 4159 - i * 50 : 0, ultima: T(-i * 3600e3) })),
+});
+
 fs.writeFileSync(
   path.join(pub, "__mock-sw.js"),
   `// Service worker de teste (só no servidor local): responde a API do Dash com os exemplos de /__mock.
@@ -169,6 +189,7 @@ const arquivo = (u, metodo) => {
   if (p === "/api/dash/relatorio") return u.searchParams.get("show") ? "relatorio-live.json" : "relatorio-periodo.json";
   if (p === "/api/dash/clientes") return "clientes.json";
   if (p === "/api/dash/ranking-jamble") return u.searchParams.get("mes") === "2026-09" ? "ranking-jamble-09.json" : "ranking-jamble.json";
+  if (p === "/api/dash/faturamento") return u.searchParams.get("aba") === "compradores" ? "faturamento-compradores.json" : "faturamento-vendedores.json";
   return null;
 };
 self.addEventListener("fetch", (e) => {
