@@ -54,7 +54,7 @@ function GiroDoSorteio({
   };
   const somUrl = visual.contagem === "arquivo" ? visual.contagemUrl : null;
   const resposta = paradoEm ? (
-    <RespostaDoGanhador handle={giro.ganhador.handle} desde={paradoEm} chat={chat} volume={volume} grande={grande} somUrl={somUrl} />
+    <RespostaDoGanhador handle={giro.ganhador.handle} desde={paradoEm} chat={chat} volume={volume} grande={grande} somUrl={somUrl} frase={visual.semResposta} />
   ) : null;
   return (
     <div className="w-full">
@@ -671,6 +671,10 @@ export function Palco({
         {tempo}
       </span>
     </>
+  ) : d.visual.logoUrl ? (
+    // A conta com marca própria: a imagem dela ocupa a placa inteira.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={d.visual.logoUrl} alt={d.visual.nome} className="absolute inset-0 h-full w-full rounded-[6px] object-cover" style={{ objectPosition: "50% 80%" }} />
   ) : (
     <>
       {nomeEmCima && <span className="text-[6.5cqw] font-extrabold uppercase tracking-[0.35em] text-d-gold/85">{nomeEmCima}</span>}
@@ -695,7 +699,7 @@ export function Palco({
       <div className="d-palco-vinheta pointer-events-none absolute inset-0" />
 
       <header className="relative z-20 flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
-        <MarcaDoPiao nome={d.visual.nome} />
+        <MarcaDoPiao nome={d.visual.nome} letreiro={d.visual.letreiroUrl} />
         {!soUm && (
           <div className="no-scrollbar flex min-w-0 flex-1 gap-1.5 overflow-x-auto">
             {lista.map((x) => (
@@ -896,11 +900,24 @@ export function Palco({
 const MEDALHAS = ["linear-gradient(135deg, #fff1b0, #f4af14)", "linear-gradient(135deg, #ffffff, #9aa3b5)", "linear-gradient(135deg, #f6c9a0, #b06a2c)"];
 
 // A marca no canto do palco, com as asas do site batendo. A última palavra do
-// nome sai em amarelo ("VILLAGE TCG", "DIGLETT").
-function MarcaDoPiao({ nome }: { nome: string }) {
+// nome sai em amarelo ("VILLAGE TCG", "DIGLETT"). Conta com letreiro próprio
+// (ex.: OLIVA PACKS) mostra o letreiro no lugar das asas.
+function MarcaDoPiao({ nome, letreiro }: { nome: string; letreiro?: string | null }) {
   const [emCima, grande] = partesDoPiao(nome);
   const palavras = grande.split(" ");
   const ultima = palavras.pop();
+  if (letreiro) {
+    return (
+      <div className="flex items-center gap-2.5">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={letreiro} alt="" className="h-9 w-auto rounded-lg shadow-[0_0_22px_rgb(190_80_255/0.45)] sm:h-11" />
+        <div className="text-left leading-none">
+          {emCima && <p className="text-[9px] font-extrabold uppercase tracking-[0.4em] text-d-gold">{emCima}</p>}
+          <p className="mt-0.5 whitespace-nowrap font-display text-base font-extrabold uppercase tracking-wide text-[#F4AF14] sm:text-lg">{grande}</p>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="flex items-center gap-1.5">
       <Wing gradientId="palco-asa-esq" className="w-7 sm:w-9" />

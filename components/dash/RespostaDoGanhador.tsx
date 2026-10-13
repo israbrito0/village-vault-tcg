@@ -6,7 +6,8 @@ import { tocar } from "@/lib/dash/som";
 import { tocarSomDaContagem } from "@/lib/dash/musica";
 
 // Depois que o pião para: 10 segundos para o ganhador responder no chat. Se
-// responder, aparece "Respondeu!"; se não, "MAMOU, MAMOU, MAMOU!!!".
+// responder, aparece "Respondeu!"; se não, a frase da conta ("MAMOU, MAMOU,
+// MAMOU!!!" na Village, "DEU RUIM!!!" no @olivapacks).
 //
 // O chat chega ao Dash com alguns segundos de atraso (a Jamble, a extensão ou
 // o robô, e a leitura do painel). Então, quando o tempo acaba, o Dash ainda
@@ -29,6 +30,7 @@ export default function RespostaDoGanhador({
   volume = 0.5,
   grande = false,
   somUrl = null,
+  frase: semResposta = "MAMOU, MAMOU, MAMOU!!!",
 }: {
   handle: string;
   desde: number;
@@ -36,6 +38,7 @@ export default function RespostaDoGanhador({
   volume?: number;
   grande?: boolean;
   somUrl?: string | null;
+  frase?: string;
 }) {
   const [agora, setAgora] = useState(() => Date.now());
   const fim = desde + SEGUNDOS_PARA_RESPONDER * 1000;
@@ -90,7 +93,7 @@ export default function RespostaDoGanhador({
           className={`font-black uppercase leading-tight text-d-bad ${grande ? "text-[clamp(2.25rem,5.5vw,5.5rem)]" : "text-3xl"}`}
           style={{ textShadow: "0 0 28px rgb(var(--d-bad) / .6), 0 4px 0 rgba(0,0,0,.6)", animation: "dMamou .55s ease-in-out infinite alternate" }}
         >
-          MAMOU, MAMOU, MAMOU!!!
+          {semResposta}
         </p>
         <p className={`mt-2 text-d-ink2 ${grande ? "text-xl" : "text-xs"}`}>@{alvo} não respondeu em {SEGUNDOS_PARA_RESPONDER} segundos</p>
       </>

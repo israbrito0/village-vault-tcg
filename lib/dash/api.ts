@@ -302,9 +302,16 @@ export type VisualDoSorteio = {
   contagemNome: string | null;
   // O nome do pião da conta (o da Village é o padrão; cada convidado pode ter o seu).
   nome: string;
+  // A frase quando o ganhador não responde no chat a tempo.
+  semResposta: string;
+  // A marca da conta no palco: a imagem da placa do pião e o letreiro do
+  // canto (sem elas, ficam o nome do pião e as asas da Village).
+  logoUrl: string | null;
+  letreiroUrl: string | null;
 };
 
 export const NOME_DO_PIAO = "Pião da Village TCG";
+export const FRASE_SEM_RESPOSTA = "MAMOU, MAMOU, MAMOU!!!";
 
 // "Pião do Diglett" → ["Pião do", "Diglett"]: a marca e a placa do pião
 // mostram o nome em duas linhas.
@@ -315,12 +322,17 @@ export function partesDoPiao(nome: string): [string, string] {
 
 export function visualDoSorteio(preferencias: Record<string, unknown> | null | undefined): VisualDoSorteio {
   const s = (preferencias?.sorteio ?? {}) as Partial<VisualDoSorteio>;
-  const https = (u: unknown) => (typeof u === "string" && u.startsWith("https://") ? u : null);
+  // Um endereço https ou um arquivo do próprio site ("/marcas/x.jpg").
+  const https = (u: unknown) => (typeof u === "string" && (u.startsWith("https://") || /^\/[\w\-./]+$/.test(u)) ? u : null);
   const url = https(s.musicaUrl);
   const contagemUrl = https(s.contagemUrl);
   const nome = typeof s.nome === "string" ? s.nome.trim().slice(0, 40) : "";
+  const semResposta = typeof s.semResposta === "string" ? s.semResposta.trim().slice(0, 60) : "";
   return {
     nome: nome || NOME_DO_PIAO,
+    semResposta: semResposta || FRASE_SEM_RESPOSTA,
+    logoUrl: https(s.logoUrl),
+    letreiroUrl: https(s.letreiroUrl),
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,
