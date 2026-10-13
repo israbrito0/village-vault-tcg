@@ -237,7 +237,8 @@ async function somarLive(l: { show_id: string; seller_id: string }) {
   // Os compradores da live são regravados inteiros a cada leitura.
   const linhas = [...compras.values()].map((c) => ({ ...c, total: Math.round(c.total * 100) / 100, ultima: iso(c.ultima) }));
   const apagou = await db.from("dash_jamble_compras").delete().eq("show_id", l.show_id);
-  const gravou = apagou.error ? apagou : linhas.length ? await db.from("dash_jamble_compras").insert(linhas) : { error: null };
+  // upsert: duas rodadas podem ler a mesma live ao mesmo tempo.
+  const gravou = apagou.error ? apagou : linhas.length ? await db.from("dash_jamble_compras").upsert(linhas, { onConflict: "show_id,chave,mes" }) : { error: null };
   await db
     .from("dash_jamble_lives")
     .update({ vendido, cancelado, itens, vendas, por_mes: porMes, lido_em: new Date().toISOString(), erro: null, compras_lidas: !gravou.error })
