@@ -244,13 +244,15 @@ export default function Corrida({ showId }: { showId: string }) {
     });
   });
 
-  // A música da conta toca da largada até a chegada.
+  // A música da corrida toca do "3" até a chegada (depois vem o som da
+  // contagem do ganhador, o da conta).
+  const correndo = fase === "largada" || fase === "correndo";
   useEffect(() => {
-    if (mudo || !d || (fase !== "largada" && fase !== "correndo") || d.visual.musica === "nenhuma") return;
-    const m = tocarMusica({ tipo: d.visual.musica, url: d.visual.musicaUrl, loop: true }, volume || 1);
+    if (mudo || !d || !correndo) return;
+    const m = tocarMusica({ tipo: "arquivo", url: d.visual.corridaMusicaUrl, loop: true }, volume || 1);
     return () => m.parar(600);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fase === "largada" || fase === "correndo", mudo, d?.visual.musica, d?.visual.musicaUrl]);
+  }, [correndo, mudo, d?.visual.corridaMusicaUrl]);
 
   if (!d || !c) {
     return (

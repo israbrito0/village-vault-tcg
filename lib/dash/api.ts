@@ -315,7 +315,11 @@ export type VisualDoSorteio = {
   // começar o sorteio do Pião do Diglett"); o nome do sorteio vai para cima
   // dele. Sem chamada, o título é o nome do sorteio.
   chamada: string | null;
+  // A música da Corrida dos Macacos (a mesma para todos, se a conta não tiver a dela).
+  corridaMusicaUrl: string;
 };
+
+export const MUSICA_DA_CORRIDA = "/musicas/corrida-dos-macacos.mp3";
 
 export const NOME_DO_PIAO = "Pião da Village TCG";
 export const FRASE_SEM_RESPOSTA = "MAMOU, MAMOU, MAMOU!!!";
@@ -342,6 +346,7 @@ export function visualDoSorteio(preferencias: Record<string, unknown> | null | u
     letreiroUrl: https(s.letreiroUrl),
     paleta: typeof s.paleta === "string" && /^[a-z]{1,20}$/.test(s.paleta) ? s.paleta : null,
     chamada: typeof s.chamada === "string" && s.chamada.trim() ? s.chamada.trim().slice(0, 80) : null,
+    corridaMusicaUrl: https(s.corridaMusicaUrl) ?? MUSICA_DA_CORRIDA,
     estilo: s.estilo === "fita" ? "fita" : "piao",
     musica: s.musica === "nenhuma" ? "nenhuma" : s.musica === "arquivo" && url ? "arquivo" : "padrao",
     musicaUrl: url,
