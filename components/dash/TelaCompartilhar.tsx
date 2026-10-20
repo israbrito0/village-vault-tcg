@@ -18,7 +18,7 @@ export function TelaCompartilhar({ showId, chave }: { showId: string; chave?: st
   const c = useContasLive(d);
   const [sons, setSons] = usePreferencia("sons", true);
   const [volume, setVolume] = usePreferencia("volume", 1);
-  const [voz, setVoz] = usePreferencia("voz", true);
+  const [voz, setVoz] = usePreferencia("voz-leiloeiro", false); // desligada por padrão, como no Painel
   const [mudo, setMudo] = usePreferencia("sorteio-mudo", false);
   const { novo } = useRecados();
   useAvisos(d, c, { sons, volume, voz, novo });

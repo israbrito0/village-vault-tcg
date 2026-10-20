@@ -50,7 +50,9 @@ export default function Painel({ showId }: { showId: string }) {
   const agora = useAgora(5000);
   const [sons, setSons] = usePreferencia("sons", true);
   const [volume, setVolume] = usePreferencia("volume", 1);
-  const [voz, setVoz] = usePreferencia("voz", true);
+  // A voz do leiloeiro vem desligada (pedido de 20/10/2026); a chave nova faz
+  // valer também onde ela já estava ligada. O botão do leilão religa.
+  const [voz, setVoz] = usePreferencia("voz-leiloeiro", false);
   const [ocultar, setOcultar] = usePreferencia("ocultar", false);
   const [limpoEm, setLimpoEm] = usePreferencia(`limpo:${showId}`, 0);
   const { recados, novo } = useRecados();
