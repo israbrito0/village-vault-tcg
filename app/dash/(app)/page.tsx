@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Bot, Loader2, MonitorPlay, Radio } from "lucide-react";
-import { dataHora, haQuanto, inteiro, useAgora, useDash } from "@/lib/dash/cliente";
+import { Bot, Copy, Download, Loader2, MonitorPlay, Puzzle, Radio } from "lucide-react";
+import { copiar, dataHora, haQuanto, inteiro, useAgora, useDash } from "@/lib/dash/cliente";
 import type { LiveInfo, MonitorInfo } from "@/lib/dash/api";
 import { Avatar, StatusLive } from "@/components/dash/ui";
 
@@ -60,6 +60,66 @@ function LinhaLive({ live, monitor, onParar, onReligar }: { live?: LiveInfo; mon
           </button>
         ))}
     </div>
+  );
+}
+
+// A extensão do Edge: desde 19/10/2026 a Jamble barra robôs, e o que grava a
+// live é a extensão de cada vendedor, com a live aberta no navegador dele. A
+// chave diz ao Dash de qual conta ela é.
+function CartaoExtensao({ chave, vistaEm }: { chave: string | null; vistaEm: number | null }) {
+  const agora = useAgora(10000);
+  const [copiada, setCopiada] = useState(false);
+  const ligada = !!vistaEm && agora - vistaEm < 3 * 60e3;
+  return (
+    <section className="d-card overflow-hidden">
+      <header className="d-card-header justify-between">
+        <h2 className="d-card-title">
+          <Puzzle className="size-4 shrink-0 text-d-brand" />
+          <span className="truncate">Extensão do Edge</span>
+        </h2>
+        <span className={`text-xs ${ligada ? "text-d-ok" : "text-d-ink3"}`}>
+          {ligada ? `ligada · mandou dados ${haQuanto(vistaEm, agora)}` : vistaEm ? `sem sinal ${haQuanto(vistaEm, agora)}` : "ainda não usada"}
+        </span>
+      </header>
+      <div className="d-card-body space-y-3 text-sm">
+        <p className="text-d-ink2">
+          A Jamble passou a barrar robôs: quem grava a sua live (vendas, diamantes e chat) é a extensão, com a live aberta no seu Edge.
+        </p>
+        <ol className="list-decimal space-y-1 pl-5 text-d-ink2">
+          <li>
+            <a href="/extensao/village-assistente.zip" className="inline-flex items-center gap-1 font-semibold text-d-brand hover:underline" download>
+              <Download className="size-3.5" />
+              Baixe a extensão
+            </a>{" "}
+            e descompacte.
+          </li>
+          <li>
+            No Edge, abra <span className="font-mono text-xs">edge://extensions</span>, ligue o <b>Modo de desenvolvedor</b> e clique em <b>Carregar sem compactação</b> (escolha a pasta).
+          </li>
+          <li>
+            Clique no ícone da extensão e cole a chave abaixo em <b>Senha de envio</b>.
+          </li>
+          <li>Na hora da live, deixe a página da sua live aberta no Edge. O Dash recebe tudo a cada poucos segundos.</li>
+        </ol>
+        {chave && (
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <input className="d-field min-w-0 flex-1 px-3 py-2 font-mono text-xs" readOnly value={chave} onFocus={(e) => e.currentTarget.select()} aria-label="Chave da extensão" />
+            <button
+              type="button"
+              className="d-btn d-btn-secondary"
+              onClick={async () => {
+                await copiar(chave);
+                setCopiada(true);
+                setTimeout(() => setCopiada(false), 1500);
+              }}
+            >
+              <Copy className="size-4" />
+              {copiada ? "Copiada" : "Copiar chave"}
+            </button>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 
@@ -188,7 +248,7 @@ export default function Inicio() {
               ) : (
                 <p>Nenhuma live agendada na Jamble.</p>
               )}
-              <p className="text-xs text-d-ink3">Deixe esta página aberta: quando a live começar, o Painel abre sozinho. O robô entra na live em até 1 minuto, sem precisar da extensão.</p>
+              <p className="text-xs text-d-ink3">Deixe esta página aberta: quando a live começar (com a extensão ligada no Edge), o Painel abre sozinho.</p>
               {live && (
                 <p className="pt-2 text-xs">
                   Última:{" "}
@@ -201,6 +261,8 @@ export default function Inicio() {
           )}
         </div>
       </section>
+
+      <CartaoExtensao chave={eu.extensaoChave} vistaEm={eu.extensaoVistaEm} />
 
       <form className="d-card overflow-hidden" onSubmit={monitorar}>
         <header className="d-card-header justify-between">

@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
-import { CONTA_PADRAO, db, extensaoAutorizada } from "@/lib/dash/servidor";
+import { contaDaExtensao, db } from "@/lib/dash/servidor";
 
 // Recebe da extensão do Edge o que a página da live recebeu: a live (título,
 // audiência, métricas, leilão, batalha), as emotions, o chat, as vendas e a
 // foto do ranking mensal. Pode chegar repetido: tudo é gravado pelo id da
 // própria Jamble, então mandar duas vezes não conta duas vezes.
+//
+// Cada conta tem a sua extensão (a chave dela, ou o token antigo do dono).
+// A live fica na conta do vendedor dela quando ele também tem Dash: duas
+// extensões na mesma live (o dono assistindo a de um convidado) não ficam
+// trocando a live de conta.
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
 
@@ -45,7 +50,8 @@ async function emLotes<T>(linhas: T[], tamanho: number, fazer: (lote: T[]) => Pr
 }
 
 export async function POST(req: Request) {
-  if (!extensaoAutorizada(req)) return NextResponse.json({ erro: "token inválido" }, { status: 401, headers: CORS });
+  const conta = await contaDaExtensao(req);
+  if (!conta) return NextResponse.json({ erro: "token inválido" }, { status: 401, headers: CORS });
 
   let corpo: Obj;
   try {
@@ -54,20 +60,26 @@ export async function POST(req: Request) {
     return NextResponse.json({ erro: "json inválido" }, { status: 400, headers: CORS });
   }
 
-  const conta = CONTA_PADRAO;
   const lives = Array.isArray(corpo.lives) ? (corpo.lives as Obj[]).slice(0, LIMITES.lives) : [];
   const resposta: Obj = { ok: true, lives: [] as Obj[] };
 
   try {
     // O sinal de vida da extensão (o menu do Dash mostra se ela está ligada).
     await db().from("dash_config").update({ extensao_em: new Date().toISOString() }).eq("conta", conta);
+    const { data: contas } = lives.length ? await db().from("dash_config").select("conta") : { data: [] };
+    const temDash = new Set((contas ?? []).map((c) => String(c.conta)));
 
     for (const l of lives) {
       const showId = txt(l.showId, 80);
       if (!showId || showId === "sem-live") continue;
 
+      // De quem é a live: o vendedor que veio no envio ou o que já está no banco.
+      const { data: antes } = await db().from("dash_lives").select("vendedor, metricas").eq("show_id", showId).maybeSingle();
+      const doVendedor = handle(l.vendedor) ?? (antes?.vendedor as string | null) ?? null;
+      const contaDaLive = doVendedor && doVendedor !== conta && temDash.has(doVendedor) ? doVendedor : conta;
+
       // Só grava o que veio: um envio só de chat não apaga o título nem a audiência.
-      const linha: Obj = { show_id: showId, conta, visto_em: new Date().toISOString() };
+      const linha: Obj = { show_id: showId, conta: contaDaLive, visto_em: new Date().toISOString() };
       if (l.vendedor !== undefined) linha.vendedor = handle(l.vendedor);
       if (l.vendedorFoto !== undefined) linha.vendedor_foto = url(l.vendedorFoto);
       // O título da aba do painel do vendedor ("Seller Hub") não é o da live.
@@ -83,7 +95,6 @@ export async function POST(req: Request) {
       if (l.likes !== undefined) linha.likes = num(l.likes);
       if (obj(l.metricas)) {
         // Junta com o que já está lá (o código do link, o que o robô leu).
-        const { data: antes } = await db().from("dash_lives").select("metricas").eq("show_id", showId).maybeSingle();
         linha.metricas = { ...(obj(antes?.metricas) ?? {}), ...(l.metricas as Obj) };
       }
       if (Array.isArray(l.participacao)) linha.participacao = (l.participacao as Obj[]).slice(0, 3000);
@@ -131,14 +142,9 @@ export async function POST(req: Request) {
         .map((id) => `${showId}:${id}`);
       if (apagadas.length) await db().from("dash_chat").delete().in("id", apagadas);
 
-      // De quem é a live: vem no envio só quando muda, então o resto lê do banco.
-      let vendedor = handle(l.vendedor);
-      if (vendedor) {
-        await db().from("dash_vendas").update({ vendedor }).eq("show_id", showId).is("vendedor", null);
-      } else if (Array.isArray(l.vendas)) {
-        const { data: atual } = await db().from("dash_lives").select("vendedor").eq("show_id", showId).maybeSingle();
-        vendedor = (atual?.vendedor as string | null) ?? null;
-      }
+      // De quem é a live: vem no envio só quando muda, então o resto veio do banco.
+      const vendedor = doVendedor;
+      if (handle(l.vendedor)) await db().from("dash_vendas").update({ vendedor }).eq("show_id", showId).is("vendedor", null);
 
       let vendasGravadas = 0;
       // A cópia das lives do Dash TCG chega marcada; o resto é da extensão.
@@ -154,7 +160,7 @@ export async function POST(req: Request) {
             return {
               id: `${showId}:${txt(v.id, 80)}`,
               show_id: showId,
-              conta,
+              conta: contaDaLive,
               vendedor,
               titulo: txt(v.titulo, 200),
               imagem: url(v.imagem),

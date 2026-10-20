@@ -109,6 +109,7 @@ salvar("eu.json", {
   outras: [outra],
   ranking,
   extensaoVistaEm: T(-12 * MIN),
+  extensaoChave: "3f9c2a7b1e0d4c8a9b6f5e2d1c0b9a8f7e6d",
   robo: { rodouEm: T(-20e3), ativos: 2 },
 });
 salvar("monitor.json", {

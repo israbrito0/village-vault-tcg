@@ -266,6 +266,8 @@ export type RespostaEu = {
   outras: LiveInfo[];
   ranking: Ranking | null;
   extensaoVistaEm: number | null;
+  // A chave que a extensão do Edge desta conta usa ("Senha de envio").
+  extensaoChave: string | null;
   // O robô: quando começou a última rodada e quantas lives ele acompanha.
   robo: { rodouEm: number | null; ativos: number; agendada: { showId: string; titulo: string | null; inicio: number | null; capa: string | null } | null };
 };

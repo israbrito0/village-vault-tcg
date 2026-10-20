@@ -42,6 +42,7 @@ export async function GET(req: Request) {
     // A extensão marca quando mandou dados; o robô grava as lives também, então
     // a hora da última live vista não serve mais para saber se ela está ligada.
     extensaoVistaEm: ms(config.extensao_em),
+    extensaoChave: config.extensao_chave ?? null,
     robo: { rodouEm: ms(robo.data?.ultimo_inicio), ativos: ativos.count ?? 0, agendada: agendadaDa(robo.data?.detalhes, membro.conta) },
   };
   return ok(resposta);

@@ -182,14 +182,14 @@ function Navegacao({ dash, tema, setTema, sair, aoClicar }: { dash: Dash; tema: 
         <div className="space-y-1.5 rounded-xl border border-d-line bg-d-panel2/60 px-3 py-2 text-xs font-medium">
           <p
             className={`flex items-center gap-2 ${roboOnline ? "text-d-ok" : "text-d-ink3"}`}
-            title="O robô entra nas lives pelo link, no servidor, sem precisar do computador ligado"
+            title="O robô entrava nas lives pelo link, no servidor; desde 19/10/2026 a Jamble barra robôs e ele fica parado"
           >
             <span className={`size-2 rounded-full ${roboOnline ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
             {roboOnline ? `Robô online · ${robo.ativos} ${robo.ativos === 1 ? "live" : "lives"}` : robo?.rodouEm ? `Robô parado ${haQuanto(robo.rodouEm, agora)}` : "Robô sem sinal"}
           </p>
           <p
             className={`flex items-center gap-2 ${online ? "text-d-ok" : "text-d-ink3"}`}
-            title="A extensão do Edge (opcional) manda os dados da live a cada poucos segundos"
+            title="A extensão do Edge, com a live aberta, manda os dados a cada poucos segundos (a chave dela está no Início)"
           >
             <span className={`size-2 rounded-full ${online ? "d-pulse bg-d-ok" : "bg-d-ink3"}`} />
             {online ? "Extensão online" : sinal ? `Extensão parada ${haQuanto(sinal, agora)}` : "Extensão desligada"}

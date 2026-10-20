@@ -45,6 +45,17 @@ export function extensaoAutorizada(req: Request) {
   return !!esperado && enviado.length > 0 && enviado === esperado;
 }
 
+// De qual conta é a extensão que mandou os dados: o token antigo é a do dono
+// (conta padrão); a chave de extensão de cada conta (dash_config) é a dos
+// convidados, cada um na live dele.
+export async function contaDaExtensao(req: Request): Promise<string | null> {
+  if (extensaoAutorizada(req)) return CONTA_PADRAO;
+  const enviado = tokenDe(req);
+  if (!/^[0-9a-f]{36}$/.test(enviado)) return null;
+  const { data } = await db().from("dash_config").select("conta").eq("extensao_chave", enviado).maybeSingle();
+  return (data?.conta as string | undefined) ?? null;
+}
+
 export type Membro = { email: string; conta: string; papel: string; recursos: string[] };
 
 // Quem está logado no site e de qual conta ele vê as lives.
@@ -58,12 +69,19 @@ export async function membroDaRequisicao(req: Request): Promise<Membro | null> {
   return (m as Membro | null) ?? null;
 }
 
-export type Config = { conta: string; tela_chave: string; termos_carpa: string; preferencias: Record<string, unknown>; extensao_em?: string | null };
+export type Config = {
+  conta: string;
+  tela_chave: string;
+  termos_carpa: string;
+  preferencias: Record<string, unknown>;
+  extensao_em?: string | null;
+  extensao_chave?: string | null;
+};
 
 export async function configDaConta(conta: string): Promise<Config> {
-  const { data } = await db().from("dash_config").select("conta, tela_chave, termos_carpa, preferencias, extensao_em").eq("conta", conta).maybeSingle();
+  const { data } = await db().from("dash_config").select("conta, tela_chave, termos_carpa, preferencias, extensao_em, extensao_chave").eq("conta", conta).maybeSingle();
   if (data) return data as Config;
-  const { data: nova } = await db().from("dash_config").insert({ conta }).select("conta, tela_chave, termos_carpa, preferencias").single();
+  const { data: nova } = await db().from("dash_config").insert({ conta }).select("conta, tela_chave, termos_carpa, preferencias, extensao_chave").single();
   return nova as Config;
 }
 
