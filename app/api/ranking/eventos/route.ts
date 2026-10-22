@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { aplicarEventos, estadoVazio, lerEstado, salvarEstado, topDe, type Evento } from "@/lib/ranking";
+import { CONTA_PADRAO, contaDaExtensao } from "@/lib/dash/servidor";
 
 // Recebe as vendas que a extensão captura durante a live.
 export const dynamic = "force-dynamic";
@@ -24,6 +25,11 @@ export async function OPTIONS() {
 
 export async function POST(req: Request) {
   if (!autorizado(req)) {
+    // A extensão de um convidado do Dash (a chave da conta dele) também manda
+    // para cá; o ranking do site é só da Village, então aceita sem gravar, e a
+    // janelinha da extensão dele não mostra erro.
+    const conta = await contaDaExtensao(req).catch(() => null);
+    if (conta && conta !== CONTA_PADRAO) return NextResponse.json({ ok: true, ignorado: true }, { headers: CORS });
     return NextResponse.json({ erro: "token inválido" }, { status: 401, headers: CORS });
   }
 

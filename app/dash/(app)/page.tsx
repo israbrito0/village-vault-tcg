@@ -94,7 +94,7 @@ function CartaoExtensao({ chave, vistaEm }: { chave: string | null; vistaEm: num
             e descompacte.
           </li>
           <li>
-            No Edge, abra <span className="font-mono text-xs">edge://extensions</span>, ligue o <b>Modo de desenvolvedor</b> e clique em <b>Carregar sem compactação</b> (escolha a pasta).
+            No Edge, abra <span className="font-mono text-xs">edge://extensions</span>, ligue o <b>Modo do desenvolvedor</b> e clique em <b>Carregar sem pacote</b> (escolha a pasta).
           </li>
           <li>
             Clique no ícone da extensão e cole a chave abaixo em <b>Senha de envio</b>.
