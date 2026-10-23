@@ -82,8 +82,10 @@ export async function POST(req: Request) {
       const linha: Obj = { show_id: showId, conta: contaDaLive, visto_em: new Date().toISOString() };
       if (l.vendedor !== undefined) linha.vendedor = handle(l.vendedor);
       if (l.vendedorFoto !== undefined) linha.vendedor_foto = url(l.vendedorFoto);
-      // O título da aba do painel do vendedor ("Seller Hub") não é o da live.
-      if (l.titulo !== undefined && !TITULO_GENERICO.test(String(l.titulo ?? "").trim())) linha.titulo = txt(l.titulo, 200);
+      // O título da aba do painel do vendedor ("Seller Hub") não é o da live, e o
+      // da aba da live vem com o nome do vendedor no fim ("… | israel brito · Ao vivo").
+      const titulo = String(l.titulo ?? "").replace(/\s*\|\s*[^|]*·\s*ao vivo\s*$/i, "").trim();
+      if (l.titulo !== undefined && !TITULO_GENERICO.test(titulo)) linha.titulo = txt(titulo, 200);
       if (l.capa !== undefined) linha.capa_url = url(l.capa);
       if (l.inicio !== undefined && num(l.inicio)) linha.inicio = quando(l.inicio);
       if (typeof l.aoVivo === "boolean") {
